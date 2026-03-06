@@ -1,0 +1,26 @@
+.soft-card {
+    background: var(--soft-secondary);
+    border-radius: var(--soft-radius-lg);
+    box-shadow: var(--soft-shadow);
+    padding: 1.5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+}
+
+.soft-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--soft-shadow-hover);
+}
+
+.soft-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--soft-text);
+    margin-bottom: 1rem;
+}
+
+.soft-card-subtitle {
+    font-size: 0.875rem;
+    color: var(--soft-text-muted);
+}

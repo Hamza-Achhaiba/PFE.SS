@@ -1,0 +1,11 @@
+import { apiClient } from './axios';
+import { Commande } from './types';
+
+export const ordersApi = {
+    validerPanier: () => apiClient.post('/api/commandes/valider-panier').then(res => res.data),
+    mesAchats: () => apiClient.get<Commande[]>('/api/commandes/mes-achats').then(res => res.data),
+    mesVentes: () => apiClient.get<Commande[]>('/api/commandes/mes-ventes').then(res => res.data),
+    valider: (id: number) => apiClient.put(`/api/commandes/${id}/valider`).then(res => res.data),
+    updateStatut: (id: number, nouveauStatut: string) =>
+        apiClient.patch(`/api/commandes/${id}/statut`, { nouveauStatut }).then(res => res.data),
+};

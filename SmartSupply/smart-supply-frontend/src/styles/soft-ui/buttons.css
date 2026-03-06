@@ -1,0 +1,39 @@
+.soft-btn {
+    background: var(--soft-primary-gradient);
+    color: white;
+    border: none;
+    border-radius: var(--soft-radius-pill);
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(91, 115, 232, 0.3);
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.soft-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(91, 115, 232, 0.4);
+    color: white;
+}
+
+.soft-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px rgba(91, 115, 232, 0.3);
+}
+
+.soft-btn-outline {
+    background: var(--soft-secondary);
+    color: var(--soft-primary);
+    border: 1px solid var(--soft-primary);
+    box-shadow: var(--soft-shadow);
+}
+
+.soft-btn-outline:hover {
+    background: rgba(91, 115, 232, 0.05);
+    box-shadow: var(--soft-shadow-hover);
+    color: var(--soft-primary);
+}

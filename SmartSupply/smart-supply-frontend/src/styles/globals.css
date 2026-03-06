@@ -1,0 +1,18 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'react-toastify/dist/ReactToastify.css';
+
+@import './soft-ui/variables.css';
+@import './soft-ui/base.css';
+@import './soft-ui/cards.css';
+@import './soft-ui/buttons.css';
+@import './soft-ui/forms.css';
+@import './soft-ui/layout.css';
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Fix for bootstrap overriding soft-ui background */
+body {
+    background-color: var(--soft-bg) !important;
+}

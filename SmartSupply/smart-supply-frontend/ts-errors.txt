@@ -1,0 +1,5 @@
+src/app/routes.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+src/features/auth/pages/LoginPage.tsx(49,39): error TS2322: Type '{ children: Element[]; className: string; style: { width: string; maxWidth: string; }; }' is not assignable to type 'IntrinsicAttributes & SoftCardProps'.
+  Property 'style' does not exist on type 'IntrinsicAttributes & SoftCardProps'.
+src/features/auth/pages/RegisterPage.tsx(41,39): error TS2322: Type '{ children: Element[]; className: string; style: { width: string; maxWidth: string; }; }' is not assignable to type 'IntrinsicAttributes & SoftCardProps'.
+  Property 'style' does not exist on type 'IntrinsicAttributes & SoftCardProps'.

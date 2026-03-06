@@ -1,0 +1,108 @@
+.soft-sidebar {
+    background: var(--soft-bg);
+    border-right: 1px solid rgba(255, 255, 255, 0.8);
+    height: 100vh;
+    box-shadow: 5px 0 15px rgba(200, 210, 230, 0.3);
+    padding: 1.5rem;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+}
+
+.soft-topbar {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 1rem 1.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.soft-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--soft-radius-sm);
+    color: var(--soft-text-muted);
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin-bottom: 0.5rem;
+}
+
+.soft-nav-item:hover {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--soft-shadow);
+    color: var(--soft-primary);
+}
+
+.soft-nav-item.active {
+    background: var(--soft-secondary);
+    color: var(--soft-primary);
+    box-shadow: var(--soft-shadow);
+    font-weight: 600;
+}
+
+.soft-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--soft-radius-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--soft-secondary);
+    box-shadow: 2px 2px 5px rgba(200, 210, 230, 0.5), -2px -2px 5px rgba(255, 255, 255, 0.8);
+}
+
+.soft-badge.success {
+    color: var(--success);
+}
+
+.soft-badge.warning {
+    color: var(--warning);
+}
+
+.soft-badge.danger {
+    color: var(--danger);
+}
+
+.soft-badge.info {
+    color: var(--info);
+}
+
+.soft-table-wrapper {
+    background: var(--soft-secondary);
+    border-radius: var(--soft-radius-lg);
+    box-shadow: var(--soft-shadow);
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.soft-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.soft-table th {
+    text-align: left;
+    padding: 1rem;
+    color: var(--soft-text-muted);
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-bottom: 2px solid var(--soft-bg);
+}
+
+.soft-table td {
+    padding: 1rem;
+    color: var(--soft-text);
+    border-bottom: 1px solid var(--soft-bg);
+}
+
+.soft-table tbody tr:hover {
+    background-color: var(--soft-bg);
+}
