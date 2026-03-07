@@ -13,7 +13,7 @@ public class ProduitResponse {
     private String image;
     private String nomFournisseur;
 
-
     private Integer quantiteDisponible;
     private boolean alerteStock;
+    private boolean actif;
 }

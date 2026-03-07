@@ -3,6 +3,7 @@ package ma.smartsupply.controller;
 import ma.smartsupply.dto.CommandeRequest;
 import ma.smartsupply.dto.CommandeResponse;
 import ma.smartsupply.dto.UpdateStatutRequest;
+import ma.smartsupply.dto.UpdateTrackingRequest;
 import ma.smartsupply.enums.StatutCommande;
 import ma.smartsupply.model.Commande;
 import ma.smartsupply.service.CommandeService;
@@ -31,8 +32,7 @@ public class CommandeController {
     @PreAuthorize("hasAuthority('FOURNISSEUR')")
     public ResponseEntity<Commande> validerCommande(
             @PathVariable Long id,
-            Principal principal
-    ) {
+            Principal principal) {
         return ResponseEntity.ok(commandeService.validerCommande(id, principal.getName()));
     }
 
@@ -40,8 +40,7 @@ public class CommandeController {
     @PreAuthorize("hasAuthority('CLIENT')")
     public ResponseEntity<?> annulerCommande(
             @PathVariable Long id,
-            Principal principal
-    ) {
+            Principal principal) {
         try {
             CommandeResponse commandeAnnulee = commandeService.annulerCommande(id, principal.getName());
             return ResponseEntity.ok(commandeAnnulee);
@@ -49,6 +48,7 @@ public class CommandeController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
     @GetMapping
     public ResponseEntity<List<Commande>> getMesCommandes(Principal principal) {
         return ResponseEntity.ok(commandeService.getMesCommandes(principal.getName()));
@@ -63,7 +63,6 @@ public class CommandeController {
         Commande commandeMaj = commandeService.changerStatutCommande(id, statut);
         return ResponseEntity.ok(commandeMaj);
     }
-
 
     @GetMapping("/mes-achats")
     @PreAuthorize("hasAuthority('CLIENT')")
@@ -90,9 +89,18 @@ public class CommandeController {
     @PreAuthorize("hasAuthority('FOURNISSEUR')")
     public ResponseEntity<CommandeResponse> changerStatut(
             @PathVariable Long id,
-            @RequestBody UpdateStatutRequest request
-    ) {
+            @RequestBody UpdateStatutRequest request) {
         CommandeResponse commandeMaj = commandeService.mettreAJourStatut(id, request.getNouveauStatut());
+        return ResponseEntity.ok(commandeMaj);
+    }
+
+    @PatchMapping("/{id}/tracking")
+    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    public ResponseEntity<CommandeResponse> updateTracking(
+            @PathVariable Long id,
+            @RequestBody UpdateTrackingRequest request,
+            Principal principal) {
+        CommandeResponse commandeMaj = commandeService.updateTracking(id, request, principal.getName());
         return ResponseEntity.ok(commandeMaj);
     }
 }

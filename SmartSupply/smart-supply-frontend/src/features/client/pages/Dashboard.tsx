@@ -3,29 +3,14 @@ import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRigh
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { productsApi } from '../../../api/products.api';
 import { ordersApi } from '../../../api/orders.api';
+import { Commande } from '../../../api/types';
 import { notificationsApi } from '../../../api/notifications.api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { format, subDays } from 'date-fns';
-
-const mockChartData = [
-  { name: 'Jan', value: 400 },
-  { name: 'Feb', value: 300 },
-  { name: 'Mar', value: 600 },
-  { name: 'Apr', value: 800 },
-  { name: 'May', value: 1200 },
-  { name: 'Jun', value: 700 },
-];
-
-const mockAreaChartData = [
-  { name: 'Week 1', value: 20 },
-  { name: 'Week 2', value: 35 },
-  { name: 'Week 3', value: 25 },
-  { name: 'Week 4', value: 45 },
-];
+import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis } from 'recharts';
+import { format, parseISO } from 'date-fns';
 
 export const Dashboard: React.FC = () => {
   const [produits, setProduits] = useState<any[]>([]);
-  const [achats, setAchats] = useState<any[]>([]);
+  const [achats, setAchats] = useState<Commande[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
@@ -35,19 +20,30 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   // Stats computation
-  const totalProducts = produits?.length || 1240;
-  const uniqueSuppliers = produits ? new Set(produits.map(p => p.fournisseurId)).size : 45;
-  const lowStock = produits?.filter(p => p.alerteStock).length || 12;
-  const pendingOrders = achats?.filter(a => a.statut === 'EN_ATTENTE').length || 8;
+  const totalProducts = produits?.length || 0;
+  const uniqueSuppliers = produits ? new Set(produits.map(p => p.fournisseurNom)).size : 0;
+  const lowStock = produits?.filter(p => p.alerteStock).length || 0;
+  const pendingOrders = achats?.filter(a => a.statut === 'EN_ATTENTE_VALIDATION').length || 0;
 
-  const demoActivity = notifications && notifications.length > 0
-    ? notifications
-    : [
-      { id: 1, message: 'New Order #2412: Received from TechSpace Inc.', dateCreation: new Date().toISOString(), lue: false, type: 'order' },
-      { id: 2, message: 'Stock Updated: Added 500 units of Microchips', dateCreation: subDays(new Date(), 0.1).toISOString(), lue: true, type: 'success' },
-      { id: 3, message: 'Low Stock Alert: Copper Wire is below threshold (5 units)', dateCreation: subDays(new Date(), 0.2).toISOString(), lue: false, type: 'warning' },
-      { id: 4, message: 'New Supplier: Registered Global Logistics', dateCreation: subDays(new Date(), 1).toISOString(), lue: true, type: 'info' }
-    ];
+  // Compute Expense Timeline
+  const expenseMap = new Map<string, number>();
+  achats.forEach(order => {
+    if (!order.dateCreation) return;
+    const dateKey = format(parseISO(order.dateCreation), 'MMM dd');
+    expenseMap.set(dateKey, (expenseMap.get(dateKey) || 0) + order.montantTotal);
+  });
+
+  const expenseTimeline = Array.from(expenseMap.entries())
+    .map(([date, amount]) => ({ date, amount }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  if (expenseTimeline.length === 0) {
+    expenseTimeline.push({ date: format(new Date(), 'MMM dd'), amount: 0 });
+  }
+
+  const recentOrders = [...achats]
+    .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
+    .slice(0, 5);
 
   const StatCard = ({ title, value, icon, trend, up }: any) => (
     <SoftCard className="h-100 d-flex flex-column justify-content-between p-3">
@@ -93,32 +89,52 @@ export const Dashboard: React.FC = () => {
       <div className="row g-4">
         <div className="col-lg-8">
           <div className="row g-4 h-100 pb-3">
-            <div className="col-md-6 mb-3">
-              <SoftCard title="Inventory Levels" subtitle="Real-time stock analysis" className="h-100">
-                <div style={{ height: '250px', marginTop: '1rem' }}>
+            <div className="col-12 mb-3">
+              <SoftCard title="Recent Spending" subtitle="Spending trends based on validated orders" className="h-100">
+                <div style={{ height: '280px', marginTop: '1rem' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockChartData}>
+                    <AreaChart data={expenseTimeline}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--soft-bg)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--soft-text-muted)', fontSize: 12 }} />
-                      <YAxis hide />
-                      <Tooltip cursor={{ fill: 'var(--soft-bg)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--soft-shadow)' }} />
-                      <Bar dataKey="value" fill="var(--soft-primary)" radius={[20, 20, 20, 20]} barSize={25} />
-                    </BarChart>
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--soft-text-muted)', fontSize: 12 }} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--soft-shadow)' }} />
+                      <Area type="monotone" dataKey="amount" stroke="var(--soft-primary)" fill="var(--soft-bg)" strokeWidth={3} />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </SoftCard>
             </div>
-            <div className="col-md-6 mb-3">
-              <SoftCard title="Monthly Orders" subtitle="Order volume trends" className="h-100">
-                <div style={{ height: '250px', marginTop: '1rem' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={mockAreaChartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--soft-bg)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--soft-text-muted)', fontSize: 12 }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--soft-shadow)' }} />
-                      <Area type="monotone" dataKey="value" stroke="var(--soft-primary)" fill="transparent" strokeWidth={3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+          </div>
+          <div className="row g-4 pb-3">
+            <div className="col-12">
+              <SoftCard title="Recent Orders" subtitle="Your latest purchases">
+                <div className="table-responsive mt-3">
+                  <table className="table table-hover align-middle mb-0 border-light font-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-muted fw-semibold border-0">Order Ref</th>
+                        <th className="text-muted fw-semibold border-0">Date</th>
+                        <th className="text-muted fw-semibold border-0 text-center">Status</th>
+                        <th className="text-muted fw-semibold border-0 text-end">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentOrders.map((o) => (
+                        <tr key={o.id}>
+                          <td className="fw-medium text-dark border-light">{o.reference || `#${o.id}`}</td>
+                          <td className="text-muted border-light">{format(new Date(o.dateCreation), 'MMM dd, yyyy')}</td>
+                          <td className="text-center border-light">
+                            <div className={`badge ${o.statut === 'LIVREE' ? 'bg-success' : o.statut === 'ANNULEE' ? 'bg-danger' : 'bg-warning'} bg-opacity-25 text-dark px-2 rounded-pill`}>
+                              {o.statut}
+                            </div>
+                          </td>
+                          <td className="text-end fw-bold text-primary border-light">{o.montantTotal?.toFixed(2)} DH</td>
+                        </tr>
+                      ))}
+                      {recentOrders.length === 0 && (
+                        <tr><td colSpan={4} className="text-center text-muted p-3">No recent orders found.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </SoftCard>
             </div>
@@ -126,24 +142,24 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="col-lg-4 mb-3">
-          <SoftCard title="Recent Activity" className="h-100">
+          <SoftCard title="Notifications" className="h-100">
             <div className="position-relative mt-4">
-              {demoActivity.map((notif: any, i) => (
-                <div key={i} className="d-flex mb-4 position-relative">
+              {notifications.map((notif: any, i) => (
+                <div key={notif.id || i} className="d-flex mb-4 position-relative">
                   <div className="me-3 position-relative z-1">
-                    <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: notif.type === 'warning' ? 'var(--warning)' : notif.type === 'success' ? 'var(--success)' : notif.type === 'info' ? 'var(--soft-text-muted)' : 'var(--soft-primary)', color: 'white', opacity: 0.9 }}>
-                      {notif.type === 'warning' ? <AlertTriangle size={14} /> : notif.type === 'success' ? <Package size={14} /> : <ShoppingBag size={14} />}
+                    <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: 'var(--soft-bg)', color: 'var(--soft-primary)', opacity: 0.9 }}>
+                      <AlertTriangle size={14} />
                     </div>
-                    {i !== demoActivity.length - 1 && (
-                      <div className="position-absolute" style={{ width: '1px', height: '250%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
+                    {i !== notifications.length - 1 && (
+                      <div className="position-absolute" style={{ width: '1px', height: '150%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
                     )}
                   </div>
                   <div>
                     <h6 className="mb-1" style={{ fontSize: '0.9rem', color: 'var(--soft-text)' }}>
-                      {notif.message.split(':')[0]}
+                      Notification
                     </h6>
                     <p className="mb-1 text-muted" style={{ fontSize: '0.8rem' }}>
-                      {notif.message.includes(':') ? notif.message.split(':')[1] : notif.message}
+                      {notif.message}
                     </p>
                     <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                       {format(new Date(notif.dateCreation), 'MMM dd, HH:mm')}
@@ -151,9 +167,12 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
+              {(!notifications || notifications.length === 0) && (
+                <p className="text-muted text-center mt-5 mb-5">No notifications available.</p>
+              )}
             </div>
             <div className="text-center mt-3 pt-2 border-top border-light">
-              <a href="/client/notifications" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View All Activity</a>
+              <a href="/client/orders" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View All Orders</a>
             </div>
           </SoftCard>
         </div>

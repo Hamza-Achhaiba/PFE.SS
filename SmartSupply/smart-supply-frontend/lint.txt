@@ -1,0 +1,67 @@
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\auth\auth.utils.ts
+   7:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:14  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\auth\pages\LoginPage.tsx
+  44:22  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  56:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\auth\pages\RegisterPage.tsx
+  33:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\CartPage.tsx
+  39:14  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  56:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  66:14  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  77:14  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\CatalogPage.tsx
+  11:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:14  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\Dashboard.tsx
+   12:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   14:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   48:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\NotificationsPage.tsx
+  10:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\OrdersPage.tsx
+  35:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\SearchPage.tsx
+  14:44  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  28:6   warning  React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  40:14  error    'e' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\client\pages\SuppliersPage.tsx
+  11:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\supplier\pages\ClientsPage.tsx
+  11:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\supplier\pages\Dashboard.tsx
+   10:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\supplier\pages\NotificationsPage.tsx
+  10:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\supplier\pages\ProductsPage.tsx
+  14:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  15:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\features\supplier\pages\SalesOrdersPage.tsx
+  51:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  71:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\hhamz\OneDrive\Desktop\PFE.SS\SmartSupply\smart-supply-frontend\src\utils\storage.ts
+  4:14  error  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 32 problems (31 errors, 1 warning)
+

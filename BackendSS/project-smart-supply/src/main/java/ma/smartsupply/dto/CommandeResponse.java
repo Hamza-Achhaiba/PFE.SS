@@ -10,6 +10,9 @@ public class CommandeResponse {
     private LocalDateTime dateCreation;
     private double montantTotal;
     private String statut;
+    private String reference;
+    private String trackingReference;
+    private LocalDateTime dateLivraisonEstimee;
     private UtilisateurInfoDTO client;
     private List<LigneCommandeInfoDTO> lignes;
 }

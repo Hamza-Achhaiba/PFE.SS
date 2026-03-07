@@ -7,12 +7,17 @@ import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftBadge } from '../../../components/ui/SoftBadge';
 import { SoftModal } from '../../../components/ui/SoftModal';
 import { SoftInput } from '../../../components/ui/SoftInput';
+import { AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export const ProductsPage: React.FC = () => {
   const [produits, setProduits] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditStockModalOpen, setIsEditStockModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [newStock, setNewStock] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [newProduct, setNewProduct] = useState({
@@ -27,8 +32,14 @@ export const ProductsPage: React.FC = () => {
 
   const fetchProduits = () => {
     setIsLoading(true);
-    productsApi.mesProduits()
-      .then(setProduits)
+    Promise.all([
+      productsApi.mesProduits(),
+      productsApi.suggestionsReapprovisionnement().catch(() => []) // fail gracefully
+    ])
+      .then(([prods, suggs]) => {
+        setProduits(prods);
+        setSuggestions(suggs);
+      })
       .catch(console.error)
       .finally(() => setIsLoading(false));
   };
@@ -60,6 +71,42 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
+  const handleToggleStatus = async (id: number) => {
+    setIsLoading(true);
+    try {
+      await productsApi.toggleStatut(id);
+      toast.success('Product status updated!');
+      fetchProduits(); // Re-fetch products to get updated list
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to update product status.');
+      setIsLoading(false);
+    }
+  };
+
+  const openEditStockModal = (product: any) => {
+    setEditingProduct(product);
+    setNewStock(product.stockDisponible);
+    setIsEditStockModalOpen(true);
+  };
+
+  const handleEditStockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setIsSubmitting(true);
+    try {
+      await productsApi.updateStock(editingProduct.id, newStock);
+      toast.success('Stock updated successfully!');
+      setIsEditStockModalOpen(false);
+      fetchProduits();
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to update stock.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) return <SoftLoader />;
 
   return (
@@ -68,6 +115,23 @@ export const ProductsPage: React.FC = () => {
         <h4 className="fw-bold">My Products</h4>
         <SoftButton onClick={() => setIsAddModalOpen(true)}>+ Add Product</SoftButton>
       </div>
+
+      {suggestions && suggestions.length > 0 && (
+        <SoftCard className="mb-4 border-warning bg-warning bg-opacity-10 border-2">
+          <div className="d-flex align-items-center mb-3">
+            <AlertTriangle className="text-warning me-2" size={24} />
+            <h5 className="fw-bold mb-0 text-warning">Restock Suggestions</h5>
+          </div>
+          <p className="text-muted small mb-3">The following products are running low on stock based on their alert thresholds. Please restock them.</p>
+          <div className="d-flex flex-wrap gap-2">
+            {suggestions.map(s => (
+              <SoftBadge key={s.id} variant="warning" className="px-3 py-2">
+                {s.nom} ({s.stockDisponible} left)
+              </SoftBadge>
+            ))}
+          </div>
+        </SoftCard>
+      )}
 
       <SoftCard className="p-0 border-0 shadow-none bg-transparent">
         <SoftTable headers={['Name', 'Category', 'Price', 'Stock', 'Status', 'Actions']}>
@@ -82,12 +146,14 @@ export const ProductsPage: React.FC = () => {
                 </span>
               </td>
               <td>
-                <SoftBadge variant={p.actif ? 'success' : 'danger'}>
-                  {p.actif ? 'Active' : 'Disabled'}
-                </SoftBadge>
+                <div style={{ cursor: 'pointer' }} onClick={() => handleToggleStatus(p.id)}>
+                  <SoftBadge variant={p.actif ? 'success' : 'danger'}>
+                    {p.actif ? 'Active' : 'Disabled'}
+                  </SoftBadge>
+                </div>
               </td>
               <td>
-                <SoftButton variant="outline" style={{ padding: '0.2rem 0.8rem', fontSize: '0.8rem' }}>Edit Stock</SoftButton>
+                <SoftButton variant="outline" style={{ padding: '0.2rem 0.8rem', fontSize: '0.8rem' }} onClick={() => openEditStockModal(p)}>Edit Stock</SoftButton>
               </td>
             </tr>
           ))}
@@ -157,6 +223,34 @@ export const ProductsPage: React.FC = () => {
             </SoftButton>
             <SoftButton type="submit" isLoading={isSubmitting}>
               Add Product
+            </SoftButton>
+          </div>
+        </form>
+      </SoftModal>
+
+      <SoftModal
+        isOpen={isEditStockModalOpen}
+        onClose={() => setIsEditStockModalOpen(false)}
+        title="Edit Product Stock"
+      >
+        <form onSubmit={handleEditStockSubmit}>
+          <div className="mb-4">
+            <p className="text-muted small mb-2">Editing stock for: <strong className="text-dark">{editingProduct?.nom}</strong></p>
+            <SoftInput
+              label="New Available Stock"
+              type="number"
+              min="0"
+              required
+              value={newStock}
+              onChange={e => setNewStock(parseInt(e.target.value) || 0)}
+            />
+          </div>
+          <div className="d-flex justify-content-end gap-2">
+            <SoftButton variant="outline" type="button" onClick={() => setIsEditStockModalOpen(false)}>
+              Cancel
+            </SoftButton>
+            <SoftButton type="submit" isLoading={isSubmitting}>
+              Save Changes
             </SoftButton>
           </div>
         </form>

@@ -11,9 +11,13 @@ export const NotificationsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     notificationsApi.getNotifications()
-      .then(setNotifications)
-      .catch(console.error)
+      .then(data => setNotifications(data || []))
+      .catch(err => {
+        console.error(err);
+        setNotifications([]);
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -21,13 +25,16 @@ export const NotificationsPage: React.FC = () => {
 
   if (!notifications || notifications.length === 0) {
     return (
-      <SoftCard className="h-100">
-        <SoftEmptyState
-          icon={<Bell size={48} />}
-          title="No Notifications"
-          description="You're all caught up!"
-        />
-      </SoftCard>
+      <div className="container-fluid p-0">
+        <h4 className="fw-bold mb-4">System Alerts & Notifications</h4>
+        <SoftCard className="h-100">
+          <SoftEmptyState
+            icon={<Bell size={48} />}
+            title="No Notifications"
+            description="You're all caught up!"
+          />
+        </SoftCard>
+      </div>
     );
   }
 

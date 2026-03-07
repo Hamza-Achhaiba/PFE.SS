@@ -19,8 +19,14 @@ public class Commande {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
+    private String reference;
+
     private LocalDateTime dateCreation;
     private Double montantTotal;
+
+    private String trackingReference;
+    private LocalDateTime dateLivraisonEstimee;
 
     @Enumerated(EnumType.STRING)
     private StatutCommande statut;

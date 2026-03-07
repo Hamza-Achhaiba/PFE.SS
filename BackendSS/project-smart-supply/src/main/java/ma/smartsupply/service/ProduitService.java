@@ -39,7 +39,6 @@ public class ProduitService {
         }
         Fournisseur fournisseur = (Fournisseur) utilisateur;
 
-
         Produit produit = Produit.builder()
                 .nom(request.getNom())
                 .prix(request.getPrix())
@@ -74,7 +73,6 @@ public class ProduitService {
                 .collect(Collectors.toList());
     }
 
-
     @Transactional
     public ProduitResponse updateStock(Long produitId, Integer nouvelleQuantite, String emailFournisseur) {
         Produit produit = produitRepository.findById(produitId)
@@ -88,7 +86,6 @@ public class ProduitService {
         stock.setQuantiteDisponible(nouvelleQuantite);
         stockRepository.save(stock);
 
-
         if (stock.getSeuilAlerte() != null && nouvelleQuantite <= stock.getSeuilAlerte()) {
             String messageAlerte = "⚠️ ALERTE : Votre produit '" + produit.getNom() +
                     "' a atteint son seuil critique. Il ne reste que " +
@@ -96,7 +93,6 @@ public class ProduitService {
 
             notificationService.creer(produit.getFournisseur(), messageAlerte, TypeNotification.ALERTE_STOCK);
         }
-
 
         return mapToResponse(produit);
     }
@@ -106,13 +102,11 @@ public class ProduitService {
         boolean isAlerte = false;
         String nomFournisseur = "Non assigné";
 
-
         if (p.getStock() != null) {
 
             if (p.getStock().getQuantiteDisponible() != null) {
                 quantite = p.getStock().getQuantiteDisponible();
             }
-
 
             int seuil = (p.getStock().getSeuilAlerte() != null) ? p.getStock().getSeuilAlerte() : 0;
 
@@ -132,6 +126,7 @@ public class ProduitService {
                 .nomFournisseur(nomFournisseur)
                 .quantiteDisponible(quantite)
                 .alerteStock(isAlerte)
+                .actif(p.isActif())
                 .build();
     }
 
@@ -157,14 +152,14 @@ public class ProduitService {
     }
 
     @Transactional
-    public void desactiverProduit(Long produitId, String emailFournisseur) {
+    public void toggleStatutProduit(Long produitId, String emailFournisseur) {
         Produit produit = produitRepository.findById(produitId)
                 .orElseThrow(() -> new RuntimeException("Produit introuvable avec l'ID : " + produitId));
 
         if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
             throw new RuntimeException("Accès refusé : Vous ne pouvez modifier que vos propres produits.");
         }
-        produit.setActif(false);
+        produit.setActif(!produit.isActif());
         produitRepository.save(produit);
     }
 
@@ -185,15 +180,20 @@ public class ProduitService {
             throw new RuntimeException("Accès refusé : Vous ne pouvez modifier que vos propres produits.");
         }
 
-        if (request.getNom() != null) produit.setNom(request.getNom());
-        if (request.getPrix() != null) produit.setPrix(request.getPrix());
-        if (request.getDescription() != null) produit.setDescription(request.getDescription());
-        if (request.getImage() != null) produit.setImage(request.getImage());
+        if (request.getNom() != null)
+            produit.setNom(request.getNom());
+        if (request.getPrix() != null)
+            produit.setPrix(request.getPrix());
+        if (request.getDescription() != null)
+            produit.setDescription(request.getDescription());
+        if (request.getImage() != null)
+            produit.setImage(request.getImage());
 
         Produit produitMaj = produitRepository.save(produit);
 
         return mapToResponse(produitMaj);
     }
+
     private ProduitResponse mapToProduitResponse(Produit produit) {
         Integer quantite = 0;
         boolean enAlerte = false;
@@ -214,8 +214,23 @@ public class ProduitService {
                 .nomFournisseur(nomFourn)
                 .quantiteDisponible(quantite)
                 .alerteStock(enAlerte)
+                .actif(produit.isActif())
                 .build();
     }
 
+    public List<ProduitResponse> getRestockSuggestions(String emailFournisseur) {
+        Utilisateur user = utilisateurRepository.findByEmail(emailFournisseur).orElseThrow();
+        return produitRepository.findByFournisseurId(user.getId()).stream()
+                .filter(p -> p.getStock() != null &&
+                        p.getStock().getQuantiteDisponible() != null &&
+                        p.getStock().getSeuilAlerte() != null &&
+                        p.getStock().getQuantiteDisponible() <= (p.getStock().getSeuilAlerte() * 1.5)) // Suggest if
+                                                                                                       // quantity is
+                                                                                                       // below 150% of
+                                                                                                       // alert
+                                                                                                       // threshold
+                .map(this::mapToProduitResponse)
+                .collect(Collectors.toList());
+    }
 
 }

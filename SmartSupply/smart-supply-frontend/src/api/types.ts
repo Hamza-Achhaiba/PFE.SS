@@ -28,14 +28,32 @@ export interface PanierItem {
     produit?: Produit;
 }
 
+export interface LigneCommande {
+    id: number;
+    quantite: number;
+    sousTotal: number;
+    produit: {
+        id: number;
+        nom: string;
+        prix: number;
+    };
+}
+
 export interface Commande {
     id: number;
-    dateCommande: string;
-    clientId: number;
-    fournisseurId: number;
-    statut: 'EN_ATTENTE' | 'VALIDEE' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
-    total: number;
-    details?: any[];
+    reference?: string;
+    trackingReference?: string;
+    dateLivraisonEstimee?: string;
+    dateCreation: string;
+    montantTotal: number;
+    statut: 'EN_ATTENTE_VALIDATION' | 'VALIDEE' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
+    client: {
+        id: number;
+        nom: string;
+        email: string;
+        telephone: string;
+    };
+    lignes: LigneCommande[];
 }
 
 export interface NotificationMsg {
@@ -43,4 +61,20 @@ export interface NotificationMsg {
     message: string;
     lue: boolean;
     dateCreation: string;
+}
+
+export interface LignePanierResponse {
+    id: number;
+    produitId: number;
+    nomProduit: string;
+    image: string;
+    prixUnitaire: number;
+    quantite: number;
+    sousTotal: number;
+}
+
+export interface PanierResponse {
+    id: number;
+    lignes: LignePanierResponse[];
+    montantTotal: number;
 }

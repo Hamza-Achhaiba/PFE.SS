@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -49,8 +50,8 @@ public class CommandeService {
         }
         Client client = (Client) utilisateur;
 
-
         Commande commande = new Commande();
+        commande.setReference("CMD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         commande.setClient(client);
         commande.setDateCreation(LocalDateTime.now());
         commande.setStatut(StatutCommande.EN_ATTENTE_VALIDATION);
@@ -58,13 +59,13 @@ public class CommandeService {
 
         double montantTotal = 0;
 
-
         for (LigneCommandeRequest lcr : request.getLignes()) {
             Produit produit = produitRepository.findById(lcr.getProduitId())
                     .orElseThrow(() -> new RuntimeException("Produit introuvable : " + lcr.getProduitId()));
 
             Stock stock = stockRepository.findByProduitId(produit.getId())
-                    .orElseThrow(() -> new RuntimeException("Le stock n'existe pas pour le produit : " + produit.getNom()));
+                    .orElseThrow(
+                            () -> new RuntimeException("Le stock n'existe pas pour le produit : " + produit.getNom()));
 
             int stockDispo = (stock.getQuantiteDisponible() != null) ? stock.getQuantiteDisponible() : 0;
 
@@ -78,9 +79,9 @@ public class CommandeService {
 
             notificationService.creer(
                     produit.getFournisseur(),
-                    "Nouvelle commande pour votre produit : " + produit.getNom() + " (Quantité: " + lcr.getQuantite() + ")",
-                    TypeNotification.NOUVELLE_COMMANDE
-            );
+                    "Nouvelle commande pour votre produit : " + produit.getNom() + " (Quantité: " + lcr.getQuantite()
+                            + ")",
+                    TypeNotification.NOUVELLE_COMMANDE);
 
             LigneCommande ligne = new LigneCommande();
             ligne.setCommande(commande);
@@ -123,8 +124,7 @@ public class CommandeService {
         notificationService.creer(
                 commande.getClient(),
                 " Votre commande n°" + commande.getId() + " a été validée.",
-                TypeNotification.VALIDATION_COMMANDE
-        );
+                TypeNotification.VALIDATION_COMMANDE);
         return commandeMaj;
     }
 
@@ -138,7 +138,8 @@ public class CommandeService {
         }
 
         if (commande.getStatut() != StatutCommande.EN_ATTENTE_VALIDATION) {
-            throw new RuntimeException("Impossible d'annuler : La commande est déjà en cours de traitement ou expédiée.");
+            throw new RuntimeException(
+                    "Impossible d'annuler : La commande est déjà en cours de traitement ou expédiée.");
         }
 
         LocalDateTime maintenant = LocalDateTime.now();
@@ -169,7 +170,6 @@ public class CommandeService {
         Commande commande = commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new RuntimeException("Commande introuvable avec l'ID : " + commandeId));
 
-
         if (nouveauStatut == StatutCommande.ANNULEE && commande.getStatut() != StatutCommande.ANNULEE) {
             for (LigneCommande ligne : commande.getLignes()) {
                 Stock stock = stockRepository.findByProduitId(ligne.getProduit().getId())
@@ -183,7 +183,8 @@ public class CommandeService {
         commande.setStatut(nouveauStatut);
         Commande commandeMiseAJour = commandeRepository.save(commande);
 
-        String message = "Mise à jour : Votre commande #" + commande.getId() + " est maintenant " + nouveauStatut.name();
+        String message = "Mise à jour : Votre commande #" + commande.getId() + " est maintenant "
+                + nouveauStatut.name();
         notificationService.creer(commande.getClient(), message, TypeNotification.VALIDATION_COMMANDE);
         return commandeMiseAJour;
     }
@@ -212,10 +213,12 @@ public class CommandeService {
     private CommandeResponse mapToDTO(Commande commande) {
         CommandeResponse dto = new CommandeResponse();
         dto.setId(commande.getId());
+        dto.setReference(commande.getReference());
         dto.setDateCreation(commande.getDateCreation());
         dto.setMontantTotal(commande.getMontantTotal());
         dto.setStatut(commande.getStatut().name());
-
+        dto.setTrackingReference(commande.getTrackingReference());
+        dto.setDateLivraisonEstimee(commande.getDateLivraisonEstimee());
 
         UtilisateurInfoDTO clientDto = new UtilisateurInfoDTO();
         clientDto.setId(commande.getClient().getId());
@@ -254,6 +257,7 @@ public class CommandeService {
         }
 
         Commande commande = new Commande();
+        commande.setReference("CMD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         commande.setClient((Client) panier.getClient());
         commande.setDateCreation(LocalDateTime.now());
         commande.setMontantTotal(panier.getMontantTotal());
@@ -269,8 +273,7 @@ public class CommandeService {
             }
 
             produit.getStock().setQuantiteDisponible(
-                    produit.getStock().getQuantiteDisponible() - lignePanier.getQuantite()
-            );
+                    produit.getStock().getQuantiteDisponible() - lignePanier.getQuantite());
 
             LigneCommande lc = new LigneCommande();
             lc.setCommande(commande);
@@ -295,6 +298,33 @@ public class CommandeService {
         commande.setStatut(StatutCommande.valueOf(nouveauStatut.toUpperCase()));
 
         Commande savedCommande = commandeRepository.save(commande);
+        return mapToDTO(savedCommande);
+    }
+
+    @Transactional
+    public CommandeResponse updateTracking(Long commandeId, UpdateTrackingRequest request, String emailFournisseur) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        // Supplier must check if they have products in this order
+        boolean hasSupplierProducts = commande.getLignes().stream()
+                .anyMatch(l -> l.getProduit().getFournisseur().getEmail().equals(emailFournisseur));
+
+        if (!hasSupplierProducts) {
+            throw new RuntimeException("Accès refusé. Cette commande ne contient pas de produits de ce fournisseur.");
+        }
+
+        commande.setTrackingReference(request.getTrackingReference());
+        commande.setDateLivraisonEstimee(request.getDateLivraisonEstimee());
+
+        Commande savedCommande = commandeRepository.save(commande);
+
+        notificationService.creer(
+                commande.getClient(),
+                "Mise à jour logistique : Votre commande " + commande.getReference() + " a un nouveau suivi: "
+                        + request.getTrackingReference(),
+                TypeNotification.VALIDATION_COMMANDE);
+
         return mapToDTO(savedCommande);
     }
 }

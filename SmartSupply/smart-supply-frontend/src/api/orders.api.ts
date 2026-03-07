@@ -8,4 +8,8 @@ export const ordersApi = {
     valider: (id: number) => apiClient.put(`/api/commandes/${id}/valider`).then(res => res.data),
     updateStatut: (id: number, nouveauStatut: string) =>
         apiClient.patch(`/api/commandes/${id}/statut`, { nouveauStatut }).then(res => res.data),
+    annuler: (id: number) =>
+        apiClient.put(`/api/commandes/${id}/annuler`).then(res => res.data),
+    updateTracking: (id: number, request: { trackingReference: string, dateLivraisonEstimee: string }) =>
+        apiClient.patch(`/api/commandes/${id}/tracking`, request).then(res => res.data),
 };
