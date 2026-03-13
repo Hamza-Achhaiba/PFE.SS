@@ -21,6 +21,13 @@ export const LoginPage: React.FC = () => {
     const onSubmit = async (data: LoginFormValues) => {
         try {
             setLoading(true);
+            
+            // Clear any existing auth state before logging in
+            // This ensures a clean state and helps with repeated login issues
+            localStorage.removeItem('ss_token');
+            localStorage.removeItem('ss_role');
+            localStorage.removeItem('ss_name');
+
             const res = await authApi.login(data);
             const decoded = decodeToken(res.token);
             let role = decoded?.role || AuthStore.getRole();
@@ -42,7 +49,7 @@ export const LoginPage: React.FC = () => {
         } catch (error: any) {
             const status = error.response?.status;
             let errMsg = 'Login failed. Please check your connection.';
-            
+
             if (!error.response) {
                 errMsg = 'Backend server unreachable. Please make sure the backend is running at http://localhost:8088';
             } else if (status === 403 || status === 401) {
@@ -52,7 +59,7 @@ export const LoginPage: React.FC = () => {
             } else if (error.response?.data?.error) {
                 errMsg = error.response.data.error;
             }
-            
+
             toast.error(errMsg, { autoClose: 5000 });
         } finally {
             setLoading(false);

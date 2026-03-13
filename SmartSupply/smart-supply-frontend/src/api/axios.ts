@@ -10,8 +10,11 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
     (config) => {
+        // Don't send token for login or register requests
+        const isAuthRequest = config.url?.includes('/api/auth/');
         const token = getStorageItem('ss_token');
-        if (token) {
+        
+        if (token && !isAuthRequest) {
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
