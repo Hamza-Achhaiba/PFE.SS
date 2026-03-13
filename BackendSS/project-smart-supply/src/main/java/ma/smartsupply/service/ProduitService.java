@@ -7,6 +7,8 @@ import ma.smartsupply.model.Fournisseur;
 import ma.smartsupply.model.Produit;
 import ma.smartsupply.model.Stock;
 import ma.smartsupply.model.Utilisateur;
+import ma.smartsupply.model.Categorie;
+import ma.smartsupply.repository.CategorieRepository;
 import ma.smartsupply.repository.ProduitRepository;
 import ma.smartsupply.repository.StockRepository;
 import ma.smartsupply.repository.UtilisateurRepository;
@@ -27,6 +29,9 @@ public class ProduitService {
     private final StockRepository stockRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final NotificationService notificationService;
+    private final CategorieRepository categorieRepository;
+    private final ma.smartsupply.repository.LignePanierRepository lignePanierRepository;
+    private final ma.smartsupply.repository.LigneCommandeRepository ligneCommandeRepository;
 
     @Transactional
     public ProduitResponse ajouterProduit(ProduitRequest request, String emailFournisseur) {
@@ -44,8 +49,16 @@ public class ProduitService {
                 .prix(request.getPrix())
                 .description(request.getDescription())
                 .image(request.getImage())
+                .quantiteMinimumCommande(
+                        request.getQuantiteMinimumCommande() != null ? request.getQuantiteMinimumCommande() : 1)
                 .fournisseur(fournisseur)
                 .build();
+
+        if (request.getCategorieId() != null) {
+            Categorie categorie = categorieRepository.findById(request.getCategorieId())
+                    .orElseThrow(() -> new RuntimeException("Catégorie introuvable"));
+            produit.setCategorie(categorie);
+        }
         produit = produitRepository.save(produit);
 
         Stock stock = Stock.builder()
@@ -124,7 +137,10 @@ public class ProduitService {
                 .description(p.getDescription())
                 .image(p.getImage())
                 .nomFournisseur(nomFournisseur)
+                .categorieId(p.getCategorie() != null ? p.getCategorie().getId() : null)
+                .categorieNom(p.getCategorie() != null ? p.getCategorie().getNom() : null)
                 .quantiteDisponible(quantite)
+                .quantiteMinimumCommande(p.getQuantiteMinimumCommande() != null ? p.getQuantiteMinimumCommande() : 1)
                 .alerteStock(isAlerte)
                 .actif(p.isActif())
                 .build();
@@ -188,10 +204,53 @@ public class ProduitService {
             produit.setDescription(request.getDescription());
         if (request.getImage() != null)
             produit.setImage(request.getImage());
+        if (request.getQuantiteMinimumCommande() != null)
+            produit.setQuantiteMinimumCommande(request.getQuantiteMinimumCommande());
+
+        if (request.getCategorieId() != null) {
+            Categorie categorie = categorieRepository.findById(request.getCategorieId())
+                    .orElseThrow(() -> new RuntimeException("Catégorie introuvable"));
+            produit.setCategorie(categorie);
+        }
 
         Produit produitMaj = produitRepository.save(produit);
 
         return mapToResponse(produitMaj);
+    }
+
+    @Transactional
+    public void supprimerProduit(Long produitId, String emailFournisseur) {
+        Produit produit = produitRepository.findById(produitId)
+                .orElseThrow(() -> new RuntimeException("Produit introuvable avec l'ID : " + produitId));
+
+        if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
+            throw new RuntimeException("Accès refusé : Vous ne pouvez supprimer que vos propres produits.");
+        }
+
+        // Vérifier si le produit est lié à des commandes existantes
+        if (ligneCommandeRepository.existsByProduitId(produitId)) {
+            throw new IllegalStateException(
+                    "Ce produit ne peut pas être supprimé car il est lié à des commandes existantes. Veuillez le désactiver à la place.");
+        }
+
+        // Supprimer les lignes de panier liées à ce produit (les paniers sont
+        // temporaires)
+        lignePanierRepository.deleteByProduitId(produitId);
+
+        // Supprimer l'image associée si elle existe
+        if (produit.getImage() != null && !produit.getImage().isEmpty()) {
+            try {
+                String fileName = produit.getImage().substring(produit.getImage().lastIndexOf("/") + 1);
+                java.nio.file.Path imagePath = java.nio.file.Paths.get("uploads/produits").resolve(fileName);
+                java.nio.file.Files.deleteIfExists(imagePath);
+            } catch (Exception e) {
+                // Ignorer l'erreur de suppression d'image pour ne pas bloquer la suppression du
+                // produit
+                System.err.println("Erreur lors de la suppression de l'image du produit : " + e.getMessage());
+            }
+        }
+
+        produitRepository.delete(produit);
     }
 
     private ProduitResponse mapToProduitResponse(Produit produit) {
@@ -212,7 +271,11 @@ public class ProduitService {
                 .description(produit.getDescription())
                 .image(produit.getImage())
                 .nomFournisseur(nomFourn)
+                .categorieId(produit.getCategorie() != null ? produit.getCategorie().getId() : null)
+                .categorieNom(produit.getCategorie() != null ? produit.getCategorie().getNom() : null)
                 .quantiteDisponible(quantite)
+                .quantiteMinimumCommande(
+                        produit.getQuantiteMinimumCommande() != null ? produit.getQuantiteMinimumCommande() : 1)
                 .alerteStock(enAlerte)
                 .actif(produit.isActif())
                 .build();

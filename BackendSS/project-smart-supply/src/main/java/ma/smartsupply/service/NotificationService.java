@@ -19,12 +19,13 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UtilisateurRepository utilisateurRepository;
 
-    public void creer(Utilisateur destinataire, String message ,TypeNotification type) {
+    public void creer(Utilisateur destinataire, String message, TypeNotification type) {
         Notification notif = Notification.builder()
                 .destinataire(destinataire)
                 .message(message)
                 .dateEnvoi(LocalDateTime.now())
                 .type(type)
+                .lue(false)
                 .build();
         notificationRepository.save(notif);
     }
@@ -33,8 +34,9 @@ public class NotificationService {
         return NotificationResponse.builder()
                 .id(notification.getId())
                 .message(notification.getMessage())
-                .dateEnvoi(notification.getDateEnvoi())
+                .dateCreation(notification.getDateEnvoi())
                 .type(notification.getType())
+                .lue(notification.isLue())
 
                 .build();
     }
@@ -43,7 +45,8 @@ public class NotificationService {
         Utilisateur user = utilisateurRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        List<Notification> notifications = notificationRepository.findByDestinataireIdOrderByDateEnvoiDesc(user.getId());
+        List<Notification> notifications = notificationRepository
+                .findByDestinataireIdOrderByDateEnvoiDesc(user.getId());
 
         return notifications.stream()
                 .map(this::mapToResponse)

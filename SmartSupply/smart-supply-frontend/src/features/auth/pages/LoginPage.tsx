@@ -7,7 +7,6 @@ import { toast } from 'react-toastify';
 import { Database, Mail, Lock } from 'lucide-react';
 import { loginSchema, LoginFormValues } from '../auth.schemas';
 import { authApi } from '../../../api/auth.api';
-import { searchApi } from '../../../api/search.api'; // Added this import
 import { AuthStore } from '../auth.store';
 import { decodeToken } from '../auth.utils';
 import './LoginPage.css';
@@ -30,20 +29,7 @@ export const LoginPage: React.FC = () => {
                 role = 'CLIENT';
             }
 
-            let userName = '';
-            try {
-                if (role === 'CLIENT') {
-                    const clients = await searchApi.getClients();
-                    const me = clients.find(c => c.email === data.email);
-                    if (me) userName = me.nom;
-                } else {
-                    const suppliers = await searchApi.getFournisseurs();
-                    const me = suppliers.find(s => s.email === data.email);
-                    if (me) userName = me.nom;
-                }
-            } catch (e) {
-                console.error("Could not fetch user profile details");
-            }
+            let userName = decoded?.nom || decoded?.name || decoded?.sub || 'User';
 
             AuthStore.login(res.token, role, userName);
             toast.success('Login successful');
@@ -54,7 +40,20 @@ export const LoginPage: React.FC = () => {
                 navigate('/supplier/dashboard');
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Login failed');
+            const status = error.response?.status;
+            let errMsg = 'Login failed. Please check your connection.';
+            
+            if (!error.response) {
+                errMsg = 'Backend server unreachable. Please make sure the backend is running at http://localhost:8088';
+            } else if (status === 403 || status === 401) {
+                errMsg = 'Invalid email or password. Please try again.';
+            } else if (error.response?.data?.message) {
+                errMsg = error.response.data.message;
+            } else if (error.response?.data?.error) {
+                errMsg = error.response.data.error;
+            }
+            
+            toast.error(errMsg, { autoClose: 5000 });
         } finally {
             setLoading(false);
         }

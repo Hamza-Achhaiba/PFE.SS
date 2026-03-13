@@ -5,9 +5,11 @@ import { PageShell } from '../components/layout/PageShell';
 // Auth
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
+import { SettingsPage } from '../features/shared/pages/SettingsPage';
 
 // Client Pages
 import { Dashboard as ClientDashboard } from '../features/client/pages/Dashboard';
+import { Categories } from '../features/client/pages/Categories';
 import { CatalogPage } from '../features/client/pages/CatalogPage';
 import { SearchPage } from '../features/client/pages/SearchPage';
 import { CartPage } from '../features/client/pages/CartPage';
@@ -35,12 +37,14 @@ export const AppRoutes = () => {
                     <Route path="/client" element={<PageShell />}>
                         <Route index element={<Navigate to="dashboard" replace />} />
                         <Route path="dashboard" element={<ClientDashboard />} />
+                        <Route path="categories" element={<Categories />} />
                         <Route path="catalog" element={<CatalogPage />} />
                         <Route path="search" element={<SearchPage />} />
                         <Route path="cart" element={<CartPage />} />
                         <Route path="orders" element={<OrdersPage />} />
                         <Route path="suppliers" element={<SuppliersPage />} />
                         <Route path="notifications" element={<ClientNotifications />} />
+                        <Route path="settings" element={<SettingsPage />} />
                     </Route>
                 </Route>
 
@@ -53,6 +57,7 @@ export const AppRoutes = () => {
                         <Route path="orders" element={<SalesOrdersPage />} />
                         <Route path="clients" element={<ClientsPage />} />
                         <Route path="notifications" element={<SupplierNotifications />} />
+                        <Route path="settings" element={<SettingsPage />} />
                     </Route>
                 </Route>
 

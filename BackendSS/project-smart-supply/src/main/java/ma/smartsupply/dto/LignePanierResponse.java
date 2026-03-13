@@ -12,5 +12,6 @@ public class LignePanierResponse {
     private String image;
     private double prixUnitaire;
     private int quantite;
+    private Integer quantiteMinimumCommande;
     private double sousTotal;
 }

@@ -46,6 +46,12 @@ public class PanierService {
                 .filter(ligne -> ligne.getProduit().getId().equals(produitId))
                 .findFirst();
 
+        int totalQuantite = ligneExistante.isPresent() ? ligneExistante.get().getQuantite() + quantite : quantite;
+        int minCommande = produit.getQuantiteMinimumCommande() != null ? produit.getQuantiteMinimumCommande() : 1;
+        if (totalQuantite < minCommande && quantite > 0) {
+            throw new RuntimeException("La quantité minimum de commande pour ce produit est de " + minCommande);
+        }
+
         if (ligneExistante.isPresent()) {
 
             LignePanier ligne = ligneExistante.get();
@@ -88,6 +94,9 @@ public class PanierService {
                 .image(ligne.getProduit().getImage())
                 .prixUnitaire(ligne.getProduit().getPrix())
                 .quantite(ligne.getQuantite())
+                .quantiteMinimumCommande(ligne.getProduit().getQuantiteMinimumCommande() != null
+                        ? ligne.getProduit().getQuantiteMinimumCommande()
+                        : 1)
                 .sousTotal(ligne.getSousTotal())
                 .build()).collect(Collectors.toList());
 
@@ -116,6 +125,11 @@ public class PanierService {
 
         if (produit.getStock() == null || produit.getStock().getQuantiteDisponible() < nouvelleQuantite) {
             throw new RuntimeException("Stock insuffisant pour cette quantité");
+        }
+
+        int minCommande = produit.getQuantiteMinimumCommande() != null ? produit.getQuantiteMinimumCommande() : 1;
+        if (nouvelleQuantite > 0 && nouvelleQuantite < minCommande) {
+            throw new RuntimeException("La quantité minimum de commande pour ce produit est de " + minCommande);
         }
 
         if (nouvelleQuantite <= 0) {

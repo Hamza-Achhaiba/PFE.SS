@@ -1,0 +1,87 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< ma.smartsupply:SmartSupply >---------------------
+[INFO] Building SmartSupply 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ SmartSupply ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ SmartSupply ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 63 source files with javac [debug parameters release 17] to target\classes
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/CommandeController.java:[6,26] cannot find symbol
+  symbol:   class UpdateTrackingRequest
+  location: package ma.smartsupply.dto
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/CommandeController.java:[104,26] cannot find symbol
+  symbol:   class UpdateTrackingRequest
+  location: class ma.smartsupply.controller.CommandeController
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/CommandeService.java:[322,61] cannot find symbol
+  symbol:   class UpdateTrackingRequest
+  location: class ma.smartsupply.service.CommandeService
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/ProduitService.java:[34,44] cannot find symbol
+  symbol:   class LigneCommandeRepository
+  location: package ma.smartsupply.repository
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/ProduitService.java:[25,1] cannot find symbol
+  symbol:   class LigneCommandeRepository
+  location: package ma.smartsupply.repository
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/ProfilController.java:[5,26] cannot find symbol
+  symbol:   class ChangePasswordRequest
+  location: package ma.smartsupply.dto
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/UtilisateurService.java:[9,26] cannot find symbol
+  symbol:   class ChangePasswordRequest
+  location: package ma.smartsupply.dto
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/ProfilController.java:[39,26] cannot find symbol
+  symbol:   class ChangePasswordRequest
+  location: class ma.smartsupply.controller.ProfilController
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/UtilisateurService.java:[61,58] cannot find symbol
+  symbol:   class ChangePasswordRequest
+  location: class ma.smartsupply.service.UtilisateurService
+[INFO] 9 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.761 s
+[INFO] Finished at: 2026-03-08T16:03:19Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.14.1:compile (default-compile) on project SmartSupply: Compilation failure: Compilation failure: 
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/CommandeController.java:[6,26] cannot find symbol
+[ERROR]   symbol:   class UpdateTrackingRequest
+[ERROR]   location: package ma.smartsupply.dto
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/CommandeController.java:[104,26] cannot find symbol
+[ERROR]   symbol:   class UpdateTrackingRequest
+[ERROR]   location: class ma.smartsupply.controller.CommandeController
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/CommandeService.java:[322,61] cannot find symbol
+[ERROR]   symbol:   class UpdateTrackingRequest
+[ERROR]   location: class ma.smartsupply.service.CommandeService
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/ProduitService.java:[34,44] cannot find symbol
+[ERROR]   symbol:   class LigneCommandeRepository
+[ERROR]   location: package ma.smartsupply.repository
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/ProduitService.java:[25,1] cannot find symbol
+[ERROR]   symbol:   class LigneCommandeRepository
+[ERROR]   location: package ma.smartsupply.repository
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/ProfilController.java:[5,26] cannot find symbol
+[ERROR]   symbol:   class ChangePasswordRequest
+[ERROR]   location: package ma.smartsupply.dto
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/UtilisateurService.java:[9,26] cannot find symbol
+[ERROR]   symbol:   class ChangePasswordRequest
+[ERROR]   location: package ma.smartsupply.dto
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/controller/ProfilController.java:[39,26] cannot find symbol
+[ERROR]   symbol:   class ChangePasswordRequest
+[ERROR]   location: class ma.smartsupply.controller.ProfilController
+[ERROR] /C:/Users/hhamz/OneDrive/Desktop/PFE.SS/BackendSS/project-smart-supply/src/main/java/ma/smartsupply/service/UtilisateurService.java:[61,58] cannot find symbol
+[ERROR]   symbol:   class ChangePasswordRequest
+[ERROR]   location: class ma.smartsupply.service.UtilisateurService
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

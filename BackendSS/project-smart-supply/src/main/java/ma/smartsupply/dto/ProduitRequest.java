@@ -9,5 +9,7 @@ public class ProduitRequest {
     private String description;
     private String image;
     private Integer quantiteInitiale;
+    private Integer quantiteMinimumCommande;
     private Integer seuilAlerte;
+    private Long categorieId;
 }

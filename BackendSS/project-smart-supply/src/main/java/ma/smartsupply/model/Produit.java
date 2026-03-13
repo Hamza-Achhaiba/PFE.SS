@@ -21,7 +21,9 @@ public class Produit {
     private String description;
     private String image;
 
-    private Integer quantiteStock;
+    private Integer quantiteStock; // Keep this just in case, though Stock entity is used
+    @Builder.Default
+    private Integer quantiteMinimumCommande = 1;
     private Integer seuilAlerte;
 
     @Builder.Default
@@ -30,6 +32,10 @@ public class Produit {
     @ManyToOne
     @JoinColumn(name = "fournisseur_id")
     private Fournisseur fournisseur;
+
+    @ManyToOne
+    @JoinColumn(name = "categorie_id")
+    private Categorie categorie;
 
     @JsonIgnore
     @OneToOne(mappedBy = "produit", cascade = CascadeType.ALL)

@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface SoftButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'primary' | 'outline';
+    variant?: 'primary' | 'outline' | 'danger';
     isLoading?: boolean;
 }
 
@@ -13,7 +13,7 @@ export const SoftButton: React.FC<SoftButtonProps> = ({
     disabled,
     ...props
 }) => {
-    const btnClass = variant === 'outline' ? 'soft-btn soft-btn-outline' : 'soft-btn';
+    const btnClass = variant === 'outline' ? 'soft-btn soft-btn-outline' : variant === 'danger' ? 'soft-btn btn-danger' : 'soft-btn';
 
     return (
         <button

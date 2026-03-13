@@ -23,6 +23,9 @@ public class Notification {
     @Enumerated(EnumType.STRING)
     private TypeNotification type;
 
+    @Builder.Default
+    private boolean lue = false;
+
     @ManyToOne
     @JoinColumn(name = "utilisateur_id")
     private Utilisateur destinataire;

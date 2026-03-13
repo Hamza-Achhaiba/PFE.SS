@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 public class NotificationResponse {
     private Long id;
     private String message;
-    private LocalDateTime dateEnvoi;
+    private LocalDateTime dateCreation;
     private TypeNotification type;
+    private boolean lue;
 
 }

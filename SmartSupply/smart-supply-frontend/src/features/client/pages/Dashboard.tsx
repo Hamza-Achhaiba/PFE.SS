@@ -1,22 +1,27 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { productsApi } from '../../../api/products.api';
 import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { notificationsApi } from '../../../api/notifications.api';
-import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis } from 'recharts';
+import { analyticsApi, SpendingTimelinePoint } from '../../../api/analytics.api';
+import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
 import { format, parseISO } from 'date-fns';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [produits, setProduits] = useState<any[]>([]);
   const [achats, setAchats] = useState<Commande[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [expenseTimeline, setExpenseTimeline] = useState<SpendingTimelinePoint[]>([]);
 
   useEffect(() => {
     productsApi.getProduits().then(setProduits).catch(console.error);
     ordersApi.mesAchats().then(setAchats).catch(console.error);
     notificationsApi.getNotifications().then(setNotifications).catch(console.error);
+    analyticsApi.getClientSpendingTimeline().then(setExpenseTimeline).catch(console.error);
   }, []);
 
   // Stats computation
@@ -24,22 +29,6 @@ export const Dashboard: React.FC = () => {
   const uniqueSuppliers = produits ? new Set(produits.map(p => p.fournisseurNom)).size : 0;
   const lowStock = produits?.filter(p => p.alerteStock).length || 0;
   const pendingOrders = achats?.filter(a => a.statut === 'EN_ATTENTE_VALIDATION').length || 0;
-
-  // Compute Expense Timeline
-  const expenseMap = new Map<string, number>();
-  achats.forEach(order => {
-    if (!order.dateCreation) return;
-    const dateKey = format(parseISO(order.dateCreation), 'MMM dd');
-    expenseMap.set(dateKey, (expenseMap.get(dateKey) || 0) + order.montantTotal);
-  });
-
-  const expenseTimeline = Array.from(expenseMap.entries())
-    .map(([date, amount]) => ({ date, amount }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  if (expenseTimeline.length === 0) {
-    expenseTimeline.push({ date: format(new Date(), 'MMM dd'), amount: 0 });
-  }
 
   const recentOrders = [...achats]
     .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
@@ -88,18 +77,79 @@ export const Dashboard: React.FC = () => {
 
       <div className="row g-4">
         <div className="col-lg-8">
-          <div className="row g-4 h-100 pb-3">
-            <div className="col-12 mb-3">
-              <SoftCard title="Recent Spending" subtitle="Spending trends based on validated orders" className="h-100">
-                <div style={{ height: '280px', marginTop: '1rem' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={expenseTimeline}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--soft-bg)" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--soft-text-muted)', fontSize: 12 }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--soft-shadow)' }} />
-                      <Area type="monotone" dataKey="amount" stroke="var(--soft-primary)" fill="var(--soft-bg)" strokeWidth={3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+          <div className="row g-1 pb-2">
+            <div className="col-12 mb-2">
+              <SoftCard title="Recent Spending" subtitle="Spending trends for the last 30 days">
+                <div style={{ height: '220px', marginTop: '0.5rem' }} className="d-flex align-items-center justify-content-center">
+                  {expenseTimeline.some(p => p.spending > 0) ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={expenseTimeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorSpending" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--soft-primary)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--soft-primary)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--soft-text-muted)" opacity={0.1} />
+                        <XAxis
+                          dataKey="date"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--soft-text-muted)', fontSize: 11 }}
+                          tickFormatter={(str) => {
+                            try {
+                              return format(parseISO(str), 'MMM dd');
+                            } catch (e) {
+                              return str;
+                            }
+                          }}
+                          minTickGap={30}
+                        />
+                        <YAxis
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--soft-text-muted)', fontSize: 11 }}
+                          tickFormatter={(val) => `${val} DH`}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--soft-secondary)',
+                            borderRadius: '16px',
+                            border: '1px solid var(--soft-border)',
+                            boxShadow: 'var(--soft-shadow)',
+                            color: 'var(--soft-text)',
+                            padding: '12px'
+                          }}
+                          itemStyle={{ color: 'var(--soft-primary)', fontWeight: 'bold' }}
+                          labelStyle={{ color: 'var(--soft-text-muted)', marginBottom: '4px' }}
+                          formatter={(value: any) => [`${Number(value || 0).toFixed(2)} DH`, 'Spending']}
+                          labelFormatter={(label) => {
+                            try {
+                              return format(parseISO(label), 'EEEE, MMM dd yyyy');
+                            } catch (e) {
+                              return label;
+                            }
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="spending"
+                          stroke="var(--soft-primary)"
+                          fillOpacity={1}
+                          fill="url(#colorSpending)"
+                          strokeWidth={3}
+                          animationDuration={1500}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-center">
+                      <div className="soft-badge rounded-circle p-4 mb-3 d-inline-block" style={{ background: 'var(--soft-bg)' }}>
+                        <ShoppingBag size={32} color="var(--soft-text-muted)" opacity={0.5} />
+                      </div>
+                      <p className="text-muted mb-0">No spending data available for the last 30 days.</p>
+                    </div>
+                  )}
                 </div>
               </SoftCard>
             </div>
@@ -108,7 +158,7 @@ export const Dashboard: React.FC = () => {
             <div className="col-12">
               <SoftCard title="Recent Orders" subtitle="Your latest purchases">
                 <div className="table-responsive mt-3">
-                  <table className="table table-hover align-middle mb-0 border-light font-sm">
+                  <table className="table table-hover align-middle mb-0 font-sm">
                     <thead>
                       <tr>
                         <th className="text-muted fw-semibold border-0">Order Ref</th>
@@ -119,15 +169,19 @@ export const Dashboard: React.FC = () => {
                     </thead>
                     <tbody>
                       {recentOrders.map((o) => (
-                        <tr key={o.id}>
-                          <td className="fw-medium text-dark border-light">{o.reference || `#${o.id}`}</td>
-                          <td className="text-muted border-light">{format(new Date(o.dateCreation), 'MMM dd, yyyy')}</td>
-                          <td className="text-center border-light">
-                            <div className={`badge ${o.statut === 'LIVREE' ? 'bg-success' : o.statut === 'ANNULEE' ? 'bg-danger' : 'bg-warning'} bg-opacity-25 text-dark px-2 rounded-pill`}>
+                        <tr
+                          key={o.id}
+                          onClick={() => navigate(`/client/orders?orderId=${o.id}`)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <td className="fw-medium text-body">{o.reference || `#${o.id}`}</td>
+                          <td className="text-muted">{format(new Date(o.dateCreation), 'MMM dd, yyyy')}</td>
+                          <td className="text-center">
+                            <div className={`badge ${o.statut === 'LIVREE' ? 'bg-success' : o.statut === 'ANNULEE' ? 'bg-danger' : 'bg-warning'} bg-opacity-25 px-2 rounded-pill`}>
                               {o.statut}
                             </div>
                           </td>
-                          <td className="text-end fw-bold text-primary border-light">{o.montantTotal?.toFixed(2)} DH</td>
+                          <td className="text-end fw-bold text-primary">{o.montantTotal?.toFixed(2)} DH</td>
                         </tr>
                       ))}
                       {recentOrders.length === 0 && (
@@ -171,7 +225,7 @@ export const Dashboard: React.FC = () => {
                 <p className="text-muted text-center mt-5 mb-5">No notifications available.</p>
               )}
             </div>
-            <div className="text-center mt-3 pt-2 border-top border-light">
+            <div className="text-center mt-3 pt-2">
               <a href="/client/orders" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View All Orders</a>
             </div>
           </SoftCard>

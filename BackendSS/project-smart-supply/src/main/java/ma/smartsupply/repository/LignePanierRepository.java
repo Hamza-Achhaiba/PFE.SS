@@ -1,4 +1,10 @@
 package ma.smartsupply.repository;
 
-public interface LignePanierRepository {
+import ma.smartsupply.model.LignePanier;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface LignePanierRepository extends JpaRepository<LignePanier, Long> {
+    void deleteByProduitId(Long produitId);
 }

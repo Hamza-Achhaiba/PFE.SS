@@ -7,17 +7,21 @@ export interface User {
     nomMagasin?: string;
     adresse: string;
     telephone: string;
+    image?: string;
 }
 
 export interface Produit {
     id?: number;
     nom: string;
     description: string;
+    image?: string;
     prixUnitaire: number;
     stockDisponible: number;
+    quantiteMinimumCommande?: number;
     alerteStock: boolean;
     fournisseurId?: number;
     fournisseurNom?: string; // flattened for UI ease
+    categorieId?: number;
     categorie?: string;
     actif: boolean;
 }
@@ -70,6 +74,7 @@ export interface LignePanierResponse {
     image: string;
     prixUnitaire: number;
     quantite: number;
+    quantiteMinimumCommande?: number;
     sousTotal: number;
 }
 

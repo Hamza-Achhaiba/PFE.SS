@@ -9,9 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TopProduitResponse {
-    private Long id;
-    private String nom;
-    private Double chiffreAffaires;
-    private Long quantiteVendue;
+public class ChangePasswordRequest {
+    private String currentPassword;
+    private String newPassword;
+    private String confirmPassword;
 }

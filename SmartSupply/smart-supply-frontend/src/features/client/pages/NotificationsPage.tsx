@@ -58,7 +58,7 @@ export const NotificationsPage: React.FC = () => {
           {notifications.map((notif) => {
             const meta = getNotifMeta(notif.message);
             return (
-              <div key={notif.id} className={`list-group-item d-flex align-items-start py-3 border-bottom ${!notif.lue ? 'bg-light' : ''}`} style={{ background: !notif.lue ? 'var(--soft-bg)' : 'transparent', borderColor: 'rgba(200,210,230,0.5)' }}>
+              <div key={notif.id} className={`list-group-item d-flex align-items-start py-3 border-bottom ${!notif.lue ? 'bg-body-tertiary' : ''}`} style={{ background: !notif.lue ? 'var(--soft-bg)' : 'transparent', borderColor: 'var(--soft-border-subtle)' }}>
                 <div className="rounded-circle d-flex justify-content-center align-items-center me-3 mt-1" style={{ width: '36px', height: '36px', background: meta.color, color: 'white' }}>
                   {meta.icon}
                 </div>

@@ -34,8 +34,10 @@ public abstract class Utilisateur implements UserDetails {
     private String telephone;
     private String adresse;
     private String tokenNotification;
+    private String image;
     @Enumerated(EnumType.STRING)
     private Role role;
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
 
@@ -47,6 +49,7 @@ public abstract class Utilisateur implements UserDetails {
 
         return this.motDePasse;
     }
+
     @Override
     public String getUsername() {
 

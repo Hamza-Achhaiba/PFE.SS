@@ -112,57 +112,67 @@ export const CartPage: React.FC = () => {
       <div className="row g-4">
         <div className="col-lg-8">
           <SoftCard className="p-0 border-0 shadow-none bg-transparent">
-            <SoftTable headers={['Product', 'Price', 'Quantity', 'Total', 'Actions']}>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <div className="d-flex align-items-center">
-                      <div
-                        className="bg-light rounded me-3 d-flex align-items-center justify-content-center"
-                        style={{ width: '48px', height: '48px', objectFit: 'cover' }}
-                      >
-                        {item.image ? (
-                          <img src={item.image} alt={item.nomProduit} className="w-100 h-100 rounded" style={{ objectFit: 'cover' }} />
-                        ) : (
-                          <ShoppingCart className="text-secondary opacity-50" />
-                        )}
+            <div className="table-responsive">
+              <SoftTable headers={['Product', 'Price', 'Quantity', 'Total', 'Actions']}>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        <div
+                          className="bg-body-tertiary rounded me-3 d-flex align-items-center justify-content-center"
+                          style={{ width: '48px', height: '48px', objectFit: 'cover' }}
+                        >
+                          {item.image ? (
+                            <img src={item.image} alt={item.nomProduit} className="w-100 h-100 rounded" style={{ objectFit: 'cover' }} />
+                          ) : (
+                            <ShoppingCart className="text-secondary opacity-50" />
+                          )}
+                        </div>
+                        <span className="fw-semibold">{item.nomProduit || 'Unknown'}</span>
                       </div>
-                      <span className="fw-semibold">{item.nomProduit || 'Unknown'}</span>
-                    </div>
-                  </td>
-                  <td>{item.prixUnitaire || 0} DH</td>
-                  <td>
-                    <div className="d-flex align-items-center gap-2">
+                    </td>
+                    <td>{item.prixUnitaire || 0} DH</td>
+                    <td>
+                      <div className="d-flex align-items-center gap-2">
+                        <button
+                          className="btn btn-sm btn-light border p-1"
+                          onClick={() => {
+                            const minQ = item.quantiteMinimumCommande || 1;
+                            const newQty = item.quantite - 1;
+                            if (newQty > 0 && newQty < minQ) {
+                              toast.warning(`Minimum order quantity is ${minQ}`);
+                              return;
+                            }
+                            handleUpdateQuantity(item.produitId, item.quantite, -1);
+                          }}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span className="fw-semibold mx-2" style={{ minWidth: '20px', textAlign: 'center' }}>
+                          {item.quantite}
+                        </span>
+                        <button
+                          className="btn btn-sm btn-light border p-1"
+                          onClick={() => handleUpdateQuantity(item.produitId, item.quantite, 1)}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="fw-bold">{item.sousTotal?.toFixed(2) || (item.quantite * (item.prixUnitaire || 0)).toFixed(2)} DH</td>
+                    <td>
                       <button
-                        className="btn btn-sm btn-light border p-1"
-                        onClick={() => handleUpdateQuantity(item.produitId, item.quantite, -1)}
+                        className="btn btn-sm text-danger p-1"
+                        onClick={() => handleRemoveItem(item.produitId)}
+                        title="Remove item"
                       >
-                        <Minus size={14} />
+                        <Trash2 size={16} />
                       </button>
-                      <span className="fw-semibold mx-2" style={{ minWidth: '20px', textAlign: 'center' }}>
-                        {item.quantite}
-                      </span>
-                      <button
-                        className="btn btn-sm btn-light border p-1"
-                        onClick={() => handleUpdateQuantity(item.produitId, item.quantite, 1)}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="fw-bold">{item.sousTotal?.toFixed(2) || (item.quantite * (item.prixUnitaire || 0)).toFixed(2)} DH</td>
-                  <td>
-                    <button
-                      className="btn btn-sm text-danger p-1"
-                      onClick={() => handleRemoveItem(item.produitId)}
-                      title="Remove item"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </SoftTable>
+                    </td>
+                  </tr>
+                ))}
+              </SoftTable>
+            </div>
           </SoftCard>
         </div>
 

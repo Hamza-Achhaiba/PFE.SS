@@ -45,7 +45,7 @@ export const SuppliersPage: React.FC = () => {
                 <h5 className="fw-bold mb-1">{fournisseur.nomEntreprise || fournisseur.nom}</h5>
                 <p className="text-muted small mb-3">{fournisseur.adresse}</p>
 
-                <div className="mt-auto w-100 text-start bg-light p-3 rounded" style={{ background: 'var(--soft-bg)' }}>
+                <div className="mt-auto w-100 text-start bg-body-tertiary p-3 rounded" style={{ background: 'var(--soft-bg)' }}>
                   <div className="small text-muted mb-1">Contact: {fournisseur.nom}</div>
                   <div className="small text-muted mb-1">Email: {fournisseur.email}</div>
                   <div className="small text-muted">Phone: {fournisseur.telephone}</div>

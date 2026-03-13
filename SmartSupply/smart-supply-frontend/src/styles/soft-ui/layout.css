@@ -1,8 +1,8 @@
 .soft-sidebar {
     background: var(--soft-bg);
-    border-right: 1px solid rgba(255, 255, 255, 0.8);
+    border-right: 1px solid var(--soft-border);
     height: 100vh;
-    box-shadow: 5px 0 15px rgba(200, 210, 230, 0.3);
+    box-shadow: var(--soft-shadow);
     padding: 1.5rem;
     z-index: 100;
     display: flex;
@@ -10,9 +10,9 @@
 }
 
 .soft-topbar {
-    background: rgba(255, 255, 255, 0.6);
+    background: var(--soft-glass-bg);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid var(--soft-border);
     padding: 1rem 1.75rem;
     position: sticky;
     top: 0;
@@ -35,7 +35,7 @@
 }
 
 .soft-nav-item:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--soft-glass-hover);
     box-shadow: var(--soft-shadow);
     color: var(--soft-primary);
 }
@@ -56,7 +56,7 @@
     font-size: 0.75rem;
     font-weight: 600;
     background: var(--soft-secondary);
-    box-shadow: 2px 2px 5px rgba(200, 210, 230, 0.5), -2px -2px 5px rgba(255, 255, 255, 0.8);
+    box-shadow: var(--soft-shadow-inset);
 }
 
 .soft-badge.success {
@@ -105,4 +105,91 @@
 
 .soft-table tbody tr:hover {
     background-color: var(--soft-bg);
+}
+
+/* Profile Dropdown */
+.soft-profile-dropdown {
+    position: absolute;
+    top: calc(100% + 15px);
+    right: 0;
+    width: 280px;
+    background: var(--soft-secondary);
+    border: 1px solid var(--soft-border);
+    border-radius: var(--soft-radius);
+    box-shadow: var(--soft-shadow-hover);
+    padding: 1.25rem;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    animation: slideDown 0.3s ease-out;
+    transform-origin: top right;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.profile-dropdown-header {
+    border-bottom: 1px solid var(--soft-border-subtle);
+    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.profile-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--soft-radius-sm);
+    color: var(--soft-text);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.profile-dropdown-item:hover {
+    background: var(--soft-bg);
+    color: var(--soft-primary);
+}
+
+.profile-dropdown-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--soft-bg);
+    color: var(--soft-primary);
+}
+
+.profile-dropdown-footer {
+    border-top: 1px solid var(--soft-border-subtle);
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 576px) {
+    .soft-topbar {
+        position: relative;
+    }
+
+    .soft-profile-dropdown {
+        width: calc(100vw - 2rem);
+        right: 1rem;
+        left: 1rem;
+        top: 70px;
+        position: absolute;
+    }
 }

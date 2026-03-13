@@ -49,7 +49,9 @@ export const SalesOrdersPage: React.FC = () => {
       toast.success('Order status updated');
       fetchVentes();
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Failed to update status');
+      console.error("Failed to update status:", e);
+      const errorMsg = e.response?.data?.message || e.message || String(e);
+      toast.error(errorMsg);
     } finally {
       setUpdatingId(null);
     }
@@ -91,6 +93,7 @@ export const SalesOrdersPage: React.FC = () => {
     switch (status) {
       case 'EN_ATTENTE_VALIDATION': return <SoftBadge variant="warning">Pending</SoftBadge>;
       case 'VALIDEE': return <SoftBadge variant="info">Validated</SoftBadge>;
+      case 'EN_PREPARATION': return <SoftBadge variant="info">In Preparation</SoftBadge>;
       case 'EXPEDIEE': return <SoftBadge variant="info">Shipped</SoftBadge>;
       case 'LIVREE': return <SoftBadge variant="success">Delivered</SoftBadge>;
       case 'ANNULEE': return <SoftBadge variant="danger">Cancelled</SoftBadge>;
@@ -98,7 +101,7 @@ export const SalesOrdersPage: React.FC = () => {
     }
   };
 
-  const statusOptions = ['EN_ATTENTE_VALIDATION', 'VALIDEE', 'EXPEDIEE', 'LIVREE', 'ANNULEE'];
+  const statusOptions = ['EN_ATTENTE_VALIDATION', 'VALIDEE', 'EN_PREPARATION', 'EXPEDIEE', 'LIVREE', 'ANNULEE'];
 
   return (
     <div className="container-fluid p-0">
@@ -117,7 +120,7 @@ export const SalesOrdersPage: React.FC = () => {
                       Order {order.reference || `#${order.id}`}
                     </h5>
                     <p className="text-muted mb-0 small">
-                      Placed on {order.dateCreation ? format(new Date(order.dateCreation), 'PPP') : 'Unknown Date'}
+                      Placed on {order.dateCreation ? format(new Date(order.dateCreation), 'PP p') : 'Unknown Date'}
                     </p>
                   </div>
                   <div className="d-flex align-items-center gap-3 mt-3 mt-md-0">
@@ -125,7 +128,7 @@ export const SalesOrdersPage: React.FC = () => {
                     <div className="d-flex align-items-center gap-2">
                       {getStatusBadge(order.statut)}
                       <select
-                        className="form-select form-select-sm shadow-none bg-light"
+                        className="form-select form-select-sm shadow-none bg-body-tertiary border-0"
                         style={{ width: '150px' }}
                         value={order.statut}
                         disabled={updatingId === order.id}
@@ -139,22 +142,22 @@ export const SalesOrdersPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="row">
+                <div className="row g-4">
                   <div className="col-md-7 border-end-md">
                     <h6 className="fw-semibold mb-3 d-flex align-items-center gap-2">
                       <User size={18} className="text-secondary" />
                       Client Information
                     </h6>
-                    <div className="bg-light rounded p-3 mb-4">
-                      <p className="mb-1 fw-medium text-dark">{order.client?.nom}</p>
+                    <div className="bg-body-tertiary rounded p-3 mb-4">
+                      <p className="mb-1 fw-medium">{order.client?.nom}</p>
                       <p className="mb-0 text-muted small">{order.client?.email} &bull; {order.client?.telephone}</p>
                     </div>
 
                     <h6 className="fw-semibold mb-3">Order Items ({order.lignes?.length || 0})</h6>
                     <div className="d-flex flex-column gap-2 mb-4 mb-md-0">
                       {order.lignes?.map((ligne, idx) => (
-                        <div key={idx} className="d-flex justify-content-between align-items-center bg-light rounded p-2 px-3">
-                          <span className="fw-medium text-dark">{ligne.produit?.nom || 'Product'} <span className="text-muted small">x{ligne.quantite}</span></span>
+                        <div key={idx} className="d-flex justify-content-between align-items-center bg-body-tertiary rounded p-2 px-3">
+                          <span className="fw-medium">{ligne.produit?.nom || 'Product'} <span className="text-muted small">x{ligne.quantite}</span></span>
                           <span className="fw-semibold text-secondary">{ligne.sousTotal?.toFixed(2)} DH</span>
                         </div>
                       ))}
@@ -167,7 +170,7 @@ export const SalesOrdersPage: React.FC = () => {
                       Logistics & Tracking
                     </h6>
 
-                    <div className="d-flex flex-column gap-3 bg-light rounded p-3">
+                    <div className="d-flex flex-column gap-3 bg-body-tertiary rounded p-3">
                       <div>
                         <label className="form-label small text-muted mb-1 fw-bold">Tracking Reference</label>
                         <input

@@ -46,7 +46,7 @@ public class PanierController {
     @DeleteMapping("/supprimer/{produitId}")
     @PreAuthorize("hasAuthority('CLIENT')")
     public ResponseEntity<PanierResponse> supprimerItem(
-            @PathVariable Long produitId,
+            @PathVariable("produitId") Long produitId,
             Principal principal) {
         PanierResponse panier = panierService.supprimerItem(principal.getName(), produitId);
         return ResponseEntity.ok(panier);

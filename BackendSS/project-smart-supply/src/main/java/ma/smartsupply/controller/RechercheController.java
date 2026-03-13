@@ -21,14 +21,15 @@ public class RechercheController {
 
     @GetMapping("/clients")
     @PreAuthorize("hasAuthority('FOURNISSEUR')")
-    public ResponseEntity<List<Client>> rechercherClientParMagasin(@RequestParam String magasin) {
+    public ResponseEntity<List<Client>> rechercherClientParMagasin(@RequestParam(value = "magasin", required = false) String magasin) {
         List<Client> clients = clientRepository.findByNomMagasinContainingIgnoreCase(magasin);
         return ResponseEntity.ok(clients);
     }
 
     @GetMapping("/fournisseurs")
     @PreAuthorize("hasAuthority('CLIENT')")
-    public ResponseEntity<List<Fournisseur>> rechercherFournisseurParEntreprise(@RequestParam String entreprise) {
+    public ResponseEntity<List<Fournisseur>> rechercherFournisseurParEntreprise(
+            @RequestParam(value = "entreprise", required = false) String entreprise) {
         List<Fournisseur> fournisseurs = fournisseurRepository.findByNomEntrepriseContainingIgnoreCase(entreprise);
         return ResponseEntity.ok(fournisseurs);
     }

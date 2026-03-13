@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { SoftCard } from '../../../components/ui/SoftCard';
@@ -13,6 +14,10 @@ import { toast } from 'react-toastify';
 export const OrdersPage: React.FC = () => {
   const [achats, setAchats] = useState<Commande[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const orderIdParam = searchParams.get('orderId');
+  const orderRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+  const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
 
   const fetchOrders = () => {
     setIsLoading(true);
@@ -25,6 +30,21 @@ export const OrdersPage: React.FC = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    if (!isLoading && orderIdParam && achats.length > 0) {
+      const id = parseInt(orderIdParam);
+      const element = orderRefs.current[id];
+      if (element) {
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setHighlightedOrderId(id);
+          // Remove highlight after some time
+          setTimeout(() => setHighlightedOrderId(null), 3000);
+        }, 100);
+      }
+    }
+  }, [isLoading, orderIdParam, achats]);
 
   const handleCancelOrder = async (id: number) => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
@@ -68,16 +88,20 @@ export const OrdersPage: React.FC = () => {
 
       <div className="row g-4">
         {achats.map((order) => (
-          <div className="col-12" key={order.id}>
-            <SoftCard className="border-0 shadow-sm">
-              <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 pb-3 border-bottom">
+          <div
+            className="col-12"
+            key={order.id}
+            ref={el => orderRefs.current[order.id] = el}
+          >
+            <SoftCard className={`border-0 shadow-sm transition-all ${highlightedOrderId === order.id ? 'highlight-order' : ''}`}>
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 pb-3 border-bottom gap-2">
                 <div>
                   <h5 className="fw-bold mb-1 d-flex align-items-center gap-2">
                     <Package size={20} className="text-secondary" />
                     Order {order.reference || `#${order.id}`}
                   </h5>
                   <p className="text-muted mb-0 small">
-                    Placed on {order.dateCreation ? format(new Date(order.dateCreation), 'PPP') : 'Unknown Date'}
+                    Placed on {order.dateCreation ? format(new Date(order.dateCreation), 'PP p') : 'Unknown Date'}
                   </p>
                 </div>
                 <div className="d-flex align-items-center gap-3 mt-3 mt-md-0">
@@ -91,8 +115,8 @@ export const OrdersPage: React.FC = () => {
                   <h6 className="fw-semibold mb-3">Items ({order.lignes?.length || 0})</h6>
                   <div className="d-flex flex-column gap-2 mb-4 mb-md-0">
                     {order.lignes?.map((ligne, idx) => (
-                      <div key={idx} className="d-flex justify-content-between align-items-center bg-light rounded p-2 px-3">
-                        <span className="fw-medium text-dark">{ligne.produit?.nom || 'Product'} <span className="text-muted small">x{ligne.quantite}</span></span>
+                      <div key={idx} className="d-flex justify-content-between align-items-center bg-body-tertiary rounded p-2 px-3">
+                        <span className="fw-medium">{ligne.produit?.nom || 'Product'} <span className="text-muted small">x{ligne.quantite}</span></span>
                         <span className="fw-semibold text-secondary">{ligne.sousTotal?.toFixed(2)} DH</span>
                       </div>
                     ))}
@@ -104,20 +128,20 @@ export const OrdersPage: React.FC = () => {
 
                   <div className="d-flex flex-column gap-3">
                     <div className="d-flex align-items-start gap-3">
-                      <div className="bg-light p-2 rounded text-secondary">
+                      <div className="bg-body-tertiary p-2 rounded text-secondary">
                         <Truck size={20} />
                       </div>
                       <div>
-                        <p className="mb-0 fw-medium text-dark">Tracking Reference</p>
+                        <p className="mb-0 fw-medium">Tracking Reference</p>
                         <p className="mb-0 text-muted small">{order.trackingReference || 'Not assigned yet'}</p>
                       </div>
                     </div>
                     <div className="d-flex align-items-start gap-3">
-                      <div className="bg-light p-2 rounded text-secondary">
+                      <div className="bg-body-tertiary p-2 rounded text-secondary">
                         <CheckCircle size={20} />
                       </div>
                       <div>
-                        <p className="mb-0 fw-medium text-dark">Estimated Delivery</p>
+                        <p className="mb-0 fw-medium">Estimated Delivery</p>
                         <p className="mb-0 text-muted small">
                           {order.dateLivraisonEstimee ? format(new Date(order.dateLivraisonEstimee), 'PPP') : 'TBD'}
                         </p>

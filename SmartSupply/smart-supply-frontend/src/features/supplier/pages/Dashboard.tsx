@@ -3,8 +3,8 @@ import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRigh
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { notificationsApi } from '../../../api/notifications.api';
 import { analyticsApi, SupplierAnalyticsStats, SalesTimelinePoint, TopProductPoint } from '../../../api/analytics.api';
-import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis } from 'recharts';
-import { format, subDays } from 'date-fns';
+import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
+import { format, subDays, parseISO } from 'date-fns';
 
 export const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -76,18 +76,79 @@ export const Dashboard: React.FC = () => {
 
       <div className="row g-4">
         <div className="col-lg-8">
-          <div className="row g-4 h-100 pb-3">
-            <div className="col-12 mb-3">
-              <SoftCard title="Revenue Growth" subtitle="Daily sales timeline tracking" className="h-100">
-                <div style={{ height: '300px', marginTop: '1rem' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={timeline}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--soft-bg)" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'var(--soft-text-muted)', fontSize: 12 }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--soft-shadow)' }} />
-                      <Area type="monotone" dataKey="revenue" name="Revenue (DH)" stroke="var(--soft-primary)" fill="var(--soft-bg)" strokeWidth={3} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+          <div className="row g-1 pb-2">
+            <div className="col-12 mb-2">
+              <SoftCard title="Revenue Growth" subtitle="Daily sales timeline tracking for the last 30 days">
+                <div style={{ height: '220px', marginTop: '0.5rem' }} className="d-flex align-items-center justify-content-center">
+                  {timeline.some(p => p.revenue > 0) ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--soft-primary)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--soft-primary)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--soft-text-muted)" opacity={0.1} />
+                        <XAxis
+                          dataKey="date"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--soft-text-muted)', fontSize: 11 }}
+                          tickFormatter={(str) => {
+                            try {
+                              return format(parseISO(str), 'MMM dd');
+                            } catch (e) {
+                              return str;
+                            }
+                          }}
+                          minTickGap={30}
+                        />
+                        <YAxis
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--soft-text-muted)', fontSize: 11 }}
+                          tickFormatter={(val) => `${val} DH`}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--soft-secondary)',
+                            borderRadius: '16px',
+                            border: '1px solid var(--soft-border)',
+                            boxShadow: 'var(--soft-shadow)',
+                            color: 'var(--soft-text)',
+                            padding: '12px'
+                          }}
+                          itemStyle={{ color: 'var(--soft-primary)', fontWeight: 'bold' }}
+                          labelStyle={{ color: 'var(--soft-text-muted)', marginBottom: '4px' }}
+                          formatter={(value: any) => [`${Number(value || 0).toFixed(2)} DH`, 'Revenue']}
+                          labelFormatter={(label) => {
+                            try {
+                              return format(parseISO(label), 'EEEE, MMM dd yyyy');
+                            } catch (e) {
+                              return label;
+                            }
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="var(--soft-primary)"
+                          fillOpacity={1}
+                          fill="url(#colorRevenue)"
+                          strokeWidth={3}
+                          animationDuration={1500}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-center">
+                      <div className="soft-badge rounded-circle p-4 mb-3 d-inline-block" style={{ background: 'var(--soft-bg)' }}>
+                        <ShoppingBag size={32} color="var(--soft-text-muted)" opacity={0.5} />
+                      </div>
+                      <p className="text-muted mb-0">No sales data available for the last 30 days.</p>
+                    </div>
+                  )}
                 </div>
               </SoftCard>
             </div>
@@ -96,7 +157,7 @@ export const Dashboard: React.FC = () => {
             <div className="col-12">
               <SoftCard title="Top Selling Products" subtitle="Top 5 products by revenue generated">
                 <div className="table-responsive mt-3">
-                  <table className="table table-hover align-middle mb-0 border-light font-sm">
+                  <table className="table table-hover align-middle mb-0 font-sm">
                     <thead>
                       <tr>
                         <th className="text-muted fw-semibold border-0">Product Name</th>
@@ -107,9 +168,9 @@ export const Dashboard: React.FC = () => {
                     <tbody>
                       {topProducts.map((p) => (
                         <tr key={p.produitId}>
-                          <td className="fw-medium text-dark border-light">{p.nomProduit}</td>
-                          <td className="text-center border-light">{p.totalVendu}</td>
-                          <td className="text-end fw-bold text-primary border-light">{p.chiffreAffaires.toFixed(2)} DH</td>
+                          <td className="fw-medium text-body">{p.nomProduit}</td>
+                          <td className="text-center">{p.totalVendu}</td>
+                          <td className="text-end fw-bold text-primary">{p.chiffreAffaires.toFixed(2)} DH</td>
                         </tr>
                       ))}
                       {topProducts.length === 0 && (
@@ -150,7 +211,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               ))}
             </div>
-            <div className="text-center mt-3 pt-2 border-top border-light">
+            <div className="text-center mt-3 pt-2">
               <a href="/supplier/orders" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View All Orders</a>
             </div>
           </SoftCard>

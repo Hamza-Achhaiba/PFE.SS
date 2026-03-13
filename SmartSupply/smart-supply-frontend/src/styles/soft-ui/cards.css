@@ -4,7 +4,7 @@
     box-shadow: var(--soft-shadow);
     padding: 1.5rem;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--soft-border);
     backdrop-filter: blur(10px);
 }
 
@@ -23,4 +23,30 @@
 .soft-card-subtitle {
     font-size: 0.875rem;
     color: var(--soft-text-muted);
+}
+
+/* Highlight Animation */
+@keyframes highlight-pulse {
+    0% {
+        box-shadow: var(--soft-shadow);
+        transform: translateY(0);
+    }
+    50% {
+        box-shadow: 0 0 25px var(--soft-primary);
+        transform: translateY(-5px) scale(1.02);
+    }
+    100% {
+        box-shadow: var(--soft-shadow);
+        transform: translateY(0);
+    }
+}
+
+.highlight-order {
+    animation: highlight-pulse 2s ease-in-out;
+    border: 2px solid var(--soft-primary) !important;
+    z-index: 10;
+}
+
+.transition-all {
+    transition: all 0.3s ease;
 }

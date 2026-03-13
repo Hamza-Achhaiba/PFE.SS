@@ -11,10 +11,12 @@ import java.util.List;
 public interface CommandeRepository extends JpaRepository<Commande, Long> {
 
     List<Commande> findByClientId(Long clientId);
+
     List<Commande> findByStatut(StatutCommande statut);
 
-    List<Commande> findByClientEmail(String email);
-    List<Commande> findDistinctByLignes_Produit_Fournisseur_Email(String email);
+    List<Commande> findByClientEmailOrderByDateCreationDesc(String email);
 
-    List<Commande> findByClientEmailAndStatut(String email, StatutCommande statut);
+    List<Commande> findDistinctByLignes_Produit_Fournisseur_EmailOrderByDateCreationDesc(String email);
+
+    List<Commande> findByClientEmailAndStatutOrderByDateCreationDesc(String email, StatutCommande statut);
 }

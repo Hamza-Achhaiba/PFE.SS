@@ -165,10 +165,18 @@ public class CommandeService {
     }
 
     @Transactional
-    public Commande changerStatutCommande(Long commandeId, StatutCommande nouveauStatut) {
+    public Commande changerStatutCommande(Long commandeId, StatutCommande nouveauStatut, String emailFournisseur) {
 
         Commande commande = commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new RuntimeException("Commande introuvable avec l'ID : " + commandeId));
+
+        // Supplier must check if they have products in this order
+        boolean hasSupplierProducts = commande.getLignes().stream()
+                .anyMatch(l -> l.getProduit().getFournisseur().getEmail().equals(emailFournisseur));
+
+        if (!hasSupplierProducts) {
+            throw new RuntimeException("Accès refusé. Cette commande ne contient pas de produits de ce fournisseur.");
+        }
 
         if (nouveauStatut == StatutCommande.ANNULEE && commande.getStatut() != StatutCommande.ANNULEE) {
             for (LigneCommande ligne : commande.getLignes()) {
@@ -189,13 +197,14 @@ public class CommandeService {
         return commandeMiseAJour;
     }
 
+    @Transactional(readOnly = true)
     public List<CommandeResponse> getMesAchats(String emailClient, StatutCommande statut) {
         List<Commande> commandes;
 
         if (statut == null) {
-            commandes = commandeRepository.findByClientEmail(emailClient);
+            commandes = commandeRepository.findByClientEmailOrderByDateCreationDesc(emailClient);
         } else {
-            commandes = commandeRepository.findByClientEmailAndStatut(emailClient, statut);
+            commandes = commandeRepository.findByClientEmailAndStatutOrderByDateCreationDesc(emailClient, statut);
         }
 
         return commandes.stream()
@@ -203,8 +212,10 @@ public class CommandeService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<CommandeResponse> getMesVentes(String emailFournisseur) {
-        return commandeRepository.findDistinctByLignes_Produit_Fournisseur_Email(emailFournisseur)
+        return commandeRepository
+                .findDistinctByLignes_Produit_Fournisseur_EmailOrderByDateCreationDesc(emailFournisseur)
                 .stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -261,7 +272,9 @@ public class CommandeService {
         commande.setClient((Client) panier.getClient());
         commande.setDateCreation(LocalDateTime.now());
         commande.setMontantTotal(panier.getMontantTotal());
-        commande.setStatut(StatutCommande.VALIDEE);
+        // Bugfix: Initial status should be EN_ATTENTE_VALIDATION so suppliers can
+        // validate it
+        commande.setStatut(StatutCommande.EN_ATTENTE_VALIDATION);
 
         List<LigneCommande> lignesCommande = new ArrayList<>();
 
@@ -274,6 +287,13 @@ public class CommandeService {
 
             produit.getStock().setQuantiteDisponible(
                     produit.getStock().getQuantiteDisponible() - lignePanier.getQuantite());
+
+            // Bugfix: Notify the supplier about the new order for their product
+            notificationService.creer(
+                    produit.getFournisseur(),
+                    "Nouvelle commande pour votre produit : " + produit.getNom() + " (Quantité: "
+                            + lignePanier.getQuantite() + ")",
+                    TypeNotification.NOUVELLE_COMMANDE);
 
             LigneCommande lc = new LigneCommande();
             lc.setCommande(commande);
@@ -292,13 +312,10 @@ public class CommandeService {
     }
 
     @Transactional
-    public CommandeResponse mettreAJourStatut(Long commandeId, String nouveauStatut) {
-        Commande commande = commandeRepository.findById(commandeId)
-                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
-        commande.setStatut(StatutCommande.valueOf(nouveauStatut.toUpperCase()));
-
-        Commande savedCommande = commandeRepository.save(commande);
-        return mapToDTO(savedCommande);
+    public CommandeResponse mettreAJourStatut(Long commandeId, String nouveauStatut, String emailFournisseur) {
+        StatutCommande statut = StatutCommande.valueOf(nouveauStatut.toUpperCase());
+        Commande commandeMiseAJour = this.changerStatutCommande(commandeId, statut, emailFournisseur);
+        return mapToDTO(commandeMiseAJour);
     }
 
     @Transactional

@@ -45,7 +45,7 @@ export const ClientsPage: React.FC = () => {
                 <h5 className="fw-bold mb-1">{client.nomMagasin || client.nom}</h5>
                 <p className="text-muted small mb-3">{client.adresse}</p>
 
-                <div className="mt-auto w-100 text-start bg-light p-3 rounded" style={{ background: 'var(--soft-bg)' }}>
+                <div className="mt-auto w-100 text-start bg-body-tertiary p-3 rounded" style={{ background: 'var(--soft-bg)' }}>
                   <div className="small text-muted mb-1">Contact: {client.nom}</div>
                   <div className="small text-muted mb-1">Email: {client.email}</div>
                   <div className="small text-muted">Phone: {client.telephone}</div>

@@ -1,0 +1,100 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< ma.smartsupply:SmartSupply >---------------------
+[INFO] Building SmartSupply 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.1:run (default-cli) > test-compile @ SmartSupply >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ SmartSupply ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ SmartSupply ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ SmartSupply ---
+[INFO] skip non existing resourceDirectory C:\Users\hhamz\OneDrive\Desktop\PFE.SS\BackendSS\project-smart-supply\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ SmartSupply ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.1:run (default-cli) < test-compile @ SmartSupply <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.1:run (default-cli) @ SmartSupply ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.1)
+
+2026-03-13T05:53:19.503Z  INFO 1772 --- [           main] ma.smartsupply.SmartSupplyApplication    : Starting SmartSupplyApplication using Java 17.0.12 with PID 1772 (C:\Users\hhamz\OneDrive\Desktop\PFE.SS\BackendSS\project-smart-supply\target\classes started by hhamz in C:\Users\hhamz\OneDrive\Desktop\PFE.SS\BackendSS\project-smart-supply)
+2026-03-13T05:53:19.505Z  INFO 1772 --- [           main] ma.smartsupply.SmartSupplyApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-03-13T05:53:20.140Z  INFO 1772 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-13T05:53:20.195Z  INFO 1772 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 48 ms. Found 11 JPA repository interfaces.
+2026-03-13T05:53:20.644Z  INFO 1772 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8089 (http)
+2026-03-13T05:53:20.652Z  INFO 1772 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-13T05:53:20.653Z  INFO 1772 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-13T05:53:20.696Z  INFO 1772 --- [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1156 ms
+2026-03-13T05:53:20.840Z  INFO 1772 --- [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-13T05:53:20.876Z  INFO 1772 --- [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-03-13T05:53:21.198Z  INFO 1772 --- [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-13T05:53:21.221Z  INFO 1772 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-13T05:53:21.337Z  INFO 1772 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@3f40568e
+2026-03-13T05:53:21.338Z  INFO 1772 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-13T05:53:21.367Z  WARN 1772 --- [           main] org.hibernate.orm.core                   : HHH000511: The 5.5.5 version for [org.hibernate.dialect.MySQLDialect] is no longer supported, hence certain features may not work properly.The minimum supported version is 8.0.0. Check the community dialects project for available legacy versions.
+2026-03-13T05:53:21.370Z  WARN 1772 --- [           main] org.hibernate.orm.deprecation            : HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-13T05:53:21.382Z  INFO 1772 --- [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:mysql://localhost:3306/smartsupplydb?createDatabaseIfNotExist=true&serverTimezone=UTC&useSSL=false]
+	Database driver: MySQL Connector/J
+	Database dialect: MySQLDialect
+	Database version: 5.5.5
+	Default catalog/schema: smartsupplydb/undefined
+	Autocommit mode: undefined/unknown
+	Isolation level: REPEATABLE_READ [default REPEATABLE_READ]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-03-13T05:53:22.189Z  INFO 1772 --- [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-03-13T05:53:22.342Z  INFO 1772 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-13T05:53:22.394Z  INFO 1772 --- [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-13T05:53:22.635Z  INFO 1772 --- [           main] eAuthenticationProviderManagerConfigurer : Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2026-03-13T05:53:22.635Z  WARN 1772 --- [           main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2026-03-13T05:53:23.376Z  WARN 1772 --- [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-13T05:53:23.726Z  INFO 1772 --- [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-03-13T05:53:23.993Z  INFO 1772 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8089 (http) with context path '/'
+2026-03-13T05:53:23.999Z  INFO 1772 --- [           main] ma.smartsupply.SmartSupplyApplication    : Started SmartSupplyApplication in 4.78 seconds (process running for 5.045)
+Hibernate: select c1_0.id,c1_0.description,c1_0.image,c1_0.nom from categories c1_0 where c1_0.nom=?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+Hibernate: select u1_0.id from utilisateurs u1_0 where u1_0.email=? limit ?
+? 0 nouveaux clients initialisΘs (Total seed attempts: 15).
+? Produits et stocks initialisΘs (Bypassed) !
+2026-03-13T05:54:01.436Z  INFO 1772 --- [nio-8089-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-13T05:54:01.436Z  INFO 1772 --- [nio-8089-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-13T05:54:01.437Z  INFO 1772 --- [nio-8089-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-03-13T05:54:01.457Z  WARN 1772 --- [nio-8089-exec-1] o.s.w.s.h.HandlerMappingIntrospector     : Cache miss for REQUEST dispatch to '/api/auth/authenticate' (previous null). Performing CorsConfiguration lookup. This is logged once only at WARN level, and every time at TRACE.
+Hibernate: select u1_0.id,case when u1_1.id is not null then 1 when u1_2.id is not null then 2 end,u1_0.adresse,u1_0.email,u1_0.image,u1_0.mot_de_passe,u1_0.nom,u1_0.role,u1_0.telephone,u1_0.token_notification,u1_1.nom_magasin,u1_2.info_contact,u1_2.nom_entreprise from utilisateurs u1_0 left join clients u1_1 on u1_0.id=u1_1.id left join fournisseurs u1_2 on u1_0.id=u1_2.id where u1_0.email=?
+Hibernate: select u1_0.id,case when u1_1.id is not null then 1 when u1_2.id is not null then 2 end,u1_0.adresse,u1_0.email,u1_0.image,u1_0.mot_de_passe,u1_0.nom,u1_0.role,u1_0.telephone,u1_0.token_notification,u1_1.nom_magasin,u1_2.info_contact,u1_2.nom_entreprise from utilisateurs u1_0 left join clients u1_1 on u1_0.id=u1_1.id left join fournisseurs u1_2 on u1_0.id=u1_2.id where u1_0.email=?
+Hibernate: select u1_0.id,case when u1_1.id is not null then 1 when u1_2.id is not null then 2 end,u1_0.adresse,u1_0.email,u1_0.image,u1_0.mot_de_passe,u1_0.nom,u1_0.role,u1_0.telephone,u1_0.token_notification,u1_1.nom_magasin,u1_2.info_contact,u1_2.nom_entreprise from utilisateurs u1_0 left join clients u1_1 on u1_0.id=u1_1.id left join fournisseurs u1_2 on u1_0.id=u1_2.id where u1_0.email=?
+2026-03-13T05:54:01.892Z  WARN 1772 --- [nio-8089-exec-3] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.bind.MissingServletRequestParameterException: Required request parameter 'magasin' for method parameter type String is not present]
