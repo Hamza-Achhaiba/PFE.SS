@@ -137,6 +137,7 @@ public class ProduitService {
                 .description(p.getDescription())
                 .image(p.getImage())
                 .nomFournisseur(nomFournisseur)
+                .fournisseurId(p.getFournisseur() != null ? p.getFournisseur().getId() : null)
                 .categorieId(p.getCategorie() != null ? p.getCategorie().getId() : null)
                 .categorieNom(p.getCategorie() != null ? p.getCategorie().getNom() : null)
                 .quantiteDisponible(quantite)

@@ -12,6 +12,7 @@ public class ProduitResponse {
     private String description;
     private String image;
     private String nomFournisseur;
+    private Long fournisseurId;
 
     private Long categorieId;
     private String categorieNom;

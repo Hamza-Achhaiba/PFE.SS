@@ -17,6 +17,8 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
 
     boolean existsByNomAndFournisseurId(String nom, Long fournisseurId);
 
+    java.util.Optional<Produit> findByNomAndFournisseurId(String nom, Long fournisseurId);
+
     @Query("SELECT p FROM Produit p JOIN p.stock s WHERE p.actif = true " +
             "AND (:motCle IS NULL OR :motCle = '' OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :motCle, '%'))) " +
             "AND (:enStock = false OR s.quantiteDisponible > 0)")

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { productsApi } from '../../../api/products.api';
 import { cartApi } from '../../../api/cart.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
@@ -17,8 +17,9 @@ export const CatalogPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchParams] = useSearchParams();
-  const categoryFilter = searchParams.get('category');
+   const [searchParams] = useSearchParams();
+   const categoryFilter = searchParams.get('category');
+   const supplierFilter = searchParams.get('supplier');
 
   useEffect(() => {
     productsApi.getProduits()
@@ -26,6 +27,13 @@ export const CatalogPage: React.FC = () => {
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);
+
+  const resolveImage = (url: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+    return `${backendUrl}${url}`;
+  };
 
   const openModal = (product: any) => {
     setSelectedProduct(product);
@@ -52,25 +60,27 @@ export const CatalogPage: React.FC = () => {
 
   return (
     <div className="container-fluid p-0">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4 className="fw-bold mb-0">
-          {categoryFilter ? `Catalog: ${categoryFilter}` : 'Product Catalog'}
-        </h4>
-      </div>
-      <div className="row g-4">
-        {produits?.filter(p => !categoryFilter || p.categorieNom === categoryFilter).map(p => (
+       <div className="d-flex justify-content-between align-items-center mb-4">
+         <h4 className="fw-bold mb-0">
+           {categoryFilter ? `Catalog: ${categoryFilter}` : 
+            supplierFilter ? `Products from ${supplierFilter}` : 
+            'Product Catalog'}
+         </h4>
+       </div>
+       <div className="row g-4">
+         {produits?.filter(p => 
+           (!categoryFilter || p.categorieNom === categoryFilter) &&
+           (!supplierFilter || p.fournisseurNom === supplierFilter)
+         ).map(p => (
           <div className="col-md-4 col-lg-3" key={p.id}>
             <SoftCard className="h-100 d-flex flex-column p-0 overflow-hidden">
               <div style={{ height: '180px', overflow: 'hidden', position: 'relative' }}>
                 {p.image ? (
-                  <img
-                    src={p.image}
-                    alt={p.nom}
-                    className="w-100 h-100 object-fit-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&q=80';
-                    }}
-                  />
+                    <img
+                      src={resolveImage(p.image) || 'https://via.placeholder.com/400x300?text=Product'}
+                      alt={p.nom}
+                      className="w-100 h-100 object-fit-cover"
+                    />
                 ) : (
                   <div className="w-100 h-100 bg-light d-flex align-items-center justify-content-center text-muted">
                     No Image
@@ -93,7 +103,12 @@ export const CatalogPage: React.FC = () => {
                 )}
                 <p className="text-muted small flex-grow-1">{p.description}</p>
                 {p.fournisseurNom && (
-                  <small className="text-muted mb-3 d-block"><i className="bi bi-shop me-1"></i>{p.fournisseurNom}</small>
+                  <Link 
+                    to={`/client/suppliers/${p.fournisseurId}`}
+                    className="text-muted mb-3 d-inline-flex align-items-center text-decoration-none hover-primary small"
+                  >
+                    <i className="bi bi-shop me-1"></i>{p.fournisseurNom}
+                  </Link>
                 )}
 
                 <SoftButton
@@ -128,7 +143,7 @@ export const CatalogPage: React.FC = () => {
                 style={{ width: '64px', height: '64px' }}
               >
                 {selectedProduct.image ? (
-                  <img src={selectedProduct.image} alt={selectedProduct.nom} className="w-100 h-100 object-fit-cover" />
+                  <img src={resolveImage(selectedProduct.image) || ''} alt={selectedProduct.nom} className="w-100 h-100 object-fit-cover" />
                 ) : (
                   <span className="text-muted small">Img</span>
                 )}

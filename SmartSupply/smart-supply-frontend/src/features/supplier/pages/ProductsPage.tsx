@@ -60,6 +60,13 @@ export const ProductsPage: React.FC = () => {
     fetchProduits();
   }, []);
 
+  const resolveImage = (url: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+    return `${backendUrl}${url}`;
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.nom || newProduct.prixUnitaire <= 0 || newProduct.categorieId === '') {
@@ -217,12 +224,9 @@ export const ProductsPage: React.FC = () => {
                     >
                       {p.image ? (
                         <img
-                          src={p.image}
+                          src={resolveImage(p.image) || 'https://via.placeholder.com/40x40?text=P'}
                           alt={p.nom}
                           className="w-100 h-100 object-fit-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&q=80';
-                          }}
                         />
                       ) : (
                         <span className="text-muted small">Img</span>

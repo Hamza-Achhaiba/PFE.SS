@@ -12,4 +12,5 @@ public class UpdateProfilRequest {
     private String nomEntreprise;
     private String infoContact;
     private String image;
+    private String description;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
 
 export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -15,11 +15,13 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/client/orders', icon: <FileText size={20} />, label: 'Orders' },
         { to: '/client/suppliers', icon: <Users size={20} />, label: 'Suppliers' },
         { to: '/client/notifications', icon: <Bell size={20} />, label: 'Notifications' },
+        { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favoris' },
         { to: '/client/settings', icon: <Settings size={20} />, label: 'Settings' },
     ];
 
     const supplierLinks = [
         { to: '/supplier/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+        { to: '/supplier/profile', icon: <User size={20} />, label: 'Supplier Profile' },
         { to: '/supplier/products', icon: <PackagePlus size={20} />, label: 'My Products' },
         { to: '/supplier/orders', icon: <FileText size={20} />, label: 'Sales Orders' },
         { to: '/supplier/clients', icon: <Users size={20} />, label: 'Clients' },

@@ -10,8 +10,21 @@ export interface User {
     image?: string;
 }
 
+export interface Fournisseur {
+    id: number;
+    nom: string;
+    email: string;
+    telephone: string;
+    adresse: string;
+    nomEntreprise: string;
+    infoContact: string;
+    image?: string;
+    description?: string;
+    verified: boolean;
+}
+
 export interface Produit {
-    id?: number;
+    id: number;
     nom: string;
     description: string;
     image?: string;
@@ -19,10 +32,10 @@ export interface Produit {
     stockDisponible: number;
     quantiteMinimumCommande?: number;
     alerteStock: boolean;
-    fournisseurId?: number;
-    fournisseurNom?: string; // flattened for UI ease
+    fournisseurId: number;
+    fournisseurNom?: string;
     categorieId?: number;
-    categorie?: string;
+    categorieNom?: string;
     actif: boolean;
 }
 

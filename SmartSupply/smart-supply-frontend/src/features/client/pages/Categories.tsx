@@ -36,6 +36,13 @@ export const Categories: React.FC = () => {
         navigate(`/client/catalog?category=${encodeURIComponent(categoryName)}`);
     };
 
+    const resolveImage = (url: string) => {
+        if (!url) return null;
+        if (url.startsWith('http')) return url;
+        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+        return `${backendUrl}${url}`;
+    };
+
     if (loading) {
         return (
             <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
@@ -93,15 +100,12 @@ export const Categories: React.FC = () => {
                                 <div className="position-relative" style={{ height: '160px', overflow: 'hidden' }}>
                                     {category.image ? (
                                         <img
-                                            src={category.image}
+                                            src={resolveImage(category.image) || 'https://via.placeholder.com/500x320?text=Category'}
                                             alt={category.nom}
                                             className="w-100 h-100 object-fit-cover"
                                             style={{ transition: 'transform 0.5s ease' }}
                                             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                                             onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                            onError={(e) => {
-                                                e.currentTarget.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&q=80'; // Fallback
-                                            }}
                                         />
                                     ) : (
                                         <div className="w-100 h-100 bg-soft-primary d-flex align-items-center justify-content-center">

@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { Database, Mail, Lock } from 'lucide-react';
 import { loginSchema, LoginFormValues } from '../auth.schemas';
 import { authApi } from '../../../api/auth.api';
+import { apiClient } from '../../../api/axios';
 import { AuthStore } from '../auth.store';
 import { decodeToken } from '../auth.utils';
 import './LoginPage.css';
@@ -51,7 +52,8 @@ export const LoginPage: React.FC = () => {
             let errMsg = 'Login failed. Please check your connection.';
 
             if (!error.response) {
-                errMsg = 'Backend server unreachable. Please make sure the backend is running at http://localhost:8088';
+                const bUrl = apiClient.defaults?.baseURL || 'http://localhost:8088';
+                errMsg = `Backend server unreachable. Please make sure the backend is running at ${bUrl}`;
             } else if (status === 403 || status === 401) {
                 errMsg = 'Invalid email or password. Please try again.';
             } else if (error.response?.data?.message) {

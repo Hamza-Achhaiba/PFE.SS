@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getStorageItem, removeStorageItem } from '../utils/storage';
 
 export const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8089',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8088',
     headers: {
         'Content-Type': 'application/json',
     },
