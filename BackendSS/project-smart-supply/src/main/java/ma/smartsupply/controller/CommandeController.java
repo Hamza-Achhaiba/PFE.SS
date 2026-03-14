@@ -23,13 +23,13 @@ public class CommandeController {
     private final CommandeService commandeService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<Commande> passerCommande(@RequestBody CommandeRequest request) {
         return ResponseEntity.ok(commandeService.passerCommande(request));
     }
 
     @PutMapping("/{id}/valider")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<Commande> validerCommande(
             @PathVariable("id") Long id,
             Principal principal) {
@@ -37,7 +37,7 @@ public class CommandeController {
     }
 
     @PutMapping("/{id}/annuler")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<?> annulerCommande(
             @PathVariable("id") Long id,
             Principal principal) {
@@ -55,7 +55,7 @@ public class CommandeController {
     }
 
     @PutMapping("/{id}/statut")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<Commande> changerStatut(
             @PathVariable("id") Long id,
             @RequestParam("statut") StatutCommande statut,
@@ -66,7 +66,7 @@ public class CommandeController {
     }
 
     @GetMapping("/mes-achats")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<List<CommandeResponse>> getMesAchats(
             @RequestParam(name = "statut", required = false) StatutCommande statut,
             Principal principal) {
@@ -74,7 +74,7 @@ public class CommandeController {
     }
 
     @GetMapping("/mes-ventes")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<CommandeResponse>> getMesVentes(Principal principal) {
         return ResponseEntity.ok(commandeService.getMesVentes(principal.getName()));
     }

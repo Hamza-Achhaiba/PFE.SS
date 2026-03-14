@@ -13,4 +13,6 @@ public class UpdateProfilRequest {
     private String infoContact;
     private String image;
     private String description;
+    private Integer yearEstablished;
+    private String categorie;
 }

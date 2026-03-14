@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User, ShieldCheck } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
 
 export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -17,6 +17,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/client/notifications', icon: <Bell size={20} />, label: 'Notifications' },
         { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favoris' },
         { to: '/client/settings', icon: <Settings size={20} />, label: 'Settings' },
+        { to: '/client/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
 
     const supplierLinks = [
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/supplier/clients', icon: <Users size={20} />, label: 'Clients' },
         { to: '/supplier/notifications', icon: <Bell size={20} />, label: 'Notifications' },
         { to: '/supplier/settings', icon: <Settings size={20} />, label: 'Settings' },
+        { to: '/supplier/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
 
     const links = isClient ? clientLinks : supplierLinks;

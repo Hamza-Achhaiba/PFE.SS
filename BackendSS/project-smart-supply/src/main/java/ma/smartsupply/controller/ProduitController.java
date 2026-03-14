@@ -28,7 +28,7 @@ public class ProduitController {
     private final ProduitService produitService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<ProduitResponse> ajouterProduit(
             @RequestBody ProduitRequest request,
             Principal principal) {
@@ -41,13 +41,13 @@ public class ProduitController {
     }
 
     @GetMapping("/mes-produits")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<ProduitResponse>> getMesProduits(Principal principal) {
         return ResponseEntity.ok(produitService.getMesProduits(principal.getName()));
     }
 
     @PutMapping("/{id}/stock")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<ProduitResponse> updateStock(
             @PathVariable("id") Long id,
             @RequestParam("quantite") Integer quantite,
@@ -56,7 +56,7 @@ public class ProduitController {
     }
 
     @PutMapping("/{id}/ajouter-stock")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<Stock> ajouterStock(
             @PathVariable("id") Long id,
             @RequestParam("quantite") int quantite,
@@ -70,7 +70,7 @@ public class ProduitController {
     }
 
     @PutMapping("/{id}/toggle-statut")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<String> toggleStatutProduit(
             @PathVariable("id") Long id,
             Principal principal) {
@@ -79,7 +79,7 @@ public class ProduitController {
     }
 
     @GetMapping("/recherche")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<List<ProduitResponse>> rechercherProduits(
             @RequestParam(name = "motCle", required = false) String motCle,
             @RequestParam(name = "enStock", defaultValue = "false") boolean enStock) {
@@ -88,7 +88,7 @@ public class ProduitController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<ProduitResponse> modifierProduit(
             @PathVariable("id") Long id,
             @RequestBody ProduitRequest request,
@@ -98,7 +98,7 @@ public class ProduitController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<Map<String, String>> supprimerProduit(
             @PathVariable("id") Long id,
             Principal principal) {
@@ -107,13 +107,13 @@ public class ProduitController {
     }
 
     @GetMapping("/suggestions-reapprovisionnement")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<ProduitResponse>> getRestockSuggestions(Principal principal) {
         return ResponseEntity.ok(produitService.getRestockSuggestions(principal.getName()));
     }
 
     @PostMapping("/upload-image")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
         try {
             if (file.isEmpty()) {

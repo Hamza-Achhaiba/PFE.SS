@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { productsApi } from '../../../api/products.api';
 import { cartApi } from '../../../api/cart.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
@@ -74,7 +75,7 @@ export const SearchPage: React.FC = () => {
 
       {isLoading ? <SoftLoader /> : (
         <div className="row g-4">
-          {produits?.map(p => (
+          {produits?.map((p: any) => (
             <div className="col-md-4 col-lg-3" key={p.id}>
               <SoftCard className="h-100 d-flex flex-column">
                 <div className="mb-2 d-flex justify-content-between">
@@ -85,7 +86,15 @@ export const SearchPage: React.FC = () => {
                 </div>
                 <h6 className="fw-bold mb-1">{p.nom}</h6>
                 <p className="text-muted small flex-grow-1">{p.description}</p>
-                <p className="text-muted small mb-2">Supplier: {p.fournisseurNom || 'Unknown'}</p>
+                <p className="text-muted small mb-2">
+                  Supplier: {p.fournisseurId ? (
+                    <Link to={`/client/suppliers/${p.fournisseurId}`} className="text-primary text-decoration-none hover-underline">
+                      {p.fournisseurNom || 'Unknown'}
+                    </Link>
+                  ) : (
+                    p.fournisseurNom || 'Unknown'
+                  )}
+                </p>
 
                 <SoftButton
                   variant="outline"

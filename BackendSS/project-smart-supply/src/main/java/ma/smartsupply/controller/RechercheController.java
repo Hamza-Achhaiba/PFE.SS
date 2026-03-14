@@ -20,14 +20,14 @@ public class RechercheController {
     private final FournisseurRepository fournisseurRepository;
 
     @GetMapping("/clients")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<Client>> rechercherClientParMagasin(@RequestParam(value = "magasin", required = false) String magasin) {
         List<Client> clients = clientRepository.findByNomMagasinContainingIgnoreCase(magasin);
         return ResponseEntity.ok(clients);
     }
 
     @GetMapping("/fournisseurs")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<List<Fournisseur>> rechercherFournisseurParEntreprise(
             @RequestParam(value = "entreprise", required = false) String entreprise) {
         List<Fournisseur> fournisseurs = fournisseurRepository.findByNomEntrepriseContainingIgnoreCase(entreprise);

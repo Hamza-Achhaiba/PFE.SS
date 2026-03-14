@@ -23,6 +23,7 @@ public class Fournisseur extends Utilisateur {
     private String infoContact;
     @Column(columnDefinition = "TEXT")
     private String description;
+    private String categorie;
     
     @Enumerated(EnumType.STRING)
     @Builder.Default

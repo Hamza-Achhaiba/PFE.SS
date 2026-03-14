@@ -16,6 +16,7 @@ public class FournisseurResponse {
     private String infoContact;
     private String image;
     private String description;
+    private String categorie;
     private SupplierStatus status;
     private Integer yearEstablished;
     private Double onTimeDelivery;

@@ -21,6 +21,8 @@ export interface Fournisseur {
     image?: string;
     description?: string;
     verified: boolean;
+    yearEstablished?: number;
+    categorie?: string;
 }
 
 export interface Produit {

@@ -6,6 +6,7 @@ import { PageShell } from '../components/layout/PageShell';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { SettingsPage } from '../features/shared/pages/SettingsPage';
+import { PrivacyPolicyPage } from '../features/shared/pages/PrivacyPolicyPage';
 
 // Client Pages
 import { Dashboard as ClientDashboard } from '../features/client/pages/Dashboard';
@@ -50,6 +51,7 @@ export const AppRoutes = () => {
                         <Route path="favorites" element={<FavoritesPage />} />
                         <Route path="notifications" element={<ClientNotifications />} />
                         <Route path="settings" element={<SettingsPage />} />
+                        <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>
                 </Route>
 
@@ -64,6 +66,7 @@ export const AppRoutes = () => {
                         <Route path="notifications" element={<SupplierNotifications />} />
                         <Route path="profile" element={<MyProfilePage />} />
                         <Route path="settings" element={<SettingsPage />} />
+                        <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>
                 </Route>
 

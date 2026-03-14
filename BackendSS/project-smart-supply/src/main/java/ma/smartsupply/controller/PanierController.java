@@ -18,7 +18,7 @@ public class PanierController {
     private PanierService panierService;
 
     @PostMapping("/ajouter")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<String> ajouterAuPanier(
             @RequestBody AjoutPanierRequest request,
             Principal principal) {
@@ -27,14 +27,14 @@ public class PanierController {
     }
 
     @GetMapping("")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<PanierResponse> getMonPanier(Principal principal) {
         PanierResponse panier = panierService.getMonPanier(principal.getName());
         return ResponseEntity.ok(panier);
     }
 
     @PutMapping("/modifier-quantite")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<PanierResponse> updateQuantite(
             @RequestBody AjoutPanierRequest request,
             Principal principal) {
@@ -44,7 +44,7 @@ public class PanierController {
     }
 
     @DeleteMapping("/supprimer/{produitId}")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<PanierResponse> supprimerItem(
             @PathVariable("produitId") Long produitId,
             Principal principal) {
@@ -53,7 +53,7 @@ public class PanierController {
     }
 
     @DeleteMapping("/vider")
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<PanierResponse> viderPanier(Principal principal) {
         PanierResponse panier = panierService.viderPanier(principal.getName());
         return ResponseEntity.ok(panier);

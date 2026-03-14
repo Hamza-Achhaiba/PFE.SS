@@ -26,6 +26,14 @@ export const AuthStore = {
         }
         return 'User';
     },
+    getUserId: () => {
+        const token = getStorageItem('ss_token');
+        if (token && isTokenValid(token)) {
+            const decoded = decodeToken(token);
+            return decoded?.userId || null;
+        }
+        return null;
+    },
     login: (token: string, role: string, name?: string) => {
         setStorageItem('ss_token', token);
         setStorageItem('ss_role', role);

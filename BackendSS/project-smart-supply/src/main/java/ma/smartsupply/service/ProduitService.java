@@ -70,19 +70,19 @@ public class ProduitService {
         stockRepository.save(stock);
         produit.setStock(stock);
 
-        return mapToResponse(produit);
+        return mapToProduitResponse(produit);
     }
 
     public List<ProduitResponse> getAllProduits() {
         return produitRepository.findAll().stream()
-                .map(this::mapToResponse)
+                .map(this::mapToProduitResponse)
                 .collect(Collectors.toList());
     }
 
     public List<ProduitResponse> getMesProduits(String emailFournisseur) {
         Utilisateur user = utilisateurRepository.findByEmail(emailFournisseur).orElseThrow();
         return produitRepository.findByFournisseurId(user.getId()).stream()
-                .map(this::mapToResponse)
+                .map(this::mapToProduitResponse)
                 .collect(Collectors.toList());
     }
 
@@ -107,45 +107,10 @@ public class ProduitService {
             notificationService.creer(produit.getFournisseur(), messageAlerte, TypeNotification.ALERTE_STOCK);
         }
 
-        return mapToResponse(produit);
+        return mapToProduitResponse(produit);
     }
 
-    private ProduitResponse mapToResponse(Produit p) {
-        int quantite = 0;
-        boolean isAlerte = false;
-        String nomFournisseur = "Non assigné";
-
-        if (p.getStock() != null) {
-
-            if (p.getStock().getQuantiteDisponible() != null) {
-                quantite = p.getStock().getQuantiteDisponible();
-            }
-
-            int seuil = (p.getStock().getSeuilAlerte() != null) ? p.getStock().getSeuilAlerte() : 0;
-
-            isAlerte = quantite <= seuil;
-        }
-
-        if (p.getFournisseur() != null && p.getFournisseur().getNomEntreprise() != null) {
-            nomFournisseur = p.getFournisseur().getNomEntreprise();
-        }
-
-        return ProduitResponse.builder()
-                .id(p.getId())
-                .nom(p.getNom())
-                .prix(p.getPrix())
-                .description(p.getDescription())
-                .image(p.getImage())
-                .nomFournisseur(nomFournisseur)
-                .fournisseurId(p.getFournisseur() != null ? p.getFournisseur().getId() : null)
-                .categorieId(p.getCategorie() != null ? p.getCategorie().getId() : null)
-                .categorieNom(p.getCategorie() != null ? p.getCategorie().getNom() : null)
-                .quantiteDisponible(quantite)
-                .quantiteMinimumCommande(p.getQuantiteMinimumCommande() != null ? p.getQuantiteMinimumCommande() : 1)
-                .alerteStock(isAlerte)
-                .actif(p.isActif())
-                .build();
-    }
+    // Removed mapToResponse as it's consolidated into mapToProduitResponse
 
     @Transactional
     public Stock ajouterStock(Long produitId, int quantiteAjoutee, String emailFournisseur) {
@@ -216,7 +181,7 @@ public class ProduitService {
 
         Produit produitMaj = produitRepository.save(produit);
 
-        return mapToResponse(produitMaj);
+        return mapToProduitResponse(produitMaj);
     }
 
     @Transactional
@@ -254,31 +219,37 @@ public class ProduitService {
         produitRepository.delete(produit);
     }
 
-    private ProduitResponse mapToProduitResponse(Produit produit) {
-        Integer quantite = 0;
-        boolean enAlerte = false;
+    private ProduitResponse mapToProduitResponse(Produit p) {
+        int quantite = 0;
+        boolean isAlerte = false;
+        String nomFournisseur = "Non assigné";
 
-        if (produit.getStock() != null) {
-            quantite = produit.getStock().getQuantiteDisponible();
-            enAlerte = quantite <= produit.getStock().getSeuilAlerte();
+        if (p.getStock() != null) {
+            if (p.getStock().getQuantiteDisponible() != null) {
+                quantite = p.getStock().getQuantiteDisponible();
+            }
+            int seuil = (p.getStock().getSeuilAlerte() != null) ? p.getStock().getSeuilAlerte() : 0;
+            isAlerte = quantite <= seuil;
         }
 
-        String nomFourn = (produit.getFournisseur() != null) ? produit.getFournisseur().getNomEntreprise() : "Inconnu";
+        if (p.getFournisseur() != null && p.getFournisseur().getNomEntreprise() != null) {
+            nomFournisseur = p.getFournisseur().getNomEntreprise();
+        }
 
         return ProduitResponse.builder()
-                .id(produit.getId())
-                .nom(produit.getNom())
-                .prix(produit.getPrix())
-                .description(produit.getDescription())
-                .image(produit.getImage())
-                .nomFournisseur(nomFourn)
-                .categorieId(produit.getCategorie() != null ? produit.getCategorie().getId() : null)
-                .categorieNom(produit.getCategorie() != null ? produit.getCategorie().getNom() : null)
+                .id(p.getId())
+                .nom(p.getNom())
+                .prix(p.getPrix())
+                .description(p.getDescription())
+                .image(p.getImage())
+                .nomFournisseur(nomFournisseur)
+                .fournisseurId(p.getFournisseur() != null ? p.getFournisseur().getId() : null)
+                .categorieId(p.getCategorie() != null ? p.getCategorie().getId() : null)
+                .categorieNom(p.getCategorie() != null ? p.getCategorie().getNom() : null)
                 .quantiteDisponible(quantite)
-                .quantiteMinimumCommande(
-                        produit.getQuantiteMinimumCommande() != null ? produit.getQuantiteMinimumCommande() : 1)
-                .alerteStock(enAlerte)
-                .actif(produit.isActif())
+                .quantiteMinimumCommande(p.getQuantiteMinimumCommande() != null ? p.getQuantiteMinimumCommande() : 1)
+                .alerteStock(isAlerte)
+                .actif(p.isActif())
                 .build();
     }
 

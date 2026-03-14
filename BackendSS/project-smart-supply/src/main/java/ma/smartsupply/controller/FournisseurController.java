@@ -21,7 +21,7 @@ public class FournisseurController {
     private final ProduitService produitService;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('CLIENT', 'FOURNISSEUR', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR', 'ADMIN')")
     public ResponseEntity<FournisseurResponse> getFournisseurById(@PathVariable Long id) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
@@ -44,6 +44,7 @@ public class FournisseurController {
                 .infoContact(f.getInfoContact())
                 .image(f.getImage())
                 .description(f.getDescription())
+                .categorie(f.getCategorie())
                 .status(f.getStatus())
                 .yearEstablished(f.getYearEstablished())
                 .onTimeDelivery(f.getOnTimeDelivery())
@@ -54,7 +55,7 @@ public class FournisseurController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Fournisseur> updateStatus(@PathVariable Long id, @RequestParam ma.smartsupply.enums.SupplierStatus status) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
@@ -63,7 +64,7 @@ public class FournisseurController {
     }
 
     @PutMapping("/profile")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<Fournisseur> updateProfile(@RequestBody ma.smartsupply.dto.UpdateProfilRequest request, java.security.Principal principal) {
         Fournisseur f = (Fournisseur) fournisseurRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
@@ -74,12 +75,14 @@ public class FournisseurController {
         f.setInfoContact(request.getInfoContact());
         f.setNomEntreprise(request.getNomEntreprise());
         f.setDescription(request.getDescription());
+        f.setYearEstablished(request.getYearEstablished());
+        f.setCategorie(request.getCategorie());
         
         return ResponseEntity.ok(fournisseurRepository.save(f));
     }
 
     @GetMapping("/{id}/produits")
-    @PreAuthorize("hasAnyAuthority('CLIENT', 'FOURNISSEUR')")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
     public ResponseEntity<List<ProduitResponse>> getProduitsByFournisseur(@PathVariable Long id) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));

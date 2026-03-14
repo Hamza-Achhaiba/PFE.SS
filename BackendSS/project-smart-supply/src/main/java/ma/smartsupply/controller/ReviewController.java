@@ -19,7 +19,7 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ReviewResponse> submitReview(@RequestBody ReviewRequest request, Principal principal) {
         return ResponseEntity.ok(reviewService.submitReview(principal.getName(), request));
     }

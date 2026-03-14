@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { favorisApi } from '../../../api/favoris.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
@@ -59,12 +60,12 @@ export const FavoritesPage: React.FC = () => {
                                 <div className="soft-badge info rounded-circle p-3 mb-3">
                                     <Truck size={32} color="white" />
                                 </div>
-                                <a 
-                                    href={`/client/catalog?supplier=${encodeURIComponent(fournisseur.nomEntreprise || fournisseur.nom)}`}
+                                <Link 
+                                    to={`/client/suppliers/${fournisseur.id}`}
                                     className="text-decoration-none text-body"
                                 >
                                     <h5 className="fw-bold mb-1 hover-primary">{fournisseur.nomEntreprise || fournisseur.nom}</h5>
-                                </a>
+                                </Link>
                                 <p className="text-muted small mb-3">{fournisseur.adresse}</p>
 
                                 <div className="mt-auto w-100 text-start bg-body-tertiary p-3 rounded" style={{ background: 'var(--soft-bg)' }}>
