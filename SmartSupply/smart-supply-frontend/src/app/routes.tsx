@@ -19,6 +19,7 @@ import { SuppliersPage } from '../features/client/pages/SuppliersPage';
 import { SupplierProfilePage } from '../features/client/pages/SupplierProfilePage';
 import { FavoritesPage } from '../features/client/pages/FavoritesPage';
 import { NotificationsPage as ClientNotifications } from '../features/client/pages/NotificationsPage';
+import { MessagesPage as ClientMessagesPage } from '../features/client/pages/MessagesPage';
 
 // Supplier Pages
 import { Dashboard as SupplierDashboard } from '../features/supplier/pages/Dashboard';
@@ -27,6 +28,7 @@ import { SalesOrdersPage } from '../features/supplier/pages/SalesOrdersPage';
 import { ClientsPage } from '../features/supplier/pages/ClientsPage';
 import { NotificationsPage as SupplierNotifications } from '../features/supplier/pages/NotificationsPage';
 import { SupplierProfilePage as MyProfilePage } from '../features/supplier/pages/SupplierProfilePage';
+import { MessagesPage as SupplierMessagesPage } from '../features/supplier/pages/MessagesPage';
 
 export const AppRoutes = () => {
     return (
@@ -50,6 +52,7 @@ export const AppRoutes = () => {
                         <Route path="suppliers/:id" element={<SupplierProfilePage />} />
                         <Route path="favorites" element={<FavoritesPage />} />
                         <Route path="notifications" element={<ClientNotifications />} />
+                        <Route path="messages" element={<ClientMessagesPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>
@@ -64,6 +67,7 @@ export const AppRoutes = () => {
                         <Route path="orders" element={<SalesOrdersPage />} />
                         <Route path="clients" element={<ClientsPage />} />
                         <Route path="notifications" element={<SupplierNotifications />} />
+                        <Route path="messages" element={<SupplierMessagesPage />} />
                         <Route path="profile" element={<MyProfilePage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />

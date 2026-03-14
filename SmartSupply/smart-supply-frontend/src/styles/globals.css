@@ -7,6 +7,7 @@
 @import './soft-ui/buttons.css';
 @import './soft-ui/forms.css';
 @import './soft-ui/layout.css';
+@import './soft-ui/messages.css';
 
 .cursor-pointer {
     cursor: pointer;

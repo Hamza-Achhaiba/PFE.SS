@@ -1,0 +1,65 @@
+.messages-panel {
+  min-height: 70vh;
+}
+
+.conversation-item {
+  width: 100%;
+  text-align: left;
+  color: var(--soft-text);
+  cursor: pointer;
+  border: 1px solid var(--soft-border-subtle);
+  background: var(--soft-secondary);
+  border-radius: var(--soft-radius-sm);
+  padding: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.conversation-item:hover,
+.conversation-item.active {
+  color: var(--soft-text);
+  border-color: var(--soft-primary);
+  background: var(--soft-bg);
+}
+
+.messages-thread {
+  height: 50vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.message-row {
+  display: flex;
+  margin-bottom: 0.75rem;
+}
+
+.message-row.own {
+  justify-content: flex-end;
+}
+
+.message-bubble {
+  max-width: 80%;
+  padding: 0.75rem;
+  border-radius: 16px;
+  border: 1px solid var(--soft-border-subtle);
+}
+
+.message-bubble.own {
+  background: var(--soft-primary);
+  color: #fff;
+  border-color: transparent;
+}
+
+.message-bubble.own .text-muted {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.message-bubble.incoming {
+  background: var(--soft-secondary);
+}
+
+.message-image {
+  max-width: 220px;
+  width: 100%;
+  border-radius: 12px;
+  margin-top: 0.5rem;
+}

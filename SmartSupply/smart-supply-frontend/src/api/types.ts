@@ -82,6 +82,34 @@ export interface NotificationMsg {
     dateCreation: string;
 }
 
+export interface MessageContact {
+    id: number;
+    name: string;
+    role: 'CLIENT' | 'FOURNISSEUR';
+    image?: string;
+}
+
+export interface Conversation {
+    conversationId: number;
+    participantId: number;
+    participantName: string;
+    participantRole: 'CLIENT' | 'FOURNISSEUR';
+    participantImage?: string;
+    lastMessage?: string;
+    lastImagePath?: string;
+    lastMessageAt?: string;
+}
+
+export interface ChatMessage {
+    id: number;
+    conversationId: number;
+    senderId: number;
+    senderName: string;
+    content?: string;
+    imagePath?: string;
+    createdAt: string;
+}
+
 export interface LignePanierResponse {
     id: number;
     produitId: number;

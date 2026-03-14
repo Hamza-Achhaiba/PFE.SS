@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User, ShieldCheck, MessagesSquare } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
 
 export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -15,6 +15,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/client/orders', icon: <FileText size={20} />, label: 'Orders' },
         { to: '/client/suppliers', icon: <Users size={20} />, label: 'Suppliers' },
         { to: '/client/notifications', icon: <Bell size={20} />, label: 'Notifications' },
+        { to: '/client/messages', icon: <MessagesSquare size={20} />, label: 'Messages' },
         { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favoris' },
         { to: '/client/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/client/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/supplier/orders', icon: <FileText size={20} />, label: 'Sales Orders' },
         { to: '/supplier/clients', icon: <Users size={20} />, label: 'Clients' },
         { to: '/supplier/notifications', icon: <Bell size={20} />, label: 'Notifications' },
+        { to: '/supplier/messages', icon: <MessagesSquare size={20} />, label: 'Messages' },
         { to: '/supplier/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/supplier/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
