@@ -20,12 +20,24 @@ public class FournisseurController {
     private final FournisseurRepository fournisseurRepository;
     private final ProduitService produitService;
 
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
+    public ResponseEntity<FournisseurResponse> getMyProfile(java.security.Principal principal) {
+        Fournisseur f = (Fournisseur) fournisseurRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
+        return ResponseEntity.ok(mapToResponse(f));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR', 'ADMIN')")
     public ResponseEntity<FournisseurResponse> getFournisseurById(@PathVariable Long id) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
         
+        return ResponseEntity.ok(mapToResponse(f));
+    }
+
+    private FournisseurResponse mapToResponse(Fournisseur f) {
         Double avgRating = 0.0;
         if (f.getReviews() != null && !f.getReviews().isEmpty()) {
             avgRating = f.getReviews().stream()
@@ -34,7 +46,7 @@ public class FournisseurController {
                     .orElse(0.0);
         }
 
-        return ResponseEntity.ok(FournisseurResponse.builder()
+        return FournisseurResponse.builder()
                 .id(f.getId())
                 .nom(f.getNom())
                 .email(f.getEmail())
@@ -51,7 +63,7 @@ public class FournisseurController {
                 .responseTime(f.getResponseTime())
                 .qualityAcceptance(f.getQualityAcceptance())
                 .averageRating(avgRating)
-                .build());
+                .build();
     }
 
     @PatchMapping("/{id}/status")

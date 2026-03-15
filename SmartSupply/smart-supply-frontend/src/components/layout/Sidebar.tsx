@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
 
 export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -16,6 +16,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/client/suppliers', icon: <Users size={20} />, label: 'Suppliers' },
         { to: '/client/notifications', icon: <Bell size={20} />, label: 'Notifications' },
         { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favoris' },
+        { to: '/client/messages', icon: <MessageSquare size={20} />, label: 'Messages' },
         { to: '/client/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/client/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
@@ -27,6 +28,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/supplier/orders', icon: <FileText size={20} />, label: 'Sales Orders' },
         { to: '/supplier/clients', icon: <Users size={20} />, label: 'Clients' },
         { to: '/supplier/notifications', icon: <Bell size={20} />, label: 'Notifications' },
+        { to: '/supplier/messages', icon: <MessageSquare size={20} />, label: 'Messages' },
         { to: '/supplier/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/supplier/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
@@ -69,7 +71,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 )}
             </div>
 
-            <nav className="flex-grow-1">
+            <nav className="flex-grow-1 overflow-y-auto pr-2 custom-scrollbar" style={{ minHeight: 0 }}>
                 {links.map((link) => (
                     <NavLink
                         key={link.to}
@@ -82,7 +84,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 ))}
             </nav>
 
-            <div className="mt-auto">
+            <div className="pt-3 mt-auto border-top border-soft">
                 <button className="soft-btn soft-btn-outline w-100" onClick={handleLogout}>
                     <LogOut size={18} /> Logout
                 </button>

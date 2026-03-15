@@ -29,6 +29,8 @@ export const SupplierProfilePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'reviews'>('overview');
+  const [isTabsVisible, setIsTabsVisible] = useState(true);
+  const lastScrollY = useRef(0);
   const [formData, setFormData] = useState({
     nom: '',
     nomEntreprise: '',
@@ -47,6 +49,36 @@ export const SupplierProfilePage: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const mainElement = document.querySelector('main');
+    if (!mainElement) return;
+
+    const handleScroll = () => {
+      const currentScrollY = mainElement.scrollTop;
+
+      // Near top of the page, always show tabs
+      if (currentScrollY < 400) {
+        setIsTabsVisible(true);
+      } else {
+        const delta = currentScrollY - lastScrollY.current;
+
+        // Scrolling down (even slowly): hide tabs
+        if (delta > 0) {
+          setIsTabsVisible(false);
+        }
+        // Scrolling up (beyond small threshold): show tabs
+        else if (delta < -10) {
+          setIsTabsVisible(true);
+        }
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    mainElement.addEventListener('scroll', handleScroll);
+    return () => mainElement.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const loadData = async () => {
     const userId = AuthStore.getUserId();
 
@@ -61,7 +93,7 @@ export const SupplierProfilePage: React.FC = () => {
     setError(null);
     try {
       const [profileData, reviewsData, categoriesData] = await Promise.all([
-        fournisseursApi.getFournisseurById(userId),
+        fournisseursApi.getMe(),
         reviewsApi.getReviews(userId).catch(err => {
           console.warn('Failed to load reviews', err);
           return [];
@@ -251,9 +283,27 @@ export const SupplierProfilePage: React.FC = () => {
 
             <div className="flex-grow-1 pt-md-5 mt-2 mt-md-0">
               <div className="d-flex flex-wrap align-items-center gap-3 mb-2">
-                <h1 className="fw-bold mb-0 text-dark" style={{ fontSize: '2.2rem', letterSpacing: '-0.5px' }}>
-                  {profile.nomEntreprise}
-                </h1>
+                <div 
+                  className="d-inline-flex align-items-center bg-white/70 backdrop-blur-md px-4 py-2 rounded-4 shadow-sm border border-white/40"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.4)',
+                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
+                  }}
+                >
+                  <h1 
+                    className="fw-extrabold mb-0" 
+                    style={{ 
+                      fontSize: '2.1rem', 
+                      letterSpacing: '-1px',
+                      color: '#0f172a',
+                      fontWeight: 800
+                    }}
+                  >
+                    {profile.nomEntreprise}
+                  </h1>
+                </div>
                 <SoftBadge variant={getStatusColor(profile.status)} className="d-flex align-items-center gap-1 py-1 px-3 rounded-pill shadow-sm">
                   {profile.status === 'VERIFIED' ? <ShieldCheck size={14} /> : <Clock size={14} />}
                   <span className="text-uppercase small fw-bold" style={{ letterSpacing: '0.5px' }}>
@@ -285,7 +335,19 @@ export const SupplierProfilePage: React.FC = () => {
       </SoftCard>
 
       {/* Section Tabs */}
-      <div className="sticky-top bg-light/80 backdrop-blur-md py-3 mb-4" style={{ top: '0', zIndex: 10, margin: '0 -1.5rem', padding: '0 1.5rem' }}>
+      <div
+        className="sticky-top bg-light/80 backdrop-blur-md py-3 mb-4"
+        style={{
+          top: '0',
+          zIndex: 10,
+          margin: '0 -1.5rem',
+          padding: '0 1.5rem',
+          transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease-out',
+          transform: isTabsVisible ? 'translateY(0)' : 'translateY(-100%)',
+          opacity: isTabsVisible ? 1 : 0,
+          pointerEvents: isTabsVisible ? 'auto' : 'none'
+        }}
+      >
         <div className="d-flex gap-2 p-1 bg-white rounded-pill shadow-sm" style={{ maxWidth: 'fit-content' }}>
           <button
             className={`btn rounded-pill px-4 py-2 border-0 transition-all fw-bold ${activeTab === 'overview' ? 'btn-primary shadow-sm' : 'text-muted hover-bg-light'}`}

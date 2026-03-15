@@ -7,6 +7,7 @@ import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { SettingsPage } from '../features/shared/pages/SettingsPage';
 import { PrivacyPolicyPage } from '../features/shared/pages/PrivacyPolicyPage';
+import { MessagesPage } from '../features/messages/pages/MessagesPage';
 
 // Client Pages
 import { Dashboard as ClientDashboard } from '../features/client/pages/Dashboard';
@@ -50,6 +51,7 @@ export const AppRoutes = () => {
                         <Route path="suppliers/:id" element={<SupplierProfilePage />} />
                         <Route path="favorites" element={<FavoritesPage />} />
                         <Route path="notifications" element={<ClientNotifications />} />
+                        <Route path="messages" element={<MessagesPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>
@@ -65,6 +67,7 @@ export const AppRoutes = () => {
                         <Route path="clients" element={<ClientsPage />} />
                         <Route path="notifications" element={<SupplierNotifications />} />
                         <Route path="profile" element={<MyProfilePage />} />
+                        <Route path="messages" element={<MessagesPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>

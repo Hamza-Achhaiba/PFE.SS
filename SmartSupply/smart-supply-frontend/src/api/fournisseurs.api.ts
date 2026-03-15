@@ -6,6 +6,11 @@ export const fournisseursApi = {
         const response = await api.get(`/api/fournisseurs/${id}`);
         return response.data;
     },
+
+    getMe: async (): Promise<Fournisseur> => {
+        const response = await api.get('/api/fournisseurs/me');
+        return response.data;
+    },
     
     getFournisseurProduits: async (id: number): Promise<Produit[]> => {
         const response = await api.get(`/api/fournisseurs/${id}/produits`);
