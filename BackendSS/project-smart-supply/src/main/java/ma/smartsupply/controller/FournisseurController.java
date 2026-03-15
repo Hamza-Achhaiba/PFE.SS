@@ -30,7 +30,7 @@ public class FournisseurController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR', 'ADMIN')")
-    public ResponseEntity<FournisseurResponse> getFournisseurById(@PathVariable Long id) {
+    public ResponseEntity<FournisseurResponse> getFournisseurById(@PathVariable("id") Long id) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
         
@@ -68,7 +68,7 @@ public class FournisseurController {
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Fournisseur> updateStatus(@PathVariable Long id, @RequestParam ma.smartsupply.enums.SupplierStatus status) {
+    public ResponseEntity<Fournisseur> updateStatus(@PathVariable("id") Long id, @RequestParam("status") ma.smartsupply.enums.SupplierStatus status) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
         f.setStatus(status);
@@ -95,7 +95,7 @@ public class FournisseurController {
 
     @GetMapping("/{id}/produits")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
-    public ResponseEntity<List<ProduitResponse>> getProduitsByFournisseur(@PathVariable Long id) {
+    public ResponseEntity<List<ProduitResponse>> getProduitsByFournisseur(@PathVariable("id") Long id) {
         Fournisseur f = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Fournisseur non trouvé"));
         

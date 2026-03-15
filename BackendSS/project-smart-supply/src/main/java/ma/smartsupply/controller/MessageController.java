@@ -24,7 +24,7 @@ public class MessageController {
 
     @PostMapping("/conversations/start")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
-    public ResponseEntity<ConversationResponse> startConversation(@RequestParam Long targetUserId, Principal principal) {
+    public ResponseEntity<ConversationResponse> startConversation(@RequestParam("targetUserId") Long targetUserId, Principal principal) {
         return ResponseEntity.ok(conversationService.startConversation(principal.getName(), targetUserId));
     }
 
@@ -36,14 +36,14 @@ public class MessageController {
 
     @GetMapping("/conversations/{conversationId}")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
-    public ResponseEntity<List<MessageResponse>> getMessages(@PathVariable Long conversationId, Principal principal) {
+    public ResponseEntity<List<MessageResponse>> getMessages(@PathVariable("conversationId") Long conversationId, Principal principal) {
         return ResponseEntity.ok(messageService.getMessagesByConversation(conversationId, principal.getName()));
     }
 
     @PostMapping("/conversations/{conversationId}/text")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
     public ResponseEntity<MessageResponse> sendTextMessage(
-            @PathVariable Long conversationId,
+            @PathVariable("conversationId") Long conversationId,
             @RequestBody MessageRequest request,
             Principal principal) {
         return ResponseEntity.ok(messageService.sendTextMessage(conversationId, request, principal.getName()));
@@ -52,7 +52,7 @@ public class MessageController {
     @PostMapping("/conversations/{conversationId}/image")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
     public ResponseEntity<MessageResponse> sendImageMessage(
-            @PathVariable Long conversationId,
+            @PathVariable("conversationId") Long conversationId,
             @RequestParam("file") MultipartFile file,
             Principal principal) {
         return ResponseEntity.ok(messageService.sendImageMessage(conversationId, file, principal.getName()));
@@ -61,8 +61,8 @@ public class MessageController {
     @PutMapping("/conversations/{conversationId}/pin")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
     public ResponseEntity<Void> pinConversation(
-            @PathVariable Long conversationId,
-            @RequestParam boolean pinned,
+            @PathVariable("conversationId") Long conversationId,
+            @RequestParam("pinned") boolean pinned,
             Principal principal) {
         conversationService.pinConversation(conversationId, principal.getName(), pinned);
         return ResponseEntity.ok().build();
@@ -71,7 +71,7 @@ public class MessageController {
     @DeleteMapping("/conversations/{conversationId}")
     @PreAuthorize("hasAnyRole('CLIENT', 'FOURNISSEUR')")
     public ResponseEntity<Void> deleteConversation(
-            @PathVariable Long conversationId,
+            @PathVariable("conversationId") Long conversationId,
             Principal principal) {
         conversationService.deleteConversation(conversationId, principal.getName());
         return ResponseEntity.ok().build();

@@ -21,7 +21,7 @@ public class RechercheController {
 
     @GetMapping("/clients")
     @PreAuthorize("hasRole('FOURNISSEUR')")
-    public ResponseEntity<List<Client>> rechercherClientParMagasin(@RequestParam(value = "magasin", required = false) String magasin) {
+    public ResponseEntity<List<Client>> rechercherClientParMagasin(@RequestParam(name = "magasin", required = false) String magasin) {
         List<Client> clients = clientRepository.findByNomMagasinContainingIgnoreCase(magasin);
         return ResponseEntity.ok(clients);
     }
@@ -29,7 +29,7 @@ public class RechercheController {
     @GetMapping("/fournisseurs")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<List<Fournisseur>> rechercherFournisseurParEntreprise(
-            @RequestParam(value = "entreprise", required = false) String entreprise) {
+            @RequestParam(name = "entreprise", required = false) String entreprise) {
         List<Fournisseur> fournisseurs = fournisseurRepository.findByNomEntrepriseContainingIgnoreCase(entreprise);
         return ResponseEntity.ok(fournisseurs);
     }
