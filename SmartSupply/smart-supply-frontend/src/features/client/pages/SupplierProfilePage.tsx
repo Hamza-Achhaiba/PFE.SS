@@ -191,8 +191,10 @@ export const SupplierProfilePage: React.FC = () => {
   const handleMessageClick = async () => {
     if (!supplier) return;
     try {
-      await messagesApi.startConversation(supplier.id);
-      navigate('/client/messages');
+      const conversation = await messagesApi.startConversation(supplier.id);
+      navigate(`/client/messages?conversationId=${conversation.id}&supplierId=${supplier.id}`, {
+        state: { selectedConversationId: conversation.id, supplierId: supplier.id }
+      });
     } catch (error) {
       toast.error('Failed to start conversation');
     }

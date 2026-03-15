@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Send, Image as ImageIcon, MessageSquare, MoreVertical, ChevronLeft, User, ShoppingCart, Pin, Trash2 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, Send, Image as ImageIcon, MessageSquare, MoreVertical, ChevronLeft, User, ShoppingCart, Pin, Trash2, X } from 'lucide-react';
 import { messagesApi, Conversation, Message } from '../../../api/messages.api';
 import { AuthStore } from '../../auth/auth.store';
 import { format } from 'date-fns';
@@ -14,10 +14,12 @@ export const MessagesPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [showMobileChat, setShowMobileChat] = useState(false);
     const [openRowMenuId, setOpenRowMenuId] = useState<number | null>(null);
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Get current user role and ID
     const { currentUserRole, currentUserId } = useMemo(() => {
@@ -76,6 +78,7 @@ export const MessagesPage: React.FC = () => {
         try {
             const data = await messagesApi.getConversations();
             setConversations(data);
+            setSelectedConv(prev => prev ? data.find(c => c.id === prev.id) ?? prev : prev);
             setIsLoading(false);
         } catch (error: any) {
             const msg = error.response?.data?.message || 'Error loading conversations';
@@ -83,6 +86,28 @@ export const MessagesPage: React.FC = () => {
             setIsLoading(false);
         }
     };
+
+    // Auto-select conversation based on navigation state or query params
+    useEffect(() => {
+        if (conversations.length === 0) return;
+
+        const searchParams = new URLSearchParams(location.search);
+        const targetConvId = location.state?.selectedConversationId || (searchParams.get('conversationId') ? Number(searchParams.get('conversationId')) : null);
+        const targetSupplierId = location.state?.supplierId || (searchParams.get('supplierId') ? Number(searchParams.get('supplierId')) : null);
+
+        if (!targetConvId && !targetSupplierId) return;
+
+        const targetConv = conversations.find(c =>
+            (targetConvId && c.id === targetConvId) ||
+            (targetSupplierId && c.fournisseurId === targetSupplierId)
+        );
+
+        if (targetConv && selectedConv?.id !== targetConv.id) {
+            handleSelectConversation(targetConv);
+            // Clear navigation state and query params to avoid re-triggering
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [conversations, location.state, location.search, selectedConv?.id, navigate, location.pathname]);
 
     const loadMessages = async (convId: number, silent = false) => {
         try {
@@ -165,7 +190,7 @@ export const MessagesPage: React.FC = () => {
     };
 
     const handleDeleteChat = async (convId: number) => {
-        if (!window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) return;
+        if (!window.confirm('Remove this conversation from your list? You can reopen it later from the supplier profile.')) return;
 
         try {
             await messagesApi.deleteConversation(convId);
@@ -267,7 +292,7 @@ export const MessagesPage: React.FC = () => {
                                                 <div className="d-flex justify-content-between align-items-start mb-0">
                                                     <h6 className="mb-0 text-truncate fw-bold name-label">{conv.otherPartyName}</h6>
                                                     <div className="d-flex align-items-center gap-1">
-                                                        {conv.isPinned && <Pin size={12} className="text-primary" fill="currentColor" />}
+                                                        {conv.isPinned && <Pin size={12} style={{ color: '#38bdf8' }} fill="currentColor" />}
                                                         <small className="text-muted flex-shrink-0 ms-2 time-label">
                                                             {format(new Date(conv.lastMessageAt), 'HH:mm')}
                                                         </small>
@@ -304,7 +329,7 @@ export const MessagesPage: React.FC = () => {
                                                             className="w-100 px-3 py-2 text-start btn btn-link text-dark text-decoration-none dropdown-item d-flex align-items-center gap-2"
                                                             onClick={() => handlePinChat(conv.id, conv.isPinned)}
                                                         >
-                                                            <Pin size={14} className={conv.isPinned ? "text-primary" : "text-muted"} fill={conv.isPinned ? "currentColor" : "none"} />
+                                                            <Pin size={14} style={{ color: conv.isPinned ? '#38bdf8' : 'inherit' }} className={conv.isPinned ? "" : "text-muted"} fill={conv.isPinned ? "currentColor" : "none"} />
                                                             <span style={{ fontSize: '0.85rem' }}>{conv.isPinned ? 'Unpin' : 'Pin'}</span>
                                                         </button>
                                                         <button
@@ -392,7 +417,7 @@ export const MessagesPage: React.FC = () => {
                                                 className="w-100 px-3 py-2 text-start btn btn-link text-dark text-decoration-none dropdown-item d-flex align-items-center gap-2 whitespace-nowrap"
                                                 onClick={() => handlePinChat(selectedConv.id, selectedConv.isPinned)}
                                             >
-                                                <Pin size={18} className={selectedConv.isPinned ? "text-primary" : "text-muted"} fill={selectedConv.isPinned ? "currentColor" : "none"} />
+                                                <Pin size={18} style={{ color: selectedConv.isPinned ? '#38bdf8' : 'inherit' }} className={selectedConv.isPinned ? "" : "text-muted"} fill={selectedConv.isPinned ? "currentColor" : "none"} />
                                                 <span>{selectedConv.isPinned ? 'Unpin chat' : 'Pin chat'}</span>
                                             </button>
                                             <button
@@ -431,13 +456,18 @@ export const MessagesPage: React.FC = () => {
                                                 <div className={`message-bubble shadow-sm ${isOwnMessage ? 'mine' : 'theirs'}`}>
                                                     {msg.content && <div className="message-text">{msg.content}</div>}
                                                     {msg.imageUrl && (
-                                                        <div className="message-image-container mt-2 rounded overflow-hidden">
+                                                        <div className="message-image-container mt-2 rounded overflow-hidden shadow-sm" style={{ maxWidth: '250px' }}>
                                                             <img
-                                                                src={msg.imageUrl}
+                                                                src={`${import.meta.env.VITE_API_URL}${msg.imageUrl}`}
                                                                 alt="Sent"
-                                                                className="img-fluid"
-                                                                style={{ maxHeight: '300px', cursor: 'pointer', display: 'block' }}
-                                                                onClick={() => window.open(msg.imageUrl, '_blank')}
+                                                                className="img-fluid transition-all"
+                                                                style={{ 
+                                                                    maxHeight: '200px', 
+                                                                    cursor: 'pointer', 
+                                                                    display: 'block',
+                                                                    objectFit: 'cover'
+                                                                }}
+                                                                onClick={() => setPreviewImage(`${import.meta.env.VITE_API_URL}${msg.imageUrl}`)}
                                                             />
                                                         </div>
                                                     )}
@@ -506,6 +536,35 @@ export const MessagesPage: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* Image Preview Modal */}
+            {previewImage && (
+                <div 
+                    className="image-preview-modal d-flex align-items-center justify-content-center animate-in fade-in"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <button 
+                        className="btn btn-link text-white position-absolute top-0 end-0 m-4 p-2 shadow-none transition-all hover-scale"
+                        onClick={() => setPreviewImage(null)}
+                        aria-label="Close preview"
+                    >
+                        <X size={32} />
+                    </button>
+                    <div className="modal-content-wrapper d-flex align-items-center justify-content-center p-3 p-md-5 w-100 h-100" onClick={e => e.stopPropagation()}>
+                        <img 
+                            src={previewImage} 
+                            alt="Preview" 
+                            className="img-fluid rounded-4 shadow-lg animate-in zoom-in-95 duration-300"
+                            style={{ 
+                                maxHeight: '90vh', 
+                                maxWidth: '90vw', 
+                                objectFit: 'contain',
+                                border: '4px solid rgba(255, 255, 255, 0.1)'
+                            }} 
+                        />
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 .messages-container {
@@ -623,6 +682,37 @@ export const MessagesPage: React.FC = () => {
                     background: var(--soft-text-muted);
                     opacity: 0.2;
                     border-radius: 10px;
+                }
+
+                .message-image-container img:hover {
+                    opacity: 0.9;
+                    transform: scale(1.02);
+                }
+
+                .image-preview-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(0, 0, 0, 0.85);
+                    backdrop-filter: blur(8px);
+                    z-index: 9999;
+                    cursor: zoom-out;
+                }
+
+                .hover-scale:hover {
+                    transform: scale(1.1);
+                    color: #fff !important;
+                }
+
+                @keyframes zoom-in-95 {
+                    from { transform: scale(0.95); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
+                }
+
+                .duration-300 {
+                    animation-duration: 300ms;
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
                     background: var(--soft-primary);

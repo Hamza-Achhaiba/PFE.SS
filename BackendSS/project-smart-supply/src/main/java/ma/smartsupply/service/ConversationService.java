@@ -47,7 +47,24 @@ public class ConversationService {
 
         Optional<Conversation> existing = conversationRepository.findExistingConversation(client.getId(), fournisseur.getId());
         if (existing.isPresent()) {
-            return mapToResponse(existing.get(), currentUser.getId());
+            Conversation c = existing.get();
+            boolean changed = false;
+            
+            // Restore visibility if it was hidden for the current user
+            if (currentUser.getId().equals(c.getClient().getId()) && c.isDeletedByClient()) {
+                c.setDeletedByClient(false);
+                changed = true;
+            } else if (currentUser.getId().equals(c.getFournisseur().getId()) && c.isDeletedByFournisseur()) {
+                c.setDeletedByFournisseur(false);
+                changed = true;
+            }
+            
+            if (changed) {
+                c.setLastUpdateAt(LocalDateTime.now());
+                conversationRepository.save(c);
+            }
+            
+            return mapToResponse(c, currentUser.getId());
         }
 
         Conversation conversation = Conversation.builder()
