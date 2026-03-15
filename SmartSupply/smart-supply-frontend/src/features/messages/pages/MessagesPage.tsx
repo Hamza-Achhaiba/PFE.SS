@@ -292,7 +292,7 @@ export const MessagesPage: React.FC = () => {
                                                 <div className="d-flex justify-content-between align-items-start mb-0">
                                                     <h6 className="mb-0 text-truncate fw-bold name-label">{conv.otherPartyName}</h6>
                                                     <div className="d-flex align-items-center gap-1">
-                                                        {conv.isPinned && <Pin size={12} style={{ color: '#38bdf8' }} fill="currentColor" />}
+                                                        {conv.isPinned && <Pin size={15} style={{ color: '#38bdf8' }} fill="currentColor" />}
                                                         <small className="text-muted flex-shrink-0 ms-2 time-label">
                                                             {format(new Date(conv.lastMessageAt), 'HH:mm')}
                                                         </small>
