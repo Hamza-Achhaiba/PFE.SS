@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
-import { SoftBadge } from '../../../components/ui/SoftBadge';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { format } from 'date-fns';
-import { FileText, Package, Truck, Calendar, Save, User } from 'lucide-react';
+import { FileText, Package, Truck, Calendar, Save, User, ChevronDown, ShieldCheck } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { toast } from 'react-toastify';
+import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel } from '../../../utils/orderStatus';
 
 export const SalesOrdersPage: React.FC = () => {
   const [ventes, setVentes] = useState<Commande[]>([]);
@@ -17,6 +17,10 @@ export const SalesOrdersPage: React.FC = () => {
 
   // States for tracking update inputs per order
   const [trackingData, setTrackingData] = useState<Record<number, { ref: string; date: string }>>({});
+  
+  // State for controlled dropdown menu
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchVentes = () => {
     setIsLoading(true);
@@ -42,8 +46,20 @@ export const SalesOrdersPage: React.FC = () => {
     fetchVentes();
   }, []);
 
+  // Handle clicks outside the dropdown menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdownId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleUpdateStatut = async (id: number, statut: string) => {
     setUpdatingId(id);
+    setOpenDropdownId(null); // Close menu after selection
     try {
       await ordersApi.updateStatut(id, statut);
       toast.success('Order status updated');
@@ -89,19 +105,20 @@ export const SalesOrdersPage: React.FC = () => {
     );
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusOptions = (status: string) => {
     switch (status) {
-      case 'EN_ATTENTE_VALIDATION': return <SoftBadge variant="warning">Pending</SoftBadge>;
-      case 'VALIDEE': return <SoftBadge variant="info">Validated</SoftBadge>;
-      case 'EN_PREPARATION': return <SoftBadge variant="info">In Preparation</SoftBadge>;
-      case 'EXPEDIEE': return <SoftBadge variant="info">Shipped</SoftBadge>;
-      case 'LIVREE': return <SoftBadge variant="success">Delivered</SoftBadge>;
-      case 'ANNULEE': return <SoftBadge variant="danger">Cancelled</SoftBadge>;
-      default: return <SoftBadge variant="info">{status}</SoftBadge>;
+      case 'EN_ATTENTE_VALIDATION':
+        return ['VALIDEE', 'ANNULEE'];
+      case 'VALIDEE':
+        return ['EN_PREPARATION', 'ANNULEE'];
+      case 'EN_PREPARATION':
+        return ['EXPEDIEE', 'ANNULEE'];
+      case 'EXPEDIEE':
+        return ['LIVREE'];
+      default:
+        return [];
     }
   };
-
-  const statusOptions = ['EN_ATTENTE_VALIDATION', 'VALIDEE', 'EN_PREPARATION', 'EXPEDIEE', 'LIVREE', 'ANNULEE'];
 
   return (
     <div className="container-fluid p-0">
@@ -125,25 +142,75 @@ export const SalesOrdersPage: React.FC = () => {
                   </div>
                   <div className="d-flex align-items-center gap-3 mt-3 mt-md-0">
                     <h5 className="fw-bold mb-0 text-primary">{order.montantTotal?.toFixed(2)} DH</h5>
-                    <div className="d-flex align-items-center gap-2">
-                      {getStatusBadge(order.statut)}
-                      <select
-                        className="form-select form-select-sm shadow-none bg-body-tertiary border-0"
-                        style={{ width: '150px' }}
-                        value={order.statut}
-                        disabled={updatingId === order.id}
-                        onChange={(e) => handleUpdateStatut(order.id, e.target.value)}
-                      >
-                        {statusOptions.map(opt => (
-                          <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
-                        ))}
-                      </select>
+                    <div className="d-flex align-items-center gap-3">
+                      {getOrderStatusBadge(order.statut)}
+                      <div className="position-relative" ref={openDropdownId === order.id ? dropdownRef : null}>
+                        <button
+                          className="btn btn-sm d-flex align-items-center justify-content-between gap-2 border-0 bg-body-tertiary rounded-3 px-3 py-2 transition-all hover-shadow-sm"
+                          style={{ minWidth: '160px', fontSize: '0.85rem' }}
+                          type="button"
+                          onClick={() => setOpenDropdownId(openDropdownId === order.id ? null : order.id)}
+                          aria-expanded={openDropdownId === order.id}
+                          disabled={updatingId === order.id || getStatusOptions(order.statut).length === 0}
+                        >
+                          <span className="fw-medium">{getOrderStatusLabel(order.statut)}</span>
+                          <ChevronDown size={14} className={`text-muted transition-all ${openDropdownId === order.id ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {openDropdownId === order.id && (
+                          <ul 
+                            className="position-absolute end-0 border-0 shadow-lg mt-1 p-2 bg-white dark:bg-dark-secondary rounded-4 animate-in fade-in slide-in-from-top-1 list-unstyled"
+                            style={{ zIndex: 1000, minWidth: '180px', top: '100%' }}
+                          >
+                            {getStatusOptions(order.statut).map(opt => (
+                              <li key={opt}>
+                                <button
+                                  className={`dropdown-item rounded-3 py-2 px-3 mb-1 transition-all d-flex align-items-center gap-2 w-100 border-0 bg-transparent text-start ${order.statut === opt ? 'bg-primary text-white active-status' : ''}`}
+                                  onClick={() => handleUpdateStatut(order.id, opt)}
+                                  style={{ fontSize: '0.85rem' }}
+                                >
+                                  <div 
+                                    className="rounded-circle" 
+                                    style={{ 
+                                      width: '8px', 
+                                      height: '8px', 
+                                      backgroundColor: order.statut === opt ? 'white' : `var(--soft-${
+                                        opt === 'LIVREE' ? 'success' : 
+                                        opt === 'ANNULEE' ? 'danger' : 
+                                        opt === 'EN_ATTENTE_VALIDATION' ? 'warning' : 'primary'
+                                      })` 
+                                    }} 
+                                  />
+                                  {getOrderStatusLabel(opt)}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="row g-4">
                   <div className="col-md-7 border-end-md">
+                    <div className="d-flex flex-column gap-2 mb-4">
+                      <div className="d-flex align-items-center justify-content-between bg-body-tertiary rounded p-3">
+                        <div>
+                          <div className="text-muted small">Order Status</div>
+                          <div className="fw-semibold">{getOrderStatusLabel(order.statut)}</div>
+                        </div>
+                        {getOrderStatusBadge(order.statut)}
+                      </div>
+                      <div className="d-flex align-items-center justify-content-between bg-body-tertiary rounded p-3">
+                        <div>
+                          <div className="text-muted small">Payment Status</div>
+                          <div className="fw-semibold">{getPaymentStatusLabel(order.paymentStatus || order.escrowStatus)}</div>
+                        </div>
+                        {getPaymentStatusBadge(order.paymentStatus || order.escrowStatus)}
+                      </div>
+                    </div>
+
                     <h6 className="fw-semibold mb-3 d-flex align-items-center gap-2">
                       <User size={18} className="text-secondary" />
                       Client Information
@@ -169,6 +236,22 @@ export const SalesOrdersPage: React.FC = () => {
                       <Truck size={18} className="text-secondary" />
                       Logistics & Tracking
                     </h6>
+
+                    <div className="bg-body-tertiary rounded p-3 mb-3">
+                      <div className="d-flex align-items-start gap-2">
+                        <ShieldCheck size={18} className="text-primary mt-1" />
+                        <div>
+                          <div className="fw-semibold small">Escrow State</div>
+                          <div className="text-muted small">
+                            {order.paymentStatus === 'RELEASED' && 'Funds have been released to the supplier.'}
+                            {order.paymentStatus === 'HELD_IN_ESCROW' && 'Funds are still held in escrow pending delivery confirmation.'}
+                            {order.paymentStatus === 'REFUNDED' && 'Funds were refunded and will not be released.'}
+                            {order.paymentStatus === 'DISPUTED' && 'Escrow is blocked because the order is in dispute.'}
+                            {!order.paymentStatus && 'No payment state recorded yet.'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="d-flex flex-column gap-3 bg-body-tertiary rounded p-3">
                       <div>

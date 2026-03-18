@@ -4,18 +4,19 @@ import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
-import { SoftBadge } from '../../../components/ui/SoftBadge';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { format } from 'date-fns';
-import { FileText, Package, Truck, XCircle, CheckCircle } from 'lucide-react';
+import { FileText, Package, Truck, XCircle, CheckCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { toast } from 'react-toastify';
+import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel } from '../../../utils/orderStatus';
 
 export const OrdersPage: React.FC = () => {
   const [achats, setAchats] = useState<Commande[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const orderIdParam = searchParams.get('orderId');
+  const escrowParam = searchParams.get('escrow');
   const orderRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
 
@@ -71,20 +72,23 @@ export const OrdersPage: React.FC = () => {
     );
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'EN_ATTENTE_VALIDATION': return <SoftBadge variant="warning">Pending</SoftBadge>;
-      case 'VALIDEE': return <SoftBadge variant="info">Validated</SoftBadge>;
-      case 'EXPEDIEE': return <SoftBadge variant="info">Shipped</SoftBadge>;
-      case 'LIVREE': return <SoftBadge variant="success">Delivered</SoftBadge>;
-      case 'ANNULEE': return <SoftBadge variant="danger">Cancelled</SoftBadge>;
-      default: return <SoftBadge variant="info">{status}</SoftBadge>;
-    }
-  };
-
   return (
     <div className="container-fluid p-0">
       <h4 className="fw-bold mb-4">My Orders</h4>
+
+      {escrowParam === 'held' && (
+        <div className="mb-4 p-3 rounded-4 border bg-primary bg-opacity-10 border-primary-subtle">
+          <div className="d-flex align-items-start gap-3">
+            <div className="bg-white rounded-circle p-2 text-primary shadow-sm">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <div className="fw-bold text-primary">Payment secured</div>
+              <div className="text-muted small">Your payment is being held in escrow until delivery is confirmed.</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="row g-4">
         {achats.map((order) => (
@@ -106,12 +110,29 @@ export const OrdersPage: React.FC = () => {
                 </div>
                 <div className="d-flex align-items-center gap-3 mt-3 mt-md-0">
                   <h5 className="fw-bold mb-0 text-primary">{order.montantTotal?.toFixed(2)} DH</h5>
-                  {getStatusBadge(order.statut)}
+                  {getOrderStatusBadge(order.statut)}
                 </div>
               </div>
 
               <div className="row">
                 <div className="col-md-7 border-end-md">
+                  <div className="d-flex flex-column gap-2 mb-4">
+                    <div className="d-flex align-items-center justify-content-between bg-body-tertiary rounded p-3">
+                      <div>
+                        <div className="text-muted small">Order Status</div>
+                        <div className="fw-semibold">{getOrderStatusLabel(order.statut)}</div>
+                      </div>
+                      {getOrderStatusBadge(order.statut)}
+                    </div>
+                    <div className="d-flex align-items-center justify-content-between bg-body-tertiary rounded p-3">
+                      <div>
+                        <div className="text-muted small">Payment Status</div>
+                        <div className="fw-semibold">{getPaymentStatusLabel(order.paymentStatus || order.escrowStatus)}</div>
+                      </div>
+                      {getPaymentStatusBadge(order.paymentStatus || order.escrowStatus)}
+                    </div>
+                  </div>
+
                   <h6 className="fw-semibold mb-3">Items ({order.lignes?.length || 0})</h6>
                   <div className="d-flex flex-column gap-2 mb-4 mb-md-0">
                     {order.lignes?.map((ligne, idx) => (
@@ -147,6 +168,27 @@ export const OrdersPage: React.FC = () => {
                         </p>
                       </div>
                     </div>
+                    <div className="d-flex align-items-start gap-3">
+                      <div className="bg-body-tertiary p-2 rounded text-secondary">
+                        <ShieldCheck size={20} />
+                      </div>
+                      <div>
+                        <p className="mb-0 fw-medium">Escrow Timeline</p>
+                        <p className="mb-0 text-muted small">
+                          {order.escrowHeldAt ? `Held ${format(new Date(order.escrowHeldAt), 'PP p')}` : 'Not held yet'}
+                        </p>
+                        {order.escrowReleasedAt && (
+                          <p className="mb-0 text-muted small">
+                            Released {format(new Date(order.escrowReleasedAt), 'PP p')}
+                          </p>
+                        )}
+                        {order.refundedAt && (
+                          <p className="mb-0 text-muted small">
+                            Refunded {format(new Date(order.refundedAt), 'PP p')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {order.statut === 'EN_ATTENTE_VALIDATION' && (
@@ -157,6 +199,27 @@ export const OrdersPage: React.FC = () => {
                       >
                         <XCircle size={16} className="me-2" />
                         Cancel Order
+                      </SoftButton>
+                    </div>
+                  )}
+
+                  {order.paymentStatus !== 'RELEASED' && order.paymentStatus !== 'REFUNDED' && order.paymentStatus !== 'DISPUTED' && order.statut !== 'ANNULEE' && (
+                    <div className="mt-3">
+                      <SoftButton
+                        variant="outline"
+                        className="w-100"
+                        onClick={async () => {
+                          try {
+                            await ordersApi.markDisputed(order.id);
+                            toast.success('Escrow marked as disputed');
+                            fetchOrders();
+                          } catch (e: any) {
+                            toast.error(e.response?.data?.message || 'Failed to mark escrow as disputed');
+                          }
+                        }}
+                      >
+                        <AlertTriangle size={16} className="me-2" />
+                        Raise Dispute
                       </SoftButton>
                     </div>
                   )}

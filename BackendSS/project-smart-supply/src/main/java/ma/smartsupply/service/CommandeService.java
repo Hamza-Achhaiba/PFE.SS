@@ -1,18 +1,32 @@
 package ma.smartsupply.service;
 
+import lombok.extern.slf4j.Slf4j;
 import ma.smartsupply.dto.*;
 import ma.smartsupply.dto.LigneCommandeInfoDTO;
 import ma.smartsupply.dto.LigneCommandeRequest;
 import ma.smartsupply.dto.ProduitInfoDTO;
+import ma.smartsupply.enums.EscrowStatus;
+import ma.smartsupply.enums.PaymentStatus;
+import ma.smartsupply.enums.Role;
 import ma.smartsupply.enums.StatutCommande;
 import ma.smartsupply.enums.TypeNotification;
 import ma.smartsupply.model.*;
 import ma.smartsupply.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -22,6 +36,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CommandeService {
 
@@ -95,7 +110,14 @@ public class CommandeService {
             montantTotal += sousTotal;
         }
 
+        LocalDateTime now = LocalDateTime.now();
         commande.setMontantTotal(montantTotal);
+        commande.setAmount(montantTotal);
+        commande.setPlatformFee(0.0);
+        commande.setSupplierNetAmount(montantTotal);
+        commande.setPaymentMethod("INTERNAL_PLATFORM");
+        commande.setMethodePaiement("INTERNAL_PLATFORM");
+        applyEscrowHold(commande, now);
 
         return commandeRepository.save(commande);
     }
@@ -152,6 +174,7 @@ public class CommandeService {
         }
 
         commande.setStatut(StatutCommande.ANNULEE);
+        applyRefundIfNeeded(commande, LocalDateTime.now());
 
         for (LigneCommande ligne : commande.getLignes()) {
             Stock stock = stockRepository.findByProduitId(ligne.getProduit().getId())
@@ -254,11 +277,35 @@ public class CommandeService {
         }).collect(Collectors.toList());
 
         dto.setLignes(lignesDto);
+
+        // Checkout Details
+        dto.setNomComplet(commande.getNomComplet());
+        dto.setTelephone(commande.getTelephone());
+        dto.setAdresse(commande.getAdresse());
+        dto.setVille(commande.getVille());
+        dto.setRegion(commande.getRegion());
+        dto.setCodePostal(commande.getCodePostal());
+        dto.setMethodePaiement(commande.getMethodePaiement());
+        dto.setPaymentMethod(commande.getPaymentMethod() != null ? commande.getPaymentMethod() : commande.getMethodePaiement());
+        dto.setPaymentStatus(commande.getPaymentStatus() != null ? commande.getPaymentStatus().name() : null);
+        dto.setEscrowStatus(commande.getEscrowStatus() != null ? commande.getEscrowStatus().name() : null);
+        dto.setEscrowHeldAt(commande.getEscrowHeldAt());
+        dto.setEscrowReleasedAt(commande.getEscrowReleasedAt());
+        dto.setRefundedAt(commande.getRefundedAt());
+        dto.setAmount(commande.getAmount());
+        dto.setPlatformFee(commande.getPlatformFee());
+        dto.setSupplierNetAmount(commande.getSupplierNetAmount());
+        dto.setFacturePath(commande.getFacturePath());
+        dto.setInvoicePath(commande.getInvoicePath() != null ? commande.getInvoicePath() : commande.getFacturePath());
+
         return dto;
     }
 
+    @Autowired
+    private FactureService factureService;
+
     @Transactional
-    public CommandeResponse validerPanier(String emailClient) {
+    public CommandeResponse validerPanier(String emailClient, CheckoutRequest checkoutRequest) {
 
         Panier panier = panierRepository.findByClientEmail(emailClient)
                 .orElseThrow(() -> new RuntimeException("Panier introuvable"));
@@ -272,23 +319,40 @@ public class CommandeService {
         commande.setClient((Client) panier.getClient());
         commande.setDateCreation(LocalDateTime.now());
         commande.setMontantTotal(panier.getMontantTotal());
-        // Bugfix: Initial status should be EN_ATTENTE_VALIDATION so suppliers can
-        // validate it
+        commande.setAmount(panier.getMontantTotal());
+        commande.setPlatformFee(0.0);
+        commande.setSupplierNetAmount(panier.getMontantTotal());
+        
+        // Checkout info
+        commande.setNomComplet(checkoutRequest.getNomComplet());
+        commande.setTelephone(checkoutRequest.getTelephone());
+        commande.setAdresse(checkoutRequest.getAdresse());
+        commande.setVille(checkoutRequest.getVille());
+        commande.setRegion(checkoutRequest.getRegion());
+        commande.setCodePostal(checkoutRequest.getCodePostal());
+        commande.setMethodePaiement(checkoutRequest.getMethodePaiement());
+        commande.setPaymentMethod(checkoutRequest.getMethodePaiement());
+
+        // Initial status
         commande.setStatut(StatutCommande.EN_ATTENTE_VALIDATION);
+        applyEscrowHold(commande, LocalDateTime.now());
 
         List<LigneCommande> lignesCommande = new ArrayList<>();
 
         for (LignePanier lignePanier : panier.getLignes()) {
             Produit produit = lignePanier.getProduit();
 
-            if (produit.getStock() == null || produit.getStock().getQuantiteDisponible() < lignePanier.getQuantite()) {
-                throw new RuntimeException("Rupture de stock pour le produit : " + produit.getNom());
+            Stock stock = stockRepository.findByProduitId(produit.getId())
+                    .orElseThrow(() -> new RuntimeException("Stock introuvable pour le produit : " + produit.getNom()));
+
+            if (stock.getQuantiteDisponible() < lignePanier.getQuantite()) {
+                throw new RuntimeException("Stock insuffisant pour : " + produit.getNom() + 
+                    " (Dispo: " + stock.getQuantiteDisponible() + ")");
             }
 
-            produit.getStock().setQuantiteDisponible(
-                    produit.getStock().getQuantiteDisponible() - lignePanier.getQuantite());
+            stock.setQuantiteDisponible(stock.getQuantiteDisponible() - lignePanier.getQuantite());
+            stockRepository.save(stock);
 
-            // Bugfix: Notify the supplier about the new order for their product
             notificationService.creer(
                     produit.getFournisseur(),
                     "Nouvelle commande pour votre produit : " + produit.getNom() + " (Quantité: "
@@ -303,7 +367,20 @@ public class CommandeService {
             lignesCommande.add(lc);
         }
         commande.setLignes(lignesCommande);
+        
+        // Save first to get ID/Reference for invoice
         Commande savedCommande = commandeRepository.save(commande);
+
+        // Generate PDF
+        try {
+            String facturePath = factureService.genererFacturePDF(savedCommande);
+            savedCommande.setFacturePath(facturePath);
+            savedCommande.setInvoicePath(facturePath);
+            savedCommande = commandeRepository.save(savedCommande);
+        } catch (IOException e) {
+            log.error("Failed to generate invoice PDF", e);
+            // We continue anyway, the order is created
+        }
 
         panier.getLignes().clear();
         panier.setMontantTotal(0.0);
@@ -314,7 +391,7 @@ public class CommandeService {
     @Transactional
     public CommandeResponse mettreAJourStatut(Long commandeId, String nouveauStatut, String emailFournisseur) {
         StatutCommande statut = StatutCommande.valueOf(nouveauStatut.toUpperCase());
-        Commande commandeMiseAJour = this.changerStatutCommande(commandeId, statut, emailFournisseur);
+        Commande commandeMiseAJour = applyManagedStatusUpdate(commandeId, statut, emailFournisseur);
         return mapToDTO(commandeMiseAJour);
     }
 
@@ -343,5 +420,150 @@ public class CommandeService {
                 TypeNotification.VALIDATION_COMMANDE);
 
         return mapToDTO(savedCommande);
+    }
+
+    @Transactional
+    public CommandeResponse marquerEscrowEnLitige(Long commandeId, String emailUtilisateur) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        boolean isClientOwner = commande.getClient() != null && commande.getClient().getEmail().equals(emailUtilisateur);
+        if (!isClientOwner && !isAdmin(emailUtilisateur)) {
+            throw new RuntimeException("AccÃ¨s refusÃ© : seul le client concernÃ© ou un admin peut signaler un litige.");
+        }
+
+        if (commande.getEscrowStatus() == EscrowStatus.RELEASED || commande.getEscrowStatus() == EscrowStatus.REFUNDED) {
+            throw new RuntimeException("Impossible d'ouvrir un litige aprÃ¨s libÃ©ration ou remboursement des fonds.");
+        }
+
+        commande.setEscrowStatus(EscrowStatus.DISPUTED);
+        commande.setPaymentStatus(PaymentStatus.DISPUTED);
+
+        return mapToDTO(commandeRepository.save(commande));
+    }
+
+    public ResponseEntity<Resource> telechargerFacture(Long id) {
+        Commande commande = commandeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        if (commande.getFacturePath() == null) {
+            throw new RuntimeException("La facture n'est pas encore prête");
+        }
+
+        try {
+            // Remove the leading "/" if it exists in the stored path
+            String facturePathStr = commande.getFacturePath();
+            if (facturePathStr.startsWith("/")) {
+                facturePathStr = facturePathStr.substring(1);
+            }
+            Path filePath = Paths.get(facturePathStr).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.APPLICATION_PDF)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                throw new RuntimeException("Le fichier n'existe pas sur le serveur : " + filePath.toAbsolutePath());
+            }
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Erreur lors de la récupération du fichier", e);
+        }
+    }
+
+    private Commande applyManagedStatusUpdate(Long commandeId, StatutCommande nouveauStatut, String emailFournisseur) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable avec l'ID : " + commandeId));
+
+        if (!canManageOrder(commande, emailFournisseur)) {
+            throw new RuntimeException("AccÃ¨s refusÃ©. Cette commande ne contient pas de produits de ce fournisseur.");
+        }
+
+        validateStatusTransition(commande.getStatut(), nouveauStatut);
+
+        if (nouveauStatut == StatutCommande.ANNULEE && commande.getStatut() != StatutCommande.ANNULEE) {
+            for (LigneCommande ligne : commande.getLignes()) {
+                Stock stock = stockRepository.findByProduitId(ligne.getProduit().getId())
+                        .orElseThrow(() -> new RuntimeException("Stock introuvable"));
+
+                stock.setQuantiteDisponible(stock.getQuantiteDisponible() + ligne.getQuantite());
+                stockRepository.save(stock);
+            }
+            applyRefundIfNeeded(commande, LocalDateTime.now());
+        }
+
+        commande.setStatut(nouveauStatut);
+        if (nouveauStatut == StatutCommande.LIVREE) {
+            applyEscrowReleaseIfEligible(commande, LocalDateTime.now());
+        }
+
+        Commande commandeMiseAJour = commandeRepository.save(commande);
+        String message = "Mise Ã  jour : Votre commande #" + commande.getId() + " est maintenant " + nouveauStatut.name();
+        notificationService.creer(commande.getClient(), message, TypeNotification.VALIDATION_COMMANDE);
+        return commandeMiseAJour;
+    }
+
+    private void validateStatusTransition(StatutCommande statutActuel, StatutCommande nouveauStatut) {
+        if (statutActuel == nouveauStatut) {
+            return;
+        }
+
+        boolean isValid = switch (statutActuel) {
+            case EN_ATTENTE_VALIDATION -> nouveauStatut == StatutCommande.VALIDEE || nouveauStatut == StatutCommande.ANNULEE;
+            case VALIDEE -> nouveauStatut == StatutCommande.EN_PREPARATION || nouveauStatut == StatutCommande.ANNULEE;
+            case EN_PREPARATION -> nouveauStatut == StatutCommande.EXPEDIEE || nouveauStatut == StatutCommande.ANNULEE;
+            case EXPEDIEE -> nouveauStatut == StatutCommande.LIVREE;
+            case LIVREE, ANNULEE -> false;
+        };
+
+        if (!isValid) {
+            throw new RuntimeException("Transition de statut invalide : " + statutActuel + " -> " + nouveauStatut);
+        }
+    }
+
+    private boolean canManageOrder(Commande commande, String emailUtilisateur) {
+        if (isAdmin(emailUtilisateur)) {
+            return true;
+        }
+
+        return commande.getLignes().stream()
+                .anyMatch(l -> l.getProduit().getFournisseur().getEmail().equals(emailUtilisateur));
+    }
+
+    private boolean isAdmin(String emailUtilisateur) {
+        return utilisateurRepository.findByEmail(emailUtilisateur)
+                .map(Utilisateur::getRole)
+                .filter(role -> role == Role.ADMIN)
+                .isPresent();
+    }
+
+    private void applyEscrowHold(Commande commande, LocalDateTime now) {
+        commande.setEscrowStatus(EscrowStatus.HELD_IN_ESCROW);
+        commande.setPaymentStatus(PaymentStatus.HELD_IN_ESCROW);
+        commande.setEscrowHeldAt(now);
+        commande.setEscrowReleasedAt(null);
+        commande.setRefundedAt(null);
+    }
+
+    private void applyEscrowReleaseIfEligible(Commande commande, LocalDateTime now) {
+        if (commande.getEscrowStatus() != EscrowStatus.HELD_IN_ESCROW) {
+            return;
+        }
+
+        commande.setEscrowStatus(EscrowStatus.RELEASED);
+        commande.setPaymentStatus(PaymentStatus.RELEASED);
+        commande.setEscrowReleasedAt(now);
+    }
+
+    private void applyRefundIfNeeded(Commande commande, LocalDateTime now) {
+        if (commande.getEscrowStatus() == EscrowStatus.RELEASED) {
+            return;
+        }
+
+        commande.setEscrowStatus(EscrowStatus.REFUNDED);
+        commande.setPaymentStatus(PaymentStatus.REFUNDED);
+        commande.setRefundedAt(now);
+        commande.setEscrowReleasedAt(null);
     }
 }

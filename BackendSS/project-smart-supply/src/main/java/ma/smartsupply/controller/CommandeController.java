@@ -1,5 +1,6 @@
 package ma.smartsupply.controller;
 
+import ma.smartsupply.dto.CheckoutRequest;
 import ma.smartsupply.dto.CommandeRequest;
 import ma.smartsupply.dto.CommandeResponse;
 import ma.smartsupply.dto.UpdateStatutRequest;
@@ -30,10 +31,10 @@ public class CommandeController {
 
     @PutMapping("/{id}/valider")
     @PreAuthorize("hasRole('FOURNISSEUR')")
-    public ResponseEntity<Commande> validerCommande(
+    public ResponseEntity<CommandeResponse> validerCommande(
             @PathVariable("id") Long id,
             Principal principal) {
-        return ResponseEntity.ok(commandeService.validerCommande(id, principal.getName()));
+        return ResponseEntity.ok(commandeService.mettreAJourStatut(id, StatutCommande.VALIDEE.name(), principal.getName()));
     }
 
     @PutMapping("/{id}/annuler")
@@ -55,13 +56,12 @@ public class CommandeController {
     }
 
     @PutMapping("/{id}/statut")
-    @PreAuthorize("hasRole('FOURNISSEUR')")
-    public ResponseEntity<Commande> changerStatut(
+    @PreAuthorize("hasAnyRole('FOURNISSEUR', 'ADMIN')")
+    public ResponseEntity<CommandeResponse> changerStatut(
             @PathVariable("id") Long id,
             @RequestParam("statut") StatutCommande statut,
             Principal principal) {
-
-        Commande commandeMaj = commandeService.changerStatutCommande(id, statut, principal.getName());
+        CommandeResponse commandeMaj = commandeService.mettreAJourStatut(id, statut.name(), principal.getName());
         return ResponseEntity.ok(commandeMaj);
     }
 
@@ -80,14 +80,16 @@ public class CommandeController {
     }
 
     @PostMapping("/valider-panier")
-    @PreAuthorize("hasAuthority('CLIENT')")
-    public ResponseEntity<CommandeResponse> validerPanier(Principal principal) {
-        CommandeResponse commande = commandeService.validerPanier(principal.getName());
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<CommandeResponse> validerPanier(
+            @RequestBody CheckoutRequest checkoutRequest,
+            Principal principal) {
+        CommandeResponse commande = commandeService.validerPanier(principal.getName(), checkoutRequest);
         return ResponseEntity.ok(commande);
     }
 
     @PatchMapping("/{id}/statut")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasAnyRole('FOURNISSEUR', 'ADMIN')")
     public ResponseEntity<CommandeResponse> changerStatut(
             @PathVariable("id") Long id,
             @RequestBody UpdateStatutRequest request,
@@ -98,12 +100,25 @@ public class CommandeController {
     }
 
     @PatchMapping("/{id}/tracking")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasAnyRole('FOURNISSEUR', 'ADMIN')")
     public ResponseEntity<CommandeResponse> updateTracking(
             @PathVariable("id") Long id,
             @RequestBody UpdateTrackingRequest request,
             Principal principal) {
         CommandeResponse commandeMaj = commandeService.updateTracking(id, request, principal.getName());
         return ResponseEntity.ok(commandeMaj);
+    }
+
+    @PatchMapping("/{id}/escrow/dispute")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<CommandeResponse> markEscrowDisputed(
+            @PathVariable("id") Long id,
+            Principal principal) {
+        return ResponseEntity.ok(commandeService.marquerEscrowEnLitige(id, principal.getName()));
+    }
+
+    @GetMapping("/{id}/facture")
+    public ResponseEntity<?> telechargerFacture(@PathVariable("id") Long id) {
+        return commandeService.telechargerFacture(id);
     }
 }

@@ -1,6 +1,13 @@
 import { apiClient as api } from './axios';
 import { Fournisseur, Produit } from './types';
 
+const mapToProduit = (data: any): Produit => ({
+    ...data,
+    prixUnitaire: data.prix,
+    stockDisponible: data.quantiteDisponible,
+    fournisseurNom: data.nomFournisseur,
+});
+
 export const fournisseursApi = {
     getFournisseurById: async (id: number): Promise<Fournisseur> => {
         const response = await api.get(`/api/fournisseurs/${id}`);
@@ -14,7 +21,7 @@ export const fournisseursApi = {
     
     getFournisseurProduits: async (id: number): Promise<Produit[]> => {
         const response = await api.get(`/api/fournisseurs/${id}/produits`);
-        return response.data;
+        return response.data.map(mapToProduit);
     },
 
     updateProfile: async (data: any): Promise<Fournisseur> => {

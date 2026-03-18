@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { cartApi } from '../../../api/cart.api';
-import { ordersApi } from '../../../api/orders.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftTable } from '../../../components/ui/SoftTable';
@@ -14,7 +13,6 @@ import { useNavigate } from 'react-router-dom';
 export const CartPage: React.FC = () => {
   const [panier, setPanier] = useState<PanierResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isValidating, setIsValidating] = useState(false);
   const navigate = useNavigate();
 
   const fetchPanier = () => {
@@ -29,18 +27,8 @@ export const CartPage: React.FC = () => {
     fetchPanier();
   }, []);
 
-  const handleValider = async () => {
-    setIsValidating(true);
-    try {
-      await ordersApi.validerPanier();
-      toast.success('Order placed successfully!');
-      fetchPanier();
-      navigate('/client/orders');
-    } catch (e) {
-      toast.error('Failed to validate order. Check stock.');
-    } finally {
-      setIsValidating(false);
-    }
+  const handleValider = () => {
+    navigate('/client/checkout');
   };
 
   const handleUpdateQuantity = async (produitId: number, currentQty: number, change: number) => {
@@ -194,7 +182,6 @@ export const CartPage: React.FC = () => {
 
             <SoftButton
               className="w-100 py-3"
-              isLoading={isValidating}
               onClick={handleValider}
             >
               Checkout & Place Order

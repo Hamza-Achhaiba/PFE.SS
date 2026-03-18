@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { fournisseursApi, reviewsApi } from '../../../api/fournisseurs.api';
 import { profilApi } from '../../../api/profil.api';
 import { categoriesApi, Categorie } from '../../../api/categories.api';
+import { productsApi } from '../../../api/products.api';
+import { Produit } from '../../../api/types';
 import { SoftSelect } from '../../../components/ui/SoftSelect';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftButton } from '../../../components/ui/SoftButton';
@@ -11,7 +14,7 @@ import { SoftLoader } from '../../../components/ui/SoftLoader';
 import {
   Truck, User, MapPin,
   ShieldCheck, TrendingUp, Package, Star, Clock,
-  Save, Camera, MessageSquare
+  Save, Camera, MessageSquare, Plus
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { AuthStore } from '../../auth/auth.store';
@@ -19,9 +22,11 @@ import {
   Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell
 } from 'recharts';
+import { formatPriceDh } from '../../../utils/price';
 
 export const SupplierProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<any | null>(null);
+  const [products, setProducts] = useState<Produit[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,8 +97,12 @@ export const SupplierProfilePage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [profileData, reviewsData, categoriesData] = await Promise.all([
+      const [profileData, productsData, reviewsData, categoriesData] = await Promise.all([
         fournisseursApi.getMe(),
+        productsApi.mesProduits().catch(err => {
+          console.warn('Failed to load products', err);
+          return [];
+        }),
         reviewsApi.getReviews(userId).catch(err => {
           console.warn('Failed to load reviews', err);
           return [];
@@ -105,6 +114,7 @@ export const SupplierProfilePage: React.FC = () => {
       ]);
 
       setProfile(profileData);
+      setProducts(productsData);
       setReviews(reviewsData);
       setCategories(categoriesData);
       setFormData({
@@ -217,6 +227,9 @@ export const SupplierProfilePage: React.FC = () => {
     { name: 'Quality Acceptance', value: profile.qualityAcceptance || 98, color: '#f6c23e' }
   ];
 
+  const totalStars = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+  const isSuperSupplier = totalStars >= 10;
+
   return (
     <div className="container-fluid p-0 pb-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -310,6 +323,25 @@ export const SupplierProfilePage: React.FC = () => {
                     {profile.status?.replace('_', ' ') || 'ACTIVE'}
                   </span>
                 </SoftBadge>
+
+                {isSuperSupplier && (
+                  <div 
+                    className="d-inline-flex align-items-center gap-2 py-1 px-3 rounded-pill shadow-sm animate-fade-in"
+                    style={{
+                      background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                      color: '#000',
+                      fontWeight: '800',
+                      fontSize: '0.75rem',
+                      border: '1px solid rgba(255, 215, 0, 0.5)',
+                      boxShadow: '0 4px 12px rgba(255, 215, 0, 0.2)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    <Star size={14} fill="black" />
+                    <span>Super Supplier</span>
+                  </div>
+                )}
               </div>
 
               <div className="d-flex flex-wrap gap-x-4 gap-y-2 text-muted fw-medium">
@@ -507,6 +539,44 @@ export const SupplierProfilePage: React.FC = () => {
             </SoftCard>
 
             <div className="row g-4">
+              <div className="col-12">
+                <SoftCard className="border-0 shadow-sm" style={{ borderRadius: '24px' }}>
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="bg-warning-subtle p-3 rounded-4 text-warning"><Package size={24} /></div>
+                      <h5 className="fw-bold mb-0">Supplier Catalog</h5>
+                    </div>
+                    <Link to="/supplier/products" className="btn btn-link text-primary p-0 fw-bold">
+                      View Catalog
+                    </Link>
+                  </div>
+                  <div className="row g-3">
+                    {products.slice(0, 6).map(product => (
+                      <div className="col-sm-6 col-md-4" key={product.id}>
+                        <div className="p-2 border rounded-4 hover-translate-y transition-all">
+                          <div className="bg-light rounded-3 overflow-hidden mb-2" style={{ height: '100px' }}>
+                            <img src={resolveImage(product.image) || ''} alt={product.nom} className="w-100 h-100 object-fit-cover" />
+                          </div>
+                          <h6 className="small fw-bold mb-1 text-truncate">{product.nom}</h6>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="text-primary fw-bold small">{formatPriceDh(product.prixUnitaire)}</span>
+                            <Link to="/supplier/products" className="btn btn-sm btn-light rounded-circle p-1">
+                              <Plus size={14} />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {products.length === 0 && (
+                      <div className="col-12">
+                        <div className="text-center py-4 text-muted bg-light rounded-4">
+                          No catalog products available yet.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </SoftCard>
+              </div>
               <div className="col-12">
                 <SoftCard title="Marketplace Statistics" className="border-0 shadow-sm h-100" style={{ borderRadius: '24px' }}>
                   <div className="row g-2">

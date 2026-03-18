@@ -18,6 +18,7 @@ import { cartApi } from '../../../api/cart.api';
 import { favorisApi } from '../../../api/favoris.api';
 import { toast } from 'react-toastify';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { formatPriceDh } from '../../../utils/price';
 
 export const SupplierProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -209,6 +210,9 @@ export const SupplierProfilePage: React.FC = () => {
     { name: 'Quality', value: supplier.qualityAcceptance || 98, color: '#f6c23e' }
   ];
 
+  const totalStars = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+  const isSuperSupplier = totalStars >= 10;
+
   return (
     <div className="container-fluid p-0 pb-5">
       {/* Header Profile Card */}
@@ -275,6 +279,25 @@ export const SupplierProfilePage: React.FC = () => {
                     {supplier.status?.replace('_', ' ') || 'ACTIVE'}
                   </span>
                 </SoftBadge>
+
+                {isSuperSupplier && (
+                  <div 
+                    className="d-inline-flex align-items-center gap-2 py-1 px-3 rounded-pill shadow-sm animate-fade-in"
+                    style={{
+                      background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                      color: '#000',
+                      fontWeight: '800',
+                      fontSize: '0.75rem',
+                      border: '1px solid rgba(255, 215, 0, 0.5)',
+                      boxShadow: '0 4px 12px rgba(255, 215, 0, 0.2)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    <Star size={14} fill="black" />
+                    <span>Super Supplier</span>
+                  </div>
+                )}
               </div>
 
               <div className="d-flex flex-wrap gap-x-4 gap-y-2 text-muted fw-medium mb-3">
@@ -405,7 +428,7 @@ export const SupplierProfilePage: React.FC = () => {
                       </div>
                       <h6 className="small fw-bold mb-1 text-truncate">{p.nom}</h6>
                       <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-primary fw-bold small">{p.prixUnitaire} DH</span>
+                        <span className="text-primary fw-bold small">{formatPriceDh(p.prixUnitaire)}</span>
                         <button
                           className="btn btn-sm btn-light rounded-circle p-1"
                           onClick={() => handleAddToCart(p)}
@@ -606,7 +629,7 @@ export const SupplierProfilePage: React.FC = () => {
               </div>
               <div>
                 <h6 className="fw-bold mb-1">{selectedProduct.nom}</h6>
-                <div className="text-primary fw-bold" style={{ fontSize: '1.2rem' }}>{selectedProduct.prixUnitaire} DH</div>
+                <div className="text-primary fw-bold" style={{ fontSize: '1.2rem' }}>{formatPriceDh(selectedProduct.prixUnitaire)}</div>
                 <div className="small text-muted">{selectedProduct.stockDisponible} available</div>
               </div>
             </div>

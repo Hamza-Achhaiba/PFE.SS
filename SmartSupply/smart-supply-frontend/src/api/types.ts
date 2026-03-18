@@ -65,7 +65,17 @@ export interface Commande {
     dateLivraisonEstimee?: string;
     dateCreation: string;
     montantTotal: number;
-    statut: 'EN_ATTENTE_VALIDATION' | 'VALIDEE' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
+    amount?: number;
+    platformFee?: number;
+    supplierNetAmount?: number;
+    paymentMethod?: string;
+    paymentStatus?: 'UNPAID' | 'HELD_IN_ESCROW' | 'RELEASED' | 'REFUNDED' | 'DISPUTED';
+    escrowStatus?: 'UNPAID' | 'HELD_IN_ESCROW' | 'RELEASED' | 'REFUNDED' | 'DISPUTED';
+    escrowHeldAt?: string;
+    escrowReleasedAt?: string;
+    refundedAt?: string;
+    invoicePath?: string;
+    statut: 'EN_ATTENTE_VALIDATION' | 'VALIDEE' | 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
     client: {
         id: number;
         nom: string;
@@ -73,6 +83,8 @@ export interface Commande {
         telephone: string;
     };
     lignes: LigneCommande[];
+    methodePaiement?: string;
+    facturePath?: string;
 }
 
 export interface NotificationMsg {

@@ -15,6 +15,7 @@ import { Categories } from '../features/client/pages/Categories';
 import { CatalogPage } from '../features/client/pages/CatalogPage';
 import { SearchPage } from '../features/client/pages/SearchPage';
 import { CartPage } from '../features/client/pages/CartPage';
+import { CheckoutPage } from '../features/client/pages/CheckoutPage';
 import { OrdersPage } from '../features/client/pages/OrdersPage';
 import { SuppliersPage } from '../features/client/pages/SuppliersPage';
 import { SupplierProfilePage } from '../features/client/pages/SupplierProfilePage';
@@ -46,6 +47,7 @@ export const AppRoutes = () => {
                         <Route path="catalog" element={<CatalogPage />} />
                         <Route path="search" element={<SearchPage />} />
                         <Route path="cart" element={<CartPage />} />
+                        <Route path="checkout" element={<CheckoutPage />} />
                         <Route path="orders" element={<OrdersPage />} />
                         <Route path="suppliers" element={<SuppliersPage />} />
                         <Route path="suppliers/:id" element={<SupplierProfilePage />} />

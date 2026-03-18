@@ -41,7 +41,7 @@ export const MessagesPage: React.FC = () => {
 
     useEffect(() => {
         loadConversations();
-    }, []);
+    }, [location.search]);
 
     useEffect(() => {
         if (selectedConv) {
@@ -171,14 +171,21 @@ export const MessagesPage: React.FC = () => {
 
     const handlePinChat = async (convId: number, isPinned: boolean) => {
         try {
-            // Optimistic update
+            // Optimistic update for the list
             setConversations(prev => prev.map(c =>
                 c.id === convId ? { ...c, isPinned: !isPinned } : c
             ));
+            
+            // Optimistic update for selected conversation if it's the one being pinned
+            if (selectedConv?.id === convId) {
+                setSelectedConv(prev => prev ? { ...prev, isPinned: !isPinned } : null);
+            }
+
             setOpenRowMenuId(null);
             setIsHeaderMenuOpen(false);
 
             await messagesApi.pinConversation(convId, !isPinned);
+            // Refresh to ensure server state alignment and correct sorting
             await loadConversations();
             toast.success(!isPinned ? 'Chat pinned' : 'Chat unpinned');
         } catch (error: any) {
@@ -330,7 +337,7 @@ export const MessagesPage: React.FC = () => {
                                                             onClick={() => handlePinChat(conv.id, conv.isPinned)}
                                                         >
                                                             <Pin size={14} style={{ color: conv.isPinned ? '#38bdf8' : 'inherit' }} className={conv.isPinned ? "" : "text-muted"} fill={conv.isPinned ? "currentColor" : "none"} />
-                                                            <span style={{ fontSize: '0.85rem' }}>{conv.isPinned ? 'Unpin' : 'Pin'}</span>
+                                                            <span style={{ fontSize: '0.85rem' }}>{conv.isPinned ? 'Unpin chat' : 'Pin chat'}</span>
                                                         </button>
                                                         <button
                                                             className="w-100 px-3 py-2 text-start btn btn-link text-danger text-decoration-none dropdown-item d-flex align-items-center gap-2"
