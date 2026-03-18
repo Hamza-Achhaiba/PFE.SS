@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import ma.smartsupply.enums.EscrowStatus;
 import ma.smartsupply.enums.PaymentStatus;
+import ma.smartsupply.enums.RefundRequestStatus;
 import ma.smartsupply.enums.StatutCommande;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -60,6 +61,16 @@ public class Commande {
     private LocalDateTime escrowHeldAt;
     private LocalDateTime escrowReleasedAt;
     private LocalDateTime refundedAt;
+    @Enumerated(EnumType.STRING)
+    private RefundRequestStatus refundRequestStatus;
+    private LocalDateTime refundRequestedAt;
+    @Column(length = 1200)
+    private String refundRequestMessage;
+    @Column(length = 80)
+    private String disputeCategory;
+    @Column(length = 2000)
+    private String disputeReason;
+    private LocalDateTime disputeRaisedAt;
     private Double amount;
     private Double platformFee;
     private Double supplierNetAmount;

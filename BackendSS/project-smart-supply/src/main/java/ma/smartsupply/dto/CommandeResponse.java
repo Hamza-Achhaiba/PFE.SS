@@ -30,6 +30,16 @@ public class CommandeResponse {
     private LocalDateTime escrowHeldAt;
     private LocalDateTime escrowReleasedAt;
     private LocalDateTime refundedAt;
+    private String refundRequestStatus;
+    private LocalDateTime refundRequestedAt;
+    private String refundRequestMessage;
+    private String disputeCategory;
+    private String disputeReason;
+    private LocalDateTime disputeRaisedAt;
+    private Long supportSupplierId;
+    private String supportSupplierName;
+    private String supportSupplierCompany;
+    private boolean multipleSuppliersInOrder;
     private Double amount;
     private Double platformFee;
     private Double supplierNetAmount;

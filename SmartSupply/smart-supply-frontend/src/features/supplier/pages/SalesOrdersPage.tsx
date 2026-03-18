@@ -253,6 +253,24 @@ export const SalesOrdersPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {(order.refundRequestStatus && order.refundRequestStatus !== 'NONE') || order.disputeReason ? (
+                      <div className="bg-body-tertiary rounded p-3 mb-3">
+                        <div className="fw-semibold small mb-1">Client Support Flow</div>
+                        {order.refundRequestStatus && order.refundRequestStatus !== 'NONE' && (
+                          <div className="text-muted small">
+                            Refund request: {order.refundRequestStatus === 'OPEN' ? 'Open' : order.refundRequestStatus === 'RESOLVED' ? 'Resolved' : 'Rejected'}
+                            {order.refundRequestedAt ? ` • ${format(new Date(order.refundRequestedAt), 'PP p')}` : ''}
+                          </div>
+                        )}
+                        {order.disputeCategory && (
+                          <div className="text-muted small">Dispute category: {order.disputeCategory}</div>
+                        )}
+                        {order.disputeReason && (
+                          <div className="text-muted small mt-1">Dispute reason: {order.disputeReason}</div>
+                        )}
+                      </div>
+                    ) : null}
+
                     <div className="d-flex flex-column gap-3 bg-body-tertiary rounded p-3">
                       <div>
                         <label className="form-label small text-muted mb-1 fw-bold">Tracking Reference</label>

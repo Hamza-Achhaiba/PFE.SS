@@ -3,6 +3,7 @@ package ma.smartsupply.controller;
 import ma.smartsupply.dto.CheckoutRequest;
 import ma.smartsupply.dto.CommandeRequest;
 import ma.smartsupply.dto.CommandeResponse;
+import ma.smartsupply.dto.RaiseDisputeRequest;
 import ma.smartsupply.dto.UpdateStatutRequest;
 import ma.smartsupply.dto.UpdateTrackingRequest;
 import ma.smartsupply.enums.StatutCommande;
@@ -113,8 +114,17 @@ public class CommandeController {
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ResponseEntity<CommandeResponse> markEscrowDisputed(
             @PathVariable("id") Long id,
+            @RequestBody RaiseDisputeRequest request,
             Principal principal) {
-        return ResponseEntity.ok(commandeService.marquerEscrowEnLitige(id, principal.getName()));
+        return ResponseEntity.ok(commandeService.marquerEscrowEnLitige(id, request, principal.getName()));
+    }
+
+    @PatchMapping("/{id}/refund-request")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<CommandeResponse> openRefundRequest(
+            @PathVariable("id") Long id,
+            Principal principal) {
+        return ResponseEntity.ok(commandeService.ouvrirDemandeRemboursement(id, principal.getName()));
     }
 
     @GetMapping("/{id}/facture")

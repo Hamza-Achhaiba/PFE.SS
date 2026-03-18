@@ -74,6 +74,16 @@ export interface Commande {
     escrowHeldAt?: string;
     escrowReleasedAt?: string;
     refundedAt?: string;
+    refundRequestStatus?: 'NONE' | 'OPEN' | 'RESOLVED' | 'REJECTED';
+    refundRequestedAt?: string;
+    refundRequestMessage?: string;
+    disputeCategory?: string;
+    disputeReason?: string;
+    disputeRaisedAt?: string;
+    supportSupplierId?: number;
+    supportSupplierName?: string;
+    supportSupplierCompany?: string;
+    multipleSuppliersInOrder?: boolean;
     invoicePath?: string;
     statut: 'EN_ATTENTE_VALIDATION' | 'VALIDEE' | 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
     client: {

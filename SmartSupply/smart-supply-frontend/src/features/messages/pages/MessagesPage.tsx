@@ -34,6 +34,7 @@ export const MessagesPage: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -55,6 +56,15 @@ export const MessagesPage: React.FC = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    useEffect(() => {
+        const textarea = composerTextareaRef.current;
+        if (!textarea) return;
+
+        textarea.style.height = '0px';
+        const nextHeight = Math.min(textarea.scrollHeight, 140);
+        textarea.style.height = `${Math.max(nextHeight, 44)}px`;
+    }, [newMessage]);
 
     // Close menus on click outside
     useEffect(() => {
@@ -94,8 +104,9 @@ export const MessagesPage: React.FC = () => {
         const searchParams = new URLSearchParams(location.search);
         const targetConvId = location.state?.selectedConversationId || (searchParams.get('conversationId') ? Number(searchParams.get('conversationId')) : null);
         const targetSupplierId = location.state?.supplierId || (searchParams.get('supplierId') ? Number(searchParams.get('supplierId')) : null);
+        const draftMessage = typeof location.state?.draftMessage === 'string' ? location.state.draftMessage : '';
 
-        if (!targetConvId && !targetSupplierId) return;
+        if (!targetConvId && !targetSupplierId && !draftMessage) return;
 
         const targetConv = conversations.find(c =>
             (targetConvId && c.id === targetConvId) ||
@@ -104,6 +115,13 @@ export const MessagesPage: React.FC = () => {
 
         if (targetConv && selectedConv?.id !== targetConv.id) {
             handleSelectConversation(targetConv);
+        }
+
+        if (draftMessage) {
+            setNewMessage(draftMessage);
+        }
+
+        if ((targetConv && selectedConv?.id !== targetConv.id) || draftMessage) {
             // Clear navigation state and query params to avoid re-triggering
             navigate(location.pathname, { replace: true, state: {} });
         }
@@ -289,16 +307,16 @@ export const MessagesPage: React.FC = () => {
                                         className={`conversation-item p-3 border-bottom cursor-pointer transition-all ${selectedConv?.id === conv.id ? 'active' : ''}`}
                                         onClick={() => handleSelectConversation(conv)}
                                     >
-                                        <div className="d-flex align-items-center gap-3">
+                                        <div className="d-flex align-items-center gap-3 min-width-0">
                                             <div className="avatar-container flex-shrink-0">
                                                 <div className="avatar-soft bg-primary rounded-circle d-flex align-items-center justify-content-center text-white fw-bold">
                                                     {conv.otherPartyName.charAt(0)}
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1 min-width-0">
-                                                <div className="d-flex justify-content-between align-items-start mb-0">
+                                            <div className="flex-grow-1 min-width-0 conversation-content">
+                                                <div className="d-flex justify-content-between align-items-start gap-2 mb-0 min-width-0">
                                                     <h6 className="mb-0 text-truncate fw-bold name-label">{conv.otherPartyName}</h6>
-                                                    <div className="d-flex align-items-center gap-1">
+                                                    <div className="d-flex align-items-center gap-1 flex-shrink-0">
                                                         {conv.isPinned && <Pin size={15} style={{ color: '#38bdf8' }} fill="currentColor" />}
                                                         <small className="text-muted flex-shrink-0 ms-2 time-label">
                                                             {format(new Date(conv.lastMessageAt), 'HH:mm')}
@@ -493,10 +511,10 @@ export const MessagesPage: React.FC = () => {
 
                             {/* Input Area */}
                             <div className="p-3 bg-soft-secondary border-top">
-                                <form onSubmit={handleSendMessage} className="d-flex align-items-center gap-2">
+                                <form onSubmit={handleSendMessage} className="message-composer-form d-flex align-items-end gap-2">
                                     <button
                                         type="button"
-                                        className="btn btn-link text-primary p-2 rounded-circle hover-bg-soft shadow-none"
+                                        className="btn btn-link text-primary p-2 rounded-circle hover-bg-soft shadow-none flex-shrink-0"
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={isSending}
                                     >
@@ -509,19 +527,20 @@ export const MessagesPage: React.FC = () => {
                                         ref={fileInputRef}
                                         onChange={handleImageUpload}
                                     />
-                                    <div className="flex-grow-1 position-relative">
-                                        <input
-                                            type="text"
+                                    <div className="flex-grow-1 min-width-0 position-relative composer-input-shell">
+                                        <textarea
+                                            ref={composerTextareaRef}
                                             placeholder="Write your message..."
-                                            className="form-control rounded-pill border-0 shadow-inset py-2 px-4 bg-soft-bg"
+                                            className="form-control composer-textarea border-0 shadow-inset px-4 bg-soft-bg"
                                             value={newMessage}
                                             onChange={(e) => setNewMessage(e.target.value)}
                                             disabled={isSending}
+                                            rows={1}
                                         />
                                     </div>
                                     <button
                                         type="submit"
-                                        className="btn btn-primary rounded-circle d-flex align-items-center justify-content-center p-0 shadow-soft transition-all"
+                                        className="btn btn-primary rounded-circle d-flex align-items-center justify-content-center p-0 shadow-soft transition-all flex-shrink-0"
                                         style={{ width: 42, height: 42 }}
                                         disabled={!newMessage.trim() || isSending}
                                     >
@@ -576,6 +595,7 @@ export const MessagesPage: React.FC = () => {
             <style>{`
                 .messages-container {
                     height: calc(100vh - 100px);
+                    overflow: hidden;
                 }
                 
                 @media (max-width: 767.98px) {
@@ -619,6 +639,7 @@ export const MessagesPage: React.FC = () => {
                 .conversation-item {
                     border-left: 4px solid transparent;
                     transition: all 0.2s ease;
+                    overflow: hidden;
                 }
                 .conversation-item:hover {
                     background-color: var(--soft-bg);
@@ -628,10 +649,23 @@ export const MessagesPage: React.FC = () => {
                     border-left-color: var(--soft-primary);
                 }
                 
+                .conversation-content,
+                .name-label,
+                .subtitle-label,
+                .preview-label {
+                    min-width: 0;
+                }
+
                 .name-label { color: var(--soft-text); font-size: 0.95rem; }
                 .time-label { font-size: 0.75rem; }
                 .subtitle-label { font-size: 0.75rem; font-weight: 500; }
-                .preview-label { font-size: 0.85rem; }
+                .preview-label {
+                    font-size: 0.85rem;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    max-width: 100%;
+                }
 
                 .message-bubble {
                     max-width: 80%;
@@ -640,6 +674,8 @@ export const MessagesPage: React.FC = () => {
                     font-size: 0.925rem;
                     line-height: 1.5;
                     word-wrap: break-word;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
                     position: relative;
                 }
                 .message-bubble.mine {
@@ -666,6 +702,41 @@ export const MessagesPage: React.FC = () => {
 
                 .message-text {
                     white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
+                }
+
+                .message-composer-form,
+                .composer-input-shell {
+                    min-width: 0;
+                }
+
+                .composer-textarea {
+                    min-height: 44px;
+                    max-height: 140px;
+                    border-radius: 1.5rem;
+                    padding-top: 0.7rem;
+                    padding-bottom: 0.7rem;
+                    resize: none;
+                    overflow-y: auto;
+                    line-height: 1.45;
+                    white-space: pre-wrap;
+                    overflow-wrap: anywhere;
+                    word-break: break-word;
+                }
+
+                .composer-textarea:focus {
+                    background: var(--soft-bg);
+                    color: var(--soft-text);
+                }
+
+                .composer-textarea::-webkit-scrollbar {
+                    width: 5px;
+                }
+
+                .composer-textarea::-webkit-scrollbar-thumb {
+                    background: rgba(148, 163, 184, 0.5);
+                    border-radius: 999px;
                 }
 
                 .avatar-soft {

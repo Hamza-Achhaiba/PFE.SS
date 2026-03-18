@@ -8,6 +8,7 @@ import ma.smartsupply.dto.ProduitInfoDTO;
 import ma.smartsupply.enums.EscrowStatus;
 import ma.smartsupply.enums.PaymentStatus;
 import ma.smartsupply.enums.Role;
+import ma.smartsupply.enums.RefundRequestStatus;
 import ma.smartsupply.enums.StatutCommande;
 import ma.smartsupply.enums.TypeNotification;
 import ma.smartsupply.model.*;
@@ -31,7 +32,9 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -117,6 +120,7 @@ public class CommandeService {
         commande.setSupplierNetAmount(montantTotal);
         commande.setPaymentMethod("INTERNAL_PLATFORM");
         commande.setMethodePaiement("INTERNAL_PLATFORM");
+        commande.setRefundRequestStatus(RefundRequestStatus.NONE);
         applyEscrowHold(commande, now);
 
         return commandeRepository.save(commande);
@@ -292,11 +296,31 @@ public class CommandeService {
         dto.setEscrowHeldAt(commande.getEscrowHeldAt());
         dto.setEscrowReleasedAt(commande.getEscrowReleasedAt());
         dto.setRefundedAt(commande.getRefundedAt());
+        dto.setRefundRequestStatus(commande.getRefundRequestStatus() != null ? commande.getRefundRequestStatus().name() : RefundRequestStatus.NONE.name());
+        dto.setRefundRequestedAt(commande.getRefundRequestedAt());
+        dto.setRefundRequestMessage(commande.getRefundRequestMessage());
+        dto.setDisputeCategory(commande.getDisputeCategory());
+        dto.setDisputeReason(commande.getDisputeReason());
+        dto.setDisputeRaisedAt(commande.getDisputeRaisedAt());
         dto.setAmount(commande.getAmount());
         dto.setPlatformFee(commande.getPlatformFee());
         dto.setSupplierNetAmount(commande.getSupplierNetAmount());
         dto.setFacturePath(commande.getFacturePath());
         dto.setInvoicePath(commande.getInvoicePath() != null ? commande.getInvoicePath() : commande.getFacturePath());
+
+        List<Fournisseur> suppliers = commande.getLignes().stream()
+                .map(ligne -> ligne.getProduit() != null ? ligne.getProduit().getFournisseur() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.comparing(Fournisseur::getId))
+                .collect(Collectors.toList());
+        if (!suppliers.isEmpty()) {
+            Fournisseur supportSupplier = suppliers.get(0);
+            dto.setSupportSupplierId(supportSupplier.getId());
+            dto.setSupportSupplierName(supportSupplier.getNom());
+            dto.setSupportSupplierCompany(supportSupplier.getNomEntreprise());
+            dto.setMultipleSuppliersInOrder(suppliers.size() > 1);
+        }
 
         return dto;
     }
@@ -335,6 +359,7 @@ public class CommandeService {
 
         // Initial status
         commande.setStatut(StatutCommande.EN_ATTENTE_VALIDATION);
+        commande.setRefundRequestStatus(RefundRequestStatus.NONE);
         applyEscrowHold(commande, LocalDateTime.now());
 
         List<LigneCommande> lignesCommande = new ArrayList<>();
@@ -423,7 +448,7 @@ public class CommandeService {
     }
 
     @Transactional
-    public CommandeResponse marquerEscrowEnLitige(Long commandeId, String emailUtilisateur) {
+    public CommandeResponse marquerEscrowEnLitige(Long commandeId, RaiseDisputeRequest request, String emailUtilisateur) {
         Commande commande = commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new RuntimeException("Commande introuvable"));
 
@@ -436,8 +461,47 @@ public class CommandeService {
             throw new RuntimeException("Impossible d'ouvrir un litige aprÃ¨s libÃ©ration ou remboursement des fonds.");
         }
 
+        if (commande.getRefundRequestStatus() == null || commande.getRefundRequestStatus() == RefundRequestStatus.NONE) {
+            throw new RuntimeException("Veuillez d'abord demander un remboursement via le support avant d'ouvrir un litige.");
+        }
+
+        String disputeReason = request != null && request.getReason() != null ? request.getReason().trim() : "";
+        if (disputeReason.isEmpty()) {
+            throw new RuntimeException("La raison du litige est obligatoire.");
+        }
+
         commande.setEscrowStatus(EscrowStatus.DISPUTED);
         commande.setPaymentStatus(PaymentStatus.DISPUTED);
+        commande.setDisputeCategory(request != null && request.getCategory() != null && !request.getCategory().trim().isEmpty()
+                ? request.getCategory().trim()
+                : null);
+        commande.setDisputeReason(disputeReason);
+        commande.setDisputeRaisedAt(LocalDateTime.now());
+
+        return mapToDTO(commandeRepository.save(commande));
+    }
+
+    @Transactional
+    public CommandeResponse ouvrirDemandeRemboursement(Long commandeId, String emailClient) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        if (commande.getClient() == null || !commande.getClient().getEmail().equals(emailClient)) {
+            throw new RuntimeException("AccÃ¨s refusÃ© : vous ne pouvez pas demander un remboursement pour cette commande.");
+        }
+
+        if (commande.getEscrowStatus() == EscrowStatus.RELEASED || commande.getEscrowStatus() == EscrowStatus.REFUNDED) {
+            throw new RuntimeException("Cette commande n'est plus Ã©ligible Ã  une demande de remboursement.");
+        }
+
+        if (commande.getRefundRequestStatus() == null || commande.getRefundRequestStatus() == RefundRequestStatus.NONE) {
+            commande.setRefundRequestStatus(RefundRequestStatus.OPEN);
+            commande.setRefundRequestedAt(LocalDateTime.now());
+        }
+
+        if (commande.getRefundRequestMessage() == null || commande.getRefundRequestMessage().isBlank()) {
+            commande.setRefundRequestMessage(buildRefundDraft(commande));
+        }
 
         return mapToDTO(commandeRepository.save(commande));
     }
@@ -565,5 +629,35 @@ public class CommandeService {
         commande.setPaymentStatus(PaymentStatus.REFUNDED);
         commande.setRefundedAt(now);
         commande.setEscrowReleasedAt(null);
+        commande.setRefundRequestStatus(RefundRequestStatus.RESOLVED);
+    }
+
+    private String buildRefundDraft(Commande commande) {
+        String orderReference = commande.getReference() != null ? commande.getReference() : "#" + commande.getId();
+        List<Fournisseur> suppliers = commande.getLignes().stream()
+                .map(ligne -> ligne.getProduit() != null ? ligne.getProduit().getFournisseur() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(Comparator.comparing(Fournisseur::getId))
+                .collect(Collectors.toList());
+        String supplierLabel = suppliers.isEmpty()
+                ? "Unknown supplier"
+                : suppliers.get(0).getNomEntreprise();
+        String paymentLabel = commande.getPaymentStatus() != null
+                ? commande.getPaymentStatus().name()
+                : (commande.getEscrowStatus() != null ? commande.getEscrowStatus().name() : "UNKNOWN");
+
+        StringBuilder draft = new StringBuilder();
+        draft.append("Hello Support, I want to request a refund for order ")
+                .append(orderReference)
+                .append(" because there is an issue with this order.\n\n")
+                .append("Order number: ").append(orderReference).append("\n")
+                .append("Supplier: ").append(supplierLabel).append("\n")
+                .append("Payment/Escrow status: ").append(paymentLabel).append("\n");
+        if (suppliers.size() > 1) {
+            draft.append("Note: this order contains items from multiple suppliers.\n");
+        }
+        draft.append("Issue: Please describe the problem here.");
+        return draft.toString();
     }
 }
