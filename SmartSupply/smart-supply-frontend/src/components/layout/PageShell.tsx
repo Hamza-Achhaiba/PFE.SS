@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { ChatbotWidget } from '../chat/ChatbotWidget';
 
 export const PageShell: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -25,6 +26,7 @@ export const PageShell: React.FC = () => {
                     <Outlet />
                 </main>
             </div>
+            <ChatbotWidget />
         </div>
     );
 };

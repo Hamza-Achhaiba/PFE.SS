@@ -22,7 +22,7 @@ export const LoginPage: React.FC = () => {
     const onSubmit = async (data: LoginFormValues) => {
         try {
             setLoading(true);
-            
+
             // Clear any existing auth state before logging in
             // This ensures a clean state and helps with repeated login issues
             localStorage.removeItem('ss_token');
