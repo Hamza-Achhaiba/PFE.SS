@@ -26,6 +26,8 @@ export const PageShell: React.FC = () => {
                     <Outlet />
                 </main>
             </div>
+
+            {/* Global AI Chatbot Widget */}
             <ChatbotWidget />
         </div>
     );
