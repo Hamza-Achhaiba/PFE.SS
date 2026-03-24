@@ -1,11 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Database, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare, AlertCircle } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
+import appLogo from '../../assets/app-logo.png';
 
 export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const role = AuthStore.getRole();
     const isClient = role === 'CLIENT';
+    const isAdmin = role === 'ADMIN';
 
     const clientLinks = [
         { to: '/client/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -33,7 +35,17 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/supplier/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
 
-    const links = isClient ? clientLinks : supplierLinks;
+    const adminLinks = [
+        { to: '/admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
+        { to: '/admin/clients', icon: <User size={20} />, label: 'Manage Clients' },
+        { to: '/admin/suppliers', icon: <Users size={20} />, label: 'Manage Suppliers' },
+        { to: '/admin/orders', icon: <FileText size={20} />, label: 'Global Orders' },
+        { to: '/admin/disputes', icon: <AlertCircle size={20} />, label: 'Disputes & Refunds' },
+        { to: '/admin/settings', icon: <Settings size={20} />, label: 'Settings' },
+        { to: '/admin/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
+    ];
+
+    const links = isAdmin ? adminLinks : isClient ? clientLinks : supplierLinks;
 
     const handleLogout = () => {
         AuthStore.logout();
@@ -46,21 +58,31 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <div
                         className="d-flex align-items-center justify-content-center flex-shrink-0"
                         style={{
-                            width: '42px',
-                            height: '42px',
+                            width: '46px',
+                            height: '46px',
                             background: 'linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.8))',
                             borderRadius: '50%',
                             boxShadow: '0 4px 12px rgba(118, 75, 162, 0.15)',
                             border: '1px solid rgba(255, 255, 255, 0.9)',
-                            color: '#764ba2'
+                            color: '#764ba2',
+                            overflow: 'hidden'
                         }}
                     >
-                        <Database size={20} strokeWidth={2.5} />
+                        <img 
+                            src={appLogo} 
+                            alt="Smart Supply Logo" 
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'contain',
+                                padding: '1px'
+                            }} 
+                        />
                     </div>
                     <div>
                         <h5 className="mb-0 fw-bold text-body">Smart Supply</h5>
                         <small className="text-muted fw-semibold" style={{ fontSize: '0.7rem' }}>
-                            {isClient ? 'CLIENT PORTAL' : 'MANAGER PRO'}
+                            {isAdmin ? 'SYSTEM ADMIN' : isClient ? 'CLIENT PORTAL' : 'MANAGER PRO'}
                         </small>
                     </div>
                 </div>

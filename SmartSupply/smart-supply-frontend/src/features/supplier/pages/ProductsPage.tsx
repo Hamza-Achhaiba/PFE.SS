@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
-import { productsApi } from '../../../api/products.api';
-import { SoftCard } from '../../../components/ui/SoftCard';
-import { SoftTable } from '../../../components/ui/SoftTable';
-import { SoftLoader } from '../../../components/ui/SoftLoader';
-import { SoftButton } from '../../../components/ui/SoftButton';
-import { SoftBadge } from '../../../components/ui/SoftBadge';
-import { SoftModal } from '../../../components/ui/SoftModal';
-import { SoftInput } from '../../../components/ui/SoftInput';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { productsApi } from '../../../api/products.api';
+import { SoftBadge } from '../../../components/ui/SoftBadge';
+import { SoftButton } from '../../../components/ui/SoftButton';
+import { SoftCard } from '../../../components/ui/SoftCard';
+import { SoftInput } from '../../../components/ui/SoftInput';
+import { SoftLoader } from '../../../components/ui/SoftLoader';
+import { SoftModal } from '../../../components/ui/SoftModal';
+import { SoftTable } from '../../../components/ui/SoftTable';
 import { CategoryService } from '../../categories/category.service';
 import { Category } from '../../categories/category.types';
+import { useSupplierStatus } from '../hooks/useSupplierStatus';
+
+
 
 export const ProductsPage: React.FC = () => {
   const [produits, setProduits] = useState<any[]>([]);
@@ -21,14 +24,11 @@ export const ProductsPage: React.FC = () => {
   const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProductAction, setSelectedProductAction] = useState<any>(null);
-
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [newStock, setNewStock] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-
   const [imageFile, setImageFile] = useState<File | null>(null);
-
   const [newProduct, setNewProduct] = useState({
     nom: '',
     description: '',
@@ -40,12 +40,18 @@ export const ProductsPage: React.FC = () => {
     actif: true
   });
 
+  const { canManageProducts: supplierCanManageProducts, restrictionMessage: supplierRestrictionMessage } = useSupplierStatus();
+
+  const preventRestrictedAction = () => {
+    toast.warning(supplierRestrictionMessage);
+  };
+
   const fetchProduits = () => {
     setIsLoading(true);
     Promise.all([
       productsApi.mesProduits(),
-      productsApi.suggestionsReapprovisionnement().catch(() => []), // fail gracefully
-      CategoryService.getAllCategories().catch(() => [])
+      productsApi.suggestionsReapprovisionnement().catch(() => []),
+      CategoryService.getAllCategories().catch(() => []),
     ])
       .then(([prods, suggs, cats]) => {
         setProduits(prods);
@@ -69,6 +75,10 @@ export const ProductsPage: React.FC = () => {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supplierCanManageProducts) {
+      preventRestrictedAction();
+      return;
+    }
     if (!newProduct.nom || newProduct.prixUnitaire <= 0 || newProduct.categorieId === '') {
       toast.error('Please fill in required fields correctly, including selecting a category.');
       return;
@@ -90,31 +100,46 @@ export const ProductsPage: React.FC = () => {
       toast.success('Product added successfully!');
       setIsAddModalOpen(false);
       setNewProduct({
-        nom: '', description: '', categorieId: '', prixUnitaire: 0, stockDisponible: 0, quantiteMinimumCommande: 1, alerteStock: false, actif: true
+        nom: '',
+        description: '',
+        categorieId: '',
+        prixUnitaire: 0,
+        stockDisponible: 0,
+        quantiteMinimumCommande: 1,
+        alerteStock: false,
+        actif: true
       });
       setImageFile(null);
       fetchProduits();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to add product');
+      toast.error(error.response?.data?.message || error.message || 'Failed to add product');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleToggleStatus = async (id: number) => {
+    if (!supplierCanManageProducts) {
+      preventRestrictedAction();
+      return;
+    }
     setIsLoading(true);
     try {
       await productsApi.toggleStatut(id);
       toast.success('Product status updated!');
-      fetchProduits(); // Re-fetch products to get updated list
+      fetchProduits();
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to update product status.');
+      toast.error(err.response?.data?.message || err.message || 'Failed to update product status.');
       setIsLoading(false);
     }
   };
 
   const openEditStockModal = (product: any) => {
+    if (!supplierCanManageProducts) {
+      preventRestrictedAction();
+      return;
+    }
     setEditingProduct(product);
     setNewStock(product.stockDisponible);
     setIsEditStockModalOpen(true);
@@ -123,6 +148,10 @@ export const ProductsPage: React.FC = () => {
   const handleEditStockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    if (!supplierCanManageProducts) {
+      preventRestrictedAction();
+      return;
+    }
     setIsSubmitting(true);
     try {
       await productsApi.updateStock(editingProduct.id, newStock);
@@ -131,7 +160,7 @@ export const ProductsPage: React.FC = () => {
       fetchProduits();
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to update stock.');
+      toast.error(err.response?.data?.message || err.message || 'Failed to update stock.');
     } finally {
       setIsSubmitting(false);
     }
@@ -140,6 +169,10 @@ export const ProductsPage: React.FC = () => {
   const handleEditProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProductAction) return;
+    if (!supplierCanManageProducts) {
+      preventRestrictedAction();
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -159,7 +192,7 @@ export const ProductsPage: React.FC = () => {
       setImageFile(null);
       fetchProduits();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update product');
+      toast.error(error.response?.data?.message || error.message || 'Failed to update product');
     } finally {
       setIsSubmitting(false);
     }
@@ -167,14 +200,18 @@ export const ProductsPage: React.FC = () => {
 
   const handleDeleteProduct = async () => {
     if (!selectedProductAction) return;
+    if (!supplierCanManageProducts) {
+      preventRestrictedAction();
+      return;
+    }
     setIsSubmitting(true);
     try {
       await productsApi.delete(selectedProductAction.id);
-      toast.success("Product deleted successfully!");
+      toast.success('Product deleted successfully!');
       setIsDeleteModalOpen(false);
       fetchProduits();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to delete product.");
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete product.');
     } finally {
       setIsSubmitting(false);
     }
@@ -186,8 +223,16 @@ export const ProductsPage: React.FC = () => {
     <div className="container-fluid p-0">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="fw-bold">My Products</h4>
-        <SoftButton onClick={() => setIsAddModalOpen(true)}>+ Add Product</SoftButton>
+        <SoftButton
+          disabled={!supplierCanManageProducts}
+          onClick={() => (supplierCanManageProducts ? setIsAddModalOpen(true) : preventRestrictedAction())}
+          title={!supplierCanManageProducts ? supplierRestrictionMessage : undefined}
+        >
+          + Add Product
+        </SoftButton>
       </div>
+
+
 
       {suggestions && suggestions.length > 0 && (
         <SoftCard className="mb-4 border-warning bg-warning bg-opacity-10 border-2">
@@ -212,9 +257,13 @@ export const ProductsPage: React.FC = () => {
             {produits?.map(p => (
               <tr
                 key={p.id}
-                className="cursor-pointer hover-bg-light"
-                onClick={() => { setSelectedProductAction({ ...p }); setIsEditProductModalOpen(true); }}
-                style={{ cursor: 'pointer' }}
+                className={supplierCanManageProducts ? 'cursor-pointer hover-bg-light' : ''}
+                onClick={() => {
+                  if (!supplierCanManageProducts) return;
+                  setSelectedProductAction({ ...p });
+                  setIsEditProductModalOpen(true);
+                }}
+                style={{ cursor: supplierCanManageProducts ? 'pointer' : 'default' }}
               >
                 <td className="fw-semibold">
                   <div className="d-flex align-items-center">
@@ -243,7 +292,17 @@ export const ProductsPage: React.FC = () => {
                   </span>
                 </td>
                 <td>
-                  <div style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleToggleStatus(p.id); }}>
+                  <div
+                    style={{ cursor: supplierCanManageProducts ? 'pointer' : 'not-allowed', opacity: supplierCanManageProducts ? 1 : 0.6 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!supplierCanManageProducts) {
+                        preventRestrictedAction();
+                        return;
+                      }
+                      handleToggleStatus(p.id);
+                    }}
+                  >
                     <SoftBadge variant={p.actif ? 'success' : 'danger'}>
                       {p.actif ? 'Active' : 'Disabled'}
                     </SoftBadge>
@@ -251,8 +310,28 @@ export const ProductsPage: React.FC = () => {
                 </td>
                 <td onClick={e => e.stopPropagation()}>
                   <div className="d-flex align-items-center gap-2">
-                    <SoftButton variant="outline" style={{ padding: '0.2rem 0.8rem', fontSize: '0.8rem' }} onClick={() => openEditStockModal(p)}>Edit Stock</SoftButton>
-                    <button className="btn btn-sm btn-outline-danger p-1" onClick={() => { setSelectedProductAction(p); setIsDeleteModalOpen(true); }}>
+                    <SoftButton
+                      variant="outline"
+                      style={{ padding: '0.2rem 0.8rem', fontSize: '0.8rem' }}
+                      onClick={() => openEditStockModal(p)}
+                      disabled={!supplierCanManageProducts}
+                      title={!supplierCanManageProducts ? supplierRestrictionMessage : undefined}
+                    >
+                      Edit Stock
+                    </SoftButton>
+                    <button
+                      className="btn btn-sm btn-outline-danger p-1"
+                      disabled={!supplierCanManageProducts}
+                      title={!supplierCanManageProducts ? supplierRestrictionMessage : undefined}
+                      onClick={() => {
+                        if (!supplierCanManageProducts) {
+                          preventRestrictedAction();
+                          return;
+                        }
+                        setSelectedProductAction(p);
+                        setIsDeleteModalOpen(true);
+                      }}
+                    >
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -290,6 +369,7 @@ export const ProductsPage: React.FC = () => {
                 value={newProduct.categorieId}
                 onChange={e => setNewProduct({ ...newProduct, categorieId: parseInt(e.target.value) || '' })}
                 style={{ cursor: 'pointer' }}
+                disabled={!supplierCanManageProducts}
               >
                 <option value="" disabled>Select a category...</option>
                 {categories.map(cat => (
@@ -309,6 +389,7 @@ export const ProductsPage: React.FC = () => {
               placeholder="Product description..."
               value={newProduct.description}
               onChange={e => setNewProduct({ ...newProduct, description: e.target.value })}
+              disabled={!supplierCanManageProducts}
             />
           </div>
           <div className="mb-3">
@@ -318,6 +399,7 @@ export const ProductsPage: React.FC = () => {
               accept="image/*"
               className="soft-input w-100"
               onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)}
+              disabled={!supplierCanManageProducts}
             />
             {imageFile && (
               <small className="text-muted d-block mt-1">Selected: {imageFile.name}</small>
@@ -333,6 +415,7 @@ export const ProductsPage: React.FC = () => {
                 required
                 value={newProduct.prixUnitaire}
                 onChange={e => setNewProduct({ ...newProduct, prixUnitaire: parseFloat(e.target.value) || 0 })}
+                disabled={!supplierCanManageProducts}
               />
             </div>
             <div className="col-6">
@@ -343,6 +426,7 @@ export const ProductsPage: React.FC = () => {
                 required
                 value={newProduct.stockDisponible}
                 onChange={e => setNewProduct({ ...newProduct, stockDisponible: parseInt(e.target.value) || 0 })}
+                disabled={!supplierCanManageProducts}
               />
             </div>
           </div>
@@ -355,14 +439,18 @@ export const ProductsPage: React.FC = () => {
                 required
                 value={newProduct.quantiteMinimumCommande}
                 onChange={e => setNewProduct({ ...newProduct, quantiteMinimumCommande: parseInt(e.target.value) || 1 })}
+                disabled={!supplierCanManageProducts}
               />
             </div>
           </div>
+          {!supplierCanManageProducts && (
+            <p className="text-warning small mt-3 mb-0">{supplierRestrictionMessage}</p>
+          )}
           <div className="d-flex justify-content-end gap-2 mt-4">
             <SoftButton variant="outline" type="button" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </SoftButton>
-            <SoftButton type="submit" isLoading={isSubmitting}>
+            <SoftButton type="submit" isLoading={isSubmitting} disabled={!supplierCanManageProducts}>
               Add Product
             </SoftButton>
           </div>
@@ -384,13 +472,17 @@ export const ProductsPage: React.FC = () => {
               required
               value={newStock}
               onChange={e => setNewStock(parseInt(e.target.value) || 0)}
+              disabled={!supplierCanManageProducts}
             />
           </div>
+          {!supplierCanManageProducts && (
+            <p className="text-warning small mt-3 mb-0">{supplierRestrictionMessage}</p>
+          )}
           <div className="d-flex justify-content-end gap-2">
             <SoftButton variant="outline" type="button" onClick={() => setIsEditStockModalOpen(false)}>
               Cancel
             </SoftButton>
-            <SoftButton type="submit" isLoading={isSubmitting}>
+            <SoftButton type="submit" isLoading={isSubmitting} disabled={!supplierCanManageProducts}>
               Save Changes
             </SoftButton>
           </div>
@@ -409,6 +501,7 @@ export const ProductsPage: React.FC = () => {
             required
             value={selectedProductAction?.nom || ''}
             onChange={e => setSelectedProductAction({ ...selectedProductAction, nom: e.target.value })}
+            disabled={!supplierCanManageProducts}
           />
           <div className="mb-3">
             <label className="soft-label d-block mb-1">Category <span className="text-danger">*</span></label>
@@ -419,6 +512,7 @@ export const ProductsPage: React.FC = () => {
                 value={selectedProductAction?.categorieId || ''}
                 onChange={e => setSelectedProductAction({ ...selectedProductAction, categorieId: parseInt(e.target.value) || '' })}
                 style={{ cursor: 'pointer' }}
+                disabled={!supplierCanManageProducts}
               >
                 <option value="" disabled>Select a category...</option>
                 {categories.map(cat => (
@@ -438,6 +532,7 @@ export const ProductsPage: React.FC = () => {
               placeholder="Product description..."
               value={selectedProductAction?.description || ''}
               onChange={e => setSelectedProductAction({ ...selectedProductAction, description: e.target.value })}
+              disabled={!supplierCanManageProducts}
             />
           </div>
           <div className="mb-3">
@@ -447,6 +542,7 @@ export const ProductsPage: React.FC = () => {
               accept="image/*"
               className="soft-input w-100"
               onChange={e => setImageFile(e.target.files ? e.target.files[0] : null)}
+              disabled={!supplierCanManageProducts}
             />
             {imageFile ? (
               <small className="text-muted d-block mt-1">Replacing with: {imageFile.name}</small>
@@ -464,6 +560,7 @@ export const ProductsPage: React.FC = () => {
                 required
                 value={selectedProductAction?.prixUnitaire || 0}
                 onChange={e => setSelectedProductAction({ ...selectedProductAction, prixUnitaire: parseFloat(e.target.value) || 0 })}
+                disabled={!supplierCanManageProducts}
               />
             </div>
           </div>
@@ -476,14 +573,18 @@ export const ProductsPage: React.FC = () => {
                 required
                 value={selectedProductAction?.quantiteMinimumCommande || 1}
                 onChange={e => setSelectedProductAction({ ...selectedProductAction, quantiteMinimumCommande: parseInt(e.target.value) || 1 })}
+                disabled={!supplierCanManageProducts}
               />
             </div>
           </div>
+          {!supplierCanManageProducts && (
+            <p className="text-warning small mt-3 mb-0">{supplierRestrictionMessage}</p>
+          )}
           <div className="d-flex justify-content-end gap-2 mt-4">
             <SoftButton variant="outline" type="button" onClick={() => { setIsEditProductModalOpen(false); setImageFile(null); }}>
               Cancel
             </SoftButton>
-            <SoftButton type="submit" isLoading={isSubmitting}>
+            <SoftButton type="submit" isLoading={isSubmitting} disabled={!supplierCanManageProducts}>
               Save Changes
             </SoftButton>
           </div>
@@ -497,17 +598,24 @@ export const ProductsPage: React.FC = () => {
       >
         <div className="py-3">
           <p>Are you sure you want to delete <strong>{selectedProductAction?.nom}</strong>? This action cannot be undone.</p>
+          {!supplierCanManageProducts && (
+            <p className="text-warning small mt-3 mb-0">{supplierRestrictionMessage}</p>
+          )}
           <div className="d-flex justify-content-end gap-2 mt-4">
             <SoftButton variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
               Cancel
             </SoftButton>
-            <SoftButton onClick={handleDeleteProduct} isLoading={isSubmitting} style={{ backgroundColor: '#dc3545', color: 'white', border: 'none' }}>
+            <SoftButton
+              onClick={handleDeleteProduct}
+              isLoading={isSubmitting}
+              disabled={!supplierCanManageProducts}
+              style={{ backgroundColor: '#dc3545', color: 'white', border: 'none' }}
+            >
               Confirm Delete
             </SoftButton>
           </div>
         </div>
       </SoftModal>
-
     </div>
   );
 };

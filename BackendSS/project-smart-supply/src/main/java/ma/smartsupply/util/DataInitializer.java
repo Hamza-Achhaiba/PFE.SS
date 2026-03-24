@@ -181,8 +181,28 @@ public class DataInitializer implements CommandLineRunner {
         // FOURNISSEURS + CLIENTS
         // ──────────────────────────────────────────────────────────────
         private void seedUsers() {
+                seedAdmin();
                 seedFournisseurs();
                 seedClients();
+        }
+
+        private void seedAdmin() {
+                System.out.println("🌱 Seeding Admin...");
+                String adminEmail = "admin.smart.supply@gmail.com";
+                if (!utilisateurRepository.existsByEmail(adminEmail)) {
+                        Admin admin = Admin.builder()
+                                        .nom("System Admin")
+                                        .email(adminEmail)
+                                        .motDePasse(passwordEncoder.encode("password123"))
+                                        .telephone("+212 6 00 00 00 00")
+                                        .adresse("Siege Smart Supply")
+                                        .role(Role.ADMIN)
+                                        .build();
+                        utilisateurRepository.save(admin);
+                        System.out.println("  ➕ Admin créé: " + adminEmail);
+                } else {
+                        System.out.println("  ✅ Admin existe déjà: " + adminEmail);
+                }
         }
 
         private void seedFournisseurs() {

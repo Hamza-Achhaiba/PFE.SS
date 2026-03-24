@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Save, Lock, User, Globe, Moon, Camera } from 'lucide-react';
+import { Save, Lock, User, Moon, Camera } from 'lucide-react';
 import { AuthStore } from '../../auth/auth.store';
 import { profilApi } from '../../../api/profil.api';
 import { User as UserType } from '../../../api/types';
@@ -27,7 +27,6 @@ export const SettingsPage: React.FC = () => {
 
     // Preferences State
     const [theme, setTheme] = useState(localStorage.getItem('ss_theme') || 'light');
-    const [lang, setLang] = useState(localStorage.getItem('ss_lang') || 'EN');
 
     useEffect(() => {
         profilApi.getMonProfil()
@@ -78,10 +77,7 @@ export const SettingsPage: React.FC = () => {
         }
     }, [theme]);
 
-    // Lang effect
-    useEffect(() => {
-        localStorage.setItem('ss_lang', lang);
-    }, [lang]);
+
 
     const handleProfileSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -183,7 +179,9 @@ export const SettingsPage: React.FC = () => {
                             </div>
                             <div>
                                 <h5 className="mb-1 fw-bold text-body">{profile.nom || 'User'}</h5>
-                                <p className="text-muted mb-0 small">{role === 'CLIENT' ? 'Client Account' : 'Supplier Account'}</p>
+                                <p className="text-muted mb-0 small">
+                                    {role === 'ADMIN' ? 'Admin Account' : role === 'CLIENT' ? 'Client Account' : 'Supplier Account'}
+                                </p>
                             </div>
                         </div>
 
@@ -296,26 +294,6 @@ export const SettingsPage: React.FC = () => {
                 {/* Preferences Section */}
                 <div className="col-12 col-xl-4">
                     <SoftCard title="App Preferences" className="h-100">
-                        <div className="d-flex align-items-center gap-2 mb-4 text-success">
-                            <Globe size={20} />
-                            <span className="fw-bold">Appearance & Locale</span>
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="form-label fw-semibold text-muted small d-block mb-3">Language</label>
-                            <div className="d-flex gap-2">
-                                <input type="radio" className="btn-check" name="langRadio" id="langEN"
-                                    checked={lang === 'EN'} onChange={() => setLang('EN')} />
-                                <label className="soft-btn w-100 text-center" style={{ background: lang === 'EN' ? 'var(--soft-secondary)' : 'var(--soft-bg)', color: lang === 'EN' ? 'var(--soft-primary)' : 'var(--soft-text-muted)' }} htmlFor="langEN">English</label>
-
-                                <input type="radio" className="btn-check" name="langRadio" id="langFR"
-                                    checked={lang === 'FR'} onChange={() => setLang('FR')} />
-                                <label className="soft-btn w-100 text-center" style={{ background: lang === 'FR' ? 'var(--soft-secondary)' : 'var(--soft-bg)', color: lang === 'FR' ? 'var(--soft-primary)' : 'var(--soft-text-muted)' }} htmlFor="langFR">Français</label>
-                            </div>
-                        </div>
-
-                        <hr className="my-4 text-muted opacity-25" />
-
                         <div>
                             <label className="form-label fw-semibold text-muted small d-block mb-3">
                                 <Moon size={16} className="me-1" /> Theme

@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface PanierRepository extends JpaRepository<Panier, Long> {
 
     Optional<Panier> findByClientEmail(String email);
+    void deleteByClientId(Long clientId);
 }

@@ -2,6 +2,8 @@ package ma.smartsupply.service;
 
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
+import com.lowagie.text.Image;
+import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -9,11 +11,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ma.smartsupply.model.Commande;
 import ma.smartsupply.model.LigneCommande;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.awt.*;
+import java.awt.Color;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,6 +29,13 @@ import java.time.format.DateTimeFormatter;
 public class FactureService {
 
     private static final String UPLOAD_DIR = "uploads/factures";
+    private static final String LOGO_PATH = "logo.png";
+    
+    // Premium Brand Colors
+    private static final Color PRIMARY_COLOR = new Color(0, 31, 63); // Navy Blue
+    private static final Color SECONDARY_COLOR = new Color(71, 85, 105); // Slate Gray
+    private static final Color ACCENT_COLOR = new Color(59, 130, 246); // Blue
+    private static final Color LIGHT_BG = new Color(248, 250, 252); // Light Gray-Blue
 
     public String genererFacturePDF(Commande commande) throws IOException {
         Path path = Paths.get(UPLOAD_DIR);
@@ -35,168 +46,160 @@ public class FactureService {
         String fileName = "facture_" + commande.getReference() + ".pdf";
         Path filePath = path.resolve(fileName);
 
-        Document document = new Document(PageSize.A4);
+        // Professional Margins
+        Document document = new Document(PageSize.A4, 40, 40, 50, 40);
         try (FileOutputStream fos = new FileOutputStream(filePath.toFile())) {
             PdfWriter.getInstance(document, fos);
             document.open();
 
-            // Fonts
-            Font brandFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24, new Color(0, 102, 204));
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.BLACK);
-            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Color.BLACK);
+            // Premium Fonts
+            Font brandFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 22, PRIMARY_COLOR);
+            Font invoiceTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 26, Color.BLACK);
+            Font sectionTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, PRIMARY_COLOR);
+            Font tableHeaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE);
             Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK);
-            Font footerFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, Color.GRAY);
+            Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.BLACK);
+            Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 9, SECONDARY_COLOR);
+            Font footerFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9, SECONDARY_COLOR);
 
-            // Header Section (Brand & Title)
+            // 1. Header Section: Logo & Document Title
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
-            headerTable.setSpacingAfter(20);
+            headerTable.setSpacingAfter(40);
 
-            PdfPCell brandCell = new PdfPCell();
-            brandCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            brandCell.addElement(new Paragraph("SMART SUPPLY", brandFont));
-            brandCell.addElement(new Paragraph("Your Supply Chain Partner", footerFont));
-            headerTable.addCell(brandCell);
+            // Logo with Fallback
+            PdfPCell logoCell = new PdfPCell();
+            logoCell.setBorder(Rectangle.NO_BORDER);
+            logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            try {
+                ClassPathResource res = new ClassPathResource(LOGO_PATH);
+                try (InputStream is = res.getInputStream()) {
+                    byte[] logoBytes = is.readAllBytes();
+                    Image logo = Image.getInstance(logoBytes);
+                    logo.scaleToFit(140, 70);
+                    logoCell.addElement(logo);
+                }
+            } catch (Exception e) {
+                log.warn("Logo loading failed in PDF: {}", e.getMessage());
+                logoCell.addElement(new Paragraph("SMART SUPPLY", brandFont));
+            }
+            headerTable.addCell(logoCell);
 
+            // Invoice Title & Ref
             PdfPCell titleCell = new PdfPCell();
-            titleCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
+            titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            Paragraph pTitle = new Paragraph("FACTURE / INVOICE", titleFont);
-            pTitle.setAlignment(Element.ALIGN_RIGHT);
-            titleCell.addElement(pTitle);
+            titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            
+            Paragraph pInvoice = new Paragraph("INVOICE", invoiceTitleFont);
+            pInvoice.setAlignment(Element.ALIGN_RIGHT);
+            titleCell.addElement(pInvoice);
+            
+            Paragraph pRef = new Paragraph("Ref: " + commande.getReference(), boldFont);
+            pRef.setAlignment(Element.ALIGN_RIGHT);
+            titleCell.addElement(pRef);
+            
             headerTable.addCell(titleCell);
-
             document.add(headerTable);
 
-            // Separator
-            document.add(new Paragraph("______________________________________________________________________________"));
-            document.add(new Paragraph(" "));
-
-            // Info Section
+            // 2. Info Section: Bill To & Order Summary
             PdfPTable infoTable = new PdfPTable(2);
             infoTable.setWidthPercentage(100);
-            infoTable.setSpacingAfter(20);
+            infoTable.setSpacingAfter(30);
 
-            // Left: Order Details
-            PdfPCell leftCell = new PdfPCell();
-            leftCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            leftCell.addElement(new Paragraph("DÉTAILS DE LA COMMANDE", headerFont));
-            leftCell.addElement(new Paragraph("Référence: " + commande.getReference(), normalFont));
-            leftCell.addElement(new Paragraph("ID Commande: #" + commande.getId(), normalFont));
-            leftCell.addElement(new Paragraph("Date: " + commande.getDateCreation().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), normalFont));
-            leftCell.addElement(new Paragraph("Mode de paiement: " + (commande.getPaymentMethod() != null ? commande.getPaymentMethod() : commande.getMethodePaiement()), normalFont));
-            leftCell.addElement(new Paragraph("Statut: " + commande.getStatut(), normalFont));
-            leftCell.addElement(new Paragraph("Statut paiement: " + commande.getPaymentStatus(), normalFont));
-            leftCell.addElement(new Paragraph("Statut escrow: " + commande.getEscrowStatus(), normalFont));
-            if (commande.getEscrowHeldAt() != null) {
-                leftCell.addElement(new Paragraph("Escrow retenu le: " + commande.getEscrowHeldAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), normalFont));
-            }
-            if (commande.getEscrowReleasedAt() != null) {
-                leftCell.addElement(new Paragraph("Escrow libere le: " + commande.getEscrowReleasedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), normalFont));
-            }
-            if (commande.getRefundedAt() != null) {
-                leftCell.addElement(new Paragraph("Rembourse le: " + commande.getRefundedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), normalFont));
-            }
-            infoTable.addCell(leftCell);
+            // Bill To
+            PdfPCell billToCell = new PdfPCell();
+            billToCell.setBorder(Rectangle.NO_BORDER);
+            billToCell.setPaddingRight(20);
+            
+            addSectionTitle(billToCell, "BILL TO", sectionTitleFont);
+            billToCell.addElement(new Paragraph(commande.getNomComplet().toUpperCase(), boldFont));
+            billToCell.addElement(new Paragraph(commande.getAdresse(), normalFont));
+            billToCell.addElement(new Paragraph(commande.getVille().toUpperCase() + ", " + commande.getCodePostal(), normalFont));
+            billToCell.addElement(new Paragraph(commande.getRegion(), normalFont));
+            billToCell.addElement(new Paragraph("Phone: " + commande.getTelephone(), smallFont));
+            infoTable.addCell(billToCell);
 
-            // Right: Client Details
-            PdfPCell rightCell = new PdfPCell();
-            rightCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            rightCell.addElement(new Paragraph("INFORMATIONS CLIENT", headerFont));
-            rightCell.addElement(new Paragraph(commande.getNomComplet(), normalFont));
-            rightCell.addElement(new Paragraph("Tél: " + commande.getTelephone(), normalFont));
-            rightCell.addElement(new Paragraph(commande.getAdresse(), normalFont));
-            rightCell.addElement(new Paragraph(commande.getCodePostal() + " " + commande.getVille().toUpperCase() + ", " + commande.getRegion(), normalFont));
-            infoTable.addCell(rightCell);
-
+            // Order Summary
+            PdfPCell orderSummaryCell = new PdfPCell();
+            orderSummaryCell.setBorder(Rectangle.NO_BORDER);
+            orderSummaryCell.setPaddingLeft(20);
+            
+            addSectionTitle(orderSummaryCell, "ORDER SUMMARY", sectionTitleFont);
+            addDetailRow(orderSummaryCell, "Order ID", "#" + commande.getId(), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Date", commande.getDateCreation().format(DateTimeFormatter.ofPattern("dd MMM yyyy")), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Payment Method", (commande.getPaymentMethod() != null ? commande.getPaymentMethod() : commande.getMethodePaiement()), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Order Status", commande.getStatut().toString(), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Payment Status", commande.getPaymentStatus().toString(), normalFont, boldFont);
+            
+            infoTable.addCell(orderSummaryCell);
             document.add(infoTable);
 
-            // Items Table
+            // 3. Items Table
             PdfPTable table = new PdfPTable(4);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{5f, 1f, 2f, 2f});
-            table.setSpacingAfter(30);
+            table.setWidths(new float[] { 5f, 1f, 2f, 2f });
+            table.setSpacingAfter(20);
 
-            // Headers
-            addHeaderCell(table, "Article / Produit", headerFont);
-            addHeaderCell(table, "Qté", headerFont);
-            addHeaderCell(table, "Prix Unit.", headerFont);
-            addHeaderCell(table, "Sous-total", headerFont);
+            // Professional Headers with Navy Background
+            addPremiumHeaderCell(table, "PRODUCT / DESCRIPTION", tableHeaderFont);
+            addPremiumHeaderCell(table, "QTY", tableHeaderFont);
+            addPremiumHeaderCell(table, "UNIT PRICE", tableHeaderFont);
+            addPremiumHeaderCell(table, "TOTAL", tableHeaderFont);
 
-            // Rows
+            // Table Body
             for (LigneCommande ligne : commande.getLignes()) {
-                PdfPCell nameCell = new PdfPCell(new Phrase(ligne.getProduit().getNom(), normalFont));
-                nameCell.setPadding(5);
-                table.addCell(nameCell);
-
-                PdfPCell qtyCell = new PdfPCell(new Phrase(String.valueOf(ligne.getQuantite()), normalFont));
-                qtyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                qtyCell.setPadding(5);
-                table.addCell(qtyCell);
-
-                PdfPCell prixCell = new PdfPCell(new Phrase(String.format("%.2f DH", ligne.getProduit().getPrix()), normalFont));
-                prixCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                prixCell.setPadding(5);
-                table.addCell(prixCell);
-
-                PdfPCell stCell = new PdfPCell(new Phrase(String.format("%.2f DH", ligne.getSousTotal()), normalFont));
-                stCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                stCell.setPadding(5);
-                table.addCell(stCell);
+                addPremiumBodyCell(table, ligne.getProduit().getNom(), normalFont, Element.ALIGN_LEFT);
+                addPremiumBodyCell(table, String.valueOf(ligne.getQuantite()), normalFont, Element.ALIGN_CENTER);
+                addPremiumBodyCell(table, String.format("%.2f DH", ligne.getProduit().getPrix()), normalFont, Element.ALIGN_RIGHT);
+                addPremiumBodyCell(table, String.format("%.2f DH", ligne.getSousTotal()), boldFont, Element.ALIGN_RIGHT);
             }
-
             document.add(table);
 
-            // Total Section
-            PdfPTable totalTable = new PdfPTable(2);
-            totalTable.setWidthPercentage(40);
-            totalTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            // 4. Totals Block
+            PdfPTable totalsContainer = new PdfPTable(2);
+            totalsContainer.setWidthPercentage(100);
+            
+            // Notes Column
+            PdfPCell notesCell = new PdfPCell();
+            notesCell.setBorder(Rectangle.NO_BORDER);
+            notesCell.setPaddingRight(40);
+            notesCell.addElement(new Paragraph("NOTES:", sectionTitleFont));
+            notesCell.addElement(new Paragraph("Payment processed successfully. This is a computer-generated invoice.", smallFont));
+            totalsContainer.addCell(notesCell);
 
-            PdfPCell labelCell = new PdfPCell(new Phrase("MONTANT TOTAL:", headerFont));
-            labelCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            labelCell.setPadding(5);
-            totalTable.addCell(labelCell);
+            // Totals Column
+            PdfPCell totalsColumnCell = new PdfPCell();
+            totalsColumnCell.setBorder(Rectangle.NO_BORDER);
+            PdfPTable totalsTable = new PdfPTable(2);
+            totalsTable.setWidthPercentage(100);
+            
+            addTotalRow(totalsTable, "Subtotal", String.format("%.2f DH", commande.getMontantTotal()), normalFont, normalFont, false);
+            
+            if (commande.getPlatformFee() != null && commande.getPlatformFee() > 0) {
+                addTotalRow(totalsTable, "Platform Fee", String.format("- %.2f DH", commande.getPlatformFee()), normalFont, normalFont, false);
+            }
+            
+            if (commande.getSupplierNetAmount() != null && commande.getSupplierNetAmount() > 0) {
+                 addTotalRow(totalsTable, "Net Supplier", String.format("%.2f DH", commande.getSupplierNetAmount()), smallFont, smallFont, false);
+            }
 
-            PdfPCell valueCell = new PdfPCell(new Phrase(String.format("%.2f DH", commande.getMontantTotal()), titleFont));
-            valueCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            valueCell.setPadding(5);
-            totalTable.addCell(valueCell);
+            addTotalRow(totalsTable, "TOTAL AMOUNT", String.format("%.2f DH", commande.getMontantTotal()), sectionTitleFont, brandFont, true);
+            
+            totalsColumnCell.addElement(totalsTable);
+            totalsContainer.addCell(totalsColumnCell);
+            
+            document.add(totalsContainer);
 
-            document.add(totalTable);
-
-            PdfPTable settlementTable = new PdfPTable(2);
-            settlementTable.setWidthPercentage(40);
-            settlementTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
-            PdfPCell feeLabelCell = new PdfPCell(new Phrase("FRAIS PLATEFORME:", headerFont));
-            feeLabelCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            feeLabelCell.setPadding(5);
-            settlementTable.addCell(feeLabelCell);
-
-            PdfPCell feeValueCell = new PdfPCell(new Phrase(String.format("%.2f DH", commande.getPlatformFee() != null ? commande.getPlatformFee() : 0.0), normalFont));
-            feeValueCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            feeValueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            feeValueCell.setPadding(5);
-            settlementTable.addCell(feeValueCell);
-
-            PdfPCell netLabelCell = new PdfPCell(new Phrase("NET FOURNISSEUR:", headerFont));
-            netLabelCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            netLabelCell.setPadding(5);
-            settlementTable.addCell(netLabelCell);
-
-            PdfPCell netValueCell = new PdfPCell(new Phrase(String.format("%.2f DH", commande.getSupplierNetAmount() != null ? commande.getSupplierNetAmount() : commande.getMontantTotal()), normalFont));
-            netValueCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-            netValueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            netValueCell.setPadding(5);
-            settlementTable.addCell(netValueCell);
-
-            document.add(settlementTable);
-
-            // Footer
-            Paragraph footer = new Paragraph("\n\nMerci pour votre confiance!\nSmart Supply Platform - Application PFE", footerFont);
-            footer.setAlignment(Element.ALIGN_CENTER);
-            document.add(footer);
+            // 5. Footer
+            Paragraph thankYou = new Paragraph("\n\nThank you for choosing Smart Supply!", footerFont);
+            thankYou.setAlignment(Element.ALIGN_CENTER);
+            thankYou.setSpacingBefore(80);
+            document.add(thankYou);
+            
+            Paragraph smartSupply = new Paragraph("www.smart-supply.ma", smallFont);
+            smartSupply.setAlignment(Element.ALIGN_CENTER);
+            document.add(smartSupply);
 
             document.close();
             log.info("Facture PDF générée: {}", filePath);
@@ -207,11 +210,61 @@ public class FactureService {
         }
     }
 
-    private void addHeaderCell(PdfPTable table, String text, Font font) {
+    private void addSectionTitle(PdfPCell cell, String title, Font font) {
+        Paragraph p = new Paragraph(title, font);
+        p.setSpacingAfter(8);
+        cell.addElement(p);
+    }
+
+    private void addDetailRow(PdfPCell cell, String label, String value, Font labelFont, Font valueFont) {
+        Phrase phrase = new Phrase();
+        phrase.add(new Chunk(label + ": ", labelFont));
+        phrase.add(new Chunk(value, valueFont));
+        Paragraph p = new Paragraph(phrase);
+        p.setLeading(14);
+        cell.addElement(p);
+    }
+
+    private void addPremiumHeaderCell(PdfPTable table, String text, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
-        cell.setBackgroundColor(Color.LIGHT_GRAY);
+        cell.setBackgroundColor(PRIMARY_COLOR);
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        cell.setPadding(5);
+        cell.setPadding(10);
+        cell.setBorder(Rectangle.NO_BORDER);
         table.addCell(cell);
+    }
+
+    private void addPremiumBodyCell(PdfPTable table, String text, Font font, int alignment) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setPadding(10);
+        cell.setBorder(Rectangle.BOTTOM);
+        cell.setBorderColor(new Color(226, 232, 240));
+        cell.setHorizontalAlignment(alignment);
+        table.addCell(cell);
+    }
+
+    private void addTotalRow(PdfPTable table, String label, String value, Font labelFont, Font valueFont, boolean isFinal) {
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, labelFont));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setPaddingTop(5);
+        labelCell.setPaddingBottom(5);
+        if (isFinal) {
+            labelCell.setBorder(Rectangle.TOP);
+            labelCell.setBorderColor(Color.LIGHT_GRAY);
+            labelCell.setPaddingTop(10);
+        }
+        table.addCell(labelCell);
+
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        valueCell.setPaddingTop(5);
+        valueCell.setPaddingBottom(5);
+        if (isFinal) {
+            valueCell.setBorder(Rectangle.TOP);
+            valueCell.setBorderColor(Color.LIGHT_GRAY);
+            valueCell.setPaddingTop(10);
+        }
+        table.addCell(valueCell);
     }
 }

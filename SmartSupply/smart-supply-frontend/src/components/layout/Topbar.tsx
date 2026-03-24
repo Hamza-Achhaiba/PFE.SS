@@ -30,8 +30,13 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
     }, []);
 
     const handleNotificationsClick = () => {
-        const basePath = role === 'CLIENT' ? '/client' : '/supplier';
-        navigate(`${basePath}/notifications`);
+        let basePath = '/supplier';
+        if (role === 'CLIENT') basePath = '/client';
+        else if (role === 'ADMIN') basePath = '/admin';
+        
+        // For admin, if there's no notifications page, dashboard is a safe landing
+        const subPath = role === 'ADMIN' ? 'dashboard' : 'notifications';
+        navigate(`${basePath}/${subPath}`);
     };
 
     const handleLogout = () => {
@@ -40,6 +45,24 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
     // Extract first initial, or default to 'U'
     const initial = userName ? userName.charAt(0).toUpperCase() : 'U';
+
+    const getRoleLabel = () => {
+        if (role === 'ADMIN') return 'System Admin';
+        if (role === 'CLIENT') return 'Client User';
+        return 'Logistics Lead';
+    };
+
+    const getAccountBadge = () => {
+        if (role === 'ADMIN') return 'Admin Account';
+        if (role === 'CLIENT') return 'Client Account';
+        return 'Supplier Account';
+    };
+
+    const getSettingsPath = () => {
+        if (role === 'ADMIN') return '/admin/settings';
+        if (role === 'CLIENT') return '/client/settings';
+        return '/supplier/settings';
+    };
 
     return (
         <header className="soft-topbar gap-2 gap-md-4">
@@ -67,7 +90,7 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                     <div className="text-end d-none d-md-block cursor-pointer" onClick={() => setIsProfileOpen(!isProfileOpen)}>
                         <div className="fw-bold text-truncate" style={{ maxWidth: '150px', fontSize: '0.9rem', color: 'var(--soft-text)' }} title={userName || ''}>{userName}</div>
                         <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                            {role === 'CLIENT' ? 'Client User' : 'Logistics Lead'}
+                            {getRoleLabel()}
                         </div>
                     </div>
                     <div
@@ -106,8 +129,8 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                                         <div className="text-muted small text-truncate" title={profileData?.email || ''}>{profileData?.email}</div>
                                     </div>
                                 </div>
-                                <SoftBadge variant={role === 'CLIENT' ? 'info' : 'warning'} className="w-100 justify-content-center py-2">
-                                    {role === 'CLIENT' ? 'Client Account' : 'Supplier Account'}
+                                <SoftBadge variant={role === 'ADMIN' ? 'info' : role === 'CLIENT' ? 'info' : 'warning'} className="w-100 justify-content-center py-2">
+                                    {getAccountBadge()}
                                 </SoftBadge>
                             </div>
 
@@ -143,7 +166,7 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
 
                             <div className="profile-dropdown-footer">
                                 <div className="text-muted small fw-bold mb-2 ps-2 uppercase" style={{ letterSpacing: '0.05em' }}>SECURITY & SETTINGS</div>
-                                <div className="profile-dropdown-item" onClick={() => { navigate(role === 'CLIENT' ? '/client/settings' : '/supplier/settings'); setIsProfileOpen(false); }}>
+                                <div className="profile-dropdown-item" onClick={() => { navigate(getSettingsPath()); setIsProfileOpen(false); }}>
                                     <div className="profile-dropdown-icon"><Settings size={16} /></div>
                                     <span>Profile Settings</span>
                                 </div>

@@ -25,6 +25,11 @@ public class Fournisseur extends Utilisateur {
     private String description;
     private String categorie;
     
+    @JsonIgnore
+    @Column(columnDefinition = "boolean default false")
+    @Builder.Default
+    private Boolean verified = false;
+    
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private SupplierStatus status = SupplierStatus.PENDING_APPROVAL;
@@ -47,4 +52,8 @@ public class Fournisseur extends Utilisateur {
     @JsonIgnore
     @Builder.Default
     private List<Review> reviews = new ArrayList<>();
+
+    public SupplierStatus getStatus() {
+        return status == null ? SupplierStatus.ACTIVE : status;
+    }
 }

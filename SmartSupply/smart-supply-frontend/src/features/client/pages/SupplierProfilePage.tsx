@@ -249,7 +249,7 @@ export const SupplierProfilePage: React.FC = () => {
 
             <div className="flex-grow-1 pt-md-5 mt-2 mt-md-0">
               <div className="d-flex flex-wrap align-items-center gap-3 mb-2">
-                <div 
+                <div
                   className="d-inline-flex align-items-center bg-white/70 backdrop-blur-md px-4 py-2 rounded-4 shadow-sm border border-white/40"
                   style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.75)',
@@ -258,10 +258,10 @@ export const SupplierProfilePage: React.FC = () => {
                     boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
                   }}
                 >
-                  <h1 
-                    className="fw-extrabold mb-0" 
-                    style={{ 
-                      fontSize: '2.4rem', 
+                  <h1
+                    className="fw-extrabold mb-0"
+                    style={{
+                      fontSize: '2.4rem',
                       letterSpacing: '-1px',
                       color: '#0f172a',
                       fontWeight: 800
@@ -281,7 +281,7 @@ export const SupplierProfilePage: React.FC = () => {
                 </SoftBadge>
 
                 {isSuperSupplier && (
-                  <div 
+                  <div
                     className="d-inline-flex align-items-center gap-2 py-1 px-3 rounded-pill shadow-sm animate-fade-in"
                     style={{
                       background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',

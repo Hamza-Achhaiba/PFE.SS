@@ -45,8 +45,8 @@
 }
 
 .login-icon-badge {
-    width: 64px;
-    height: 64px;
+    width: 90px;
+    height: 90px;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
     border-radius: 50%;
     display: flex;

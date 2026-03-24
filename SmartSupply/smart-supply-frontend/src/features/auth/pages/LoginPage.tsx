@@ -4,12 +4,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Database, Mail, Lock } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 import { loginSchema, LoginFormValues } from '../auth.schemas';
 import { authApi } from '../../../api/auth.api';
 import { apiClient } from '../../../api/axios';
 import { AuthStore } from '../auth.store';
 import { decodeToken } from '../auth.utils';
+import appLogo from '../../../assets/app-logo.png';
 import './LoginPage.css';
 
 export const LoginPage: React.FC = () => {
@@ -71,8 +72,17 @@ export const LoginPage: React.FC = () => {
     return (
         <div className="login-page-container">
             <div className="login-glass-card">
-                <div className="login-icon-badge">
-                    <Database size={32} strokeWidth={2.5} />
+                <div className="login-icon-badge" style={{ overflow: 'hidden' }}>
+                    <img 
+                        src={appLogo} 
+                        alt="Smart Supply Logo" 
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'contain',
+                            padding: '2px' 
+                        }} 
+                    />
                 </div>
 
                 <h2 className="login-heading">Smart Supply</h2>

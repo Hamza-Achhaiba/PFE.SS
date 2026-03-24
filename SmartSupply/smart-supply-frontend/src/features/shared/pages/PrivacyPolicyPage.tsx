@@ -56,10 +56,10 @@ export const PrivacyPolicyPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <SoftCard className="border-0 shadow-soft mb-5 p-4 p-md-5" style={{ borderRadius: '24px' }}>
+                    <SoftCard className="border-0 mb-5 p-4 p-md-5" style={{ borderRadius: '24px' }}>
                         <div className="mb-5">
-                            <p className="lead text-muted" style={{ lineHeight: '1.8' }}>
-                                At <strong>Smart Supply</strong>, we value the trust you place in us when sharing your business information. 
+                            <p className="lead text-muted" style={{ lineHeight: '1.8', color: 'var(--soft-text-muted)' }}>
+                                At <strong style={{ color: 'var(--soft-text)' }}>Smart Supply</strong>, we value the trust you place in us when sharing your business information. 
                                 This policy outlines our commitment to transparency and the ethical handling of your data in our logistics 
                                 and supply chain ecosystem.
                             </p>
@@ -69,13 +69,22 @@ export const PrivacyPolicyPage: React.FC = () => {
                             {sections.map((section, index) => (
                                 <section key={index} className="privacy-section">
                                     <div className="d-flex align-items-center gap-3 mb-3">
-                                        <div className="p-3 bg-light rounded-4 shadow-sm border border-white">
+                                        <div 
+                                            className="p-3 rounded-4 shadow-sm border"
+                                            style={{ 
+                                                backgroundColor: 'var(--soft-bg)',
+                                                borderColor: 'var(--soft-border)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                        >
                                             {section.icon}
                                         </div>
-                                        <h4 className="fw-bold mb-0 text-dark">{section.title}</h4>
+                                        <h4 className="fw-bold mb-0" style={{ color: 'var(--soft-text)' }}>{section.title}</h4>
                                     </div>
                                     <div className="ps-md-5 ms-md-2">
-                                        <p className="text-muted mb-0" style={{ lineHeight: '1.7', fontSize: '1.05rem' }}>
+                                        <p className="mb-0" style={{ lineHeight: '1.7', fontSize: '1.05rem', color: 'var(--soft-text-muted)' }}>
                                             {section.content}
                                         </p>
                                     </div>
@@ -83,17 +92,23 @@ export const PrivacyPolicyPage: React.FC = () => {
                             ))}
                         </div>
 
-                        <hr className="my-5 opacity-10" />
+                        <hr className="my-5" style={{ opacity: 0.1, borderColor: 'var(--soft-text)' }} />
 
-                        <div className="p-4 bg-primary-subtle rounded-4 border border-primary-subtle">
+                        <div 
+                            className="p-4 rounded-4 border"
+                            style={{ 
+                                background: 'rgba(91, 115, 232, 0.08)',
+                                borderColor: 'rgba(91, 115, 232, 0.2)'
+                            }}
+                        >
                             <div className="d-flex align-items-center gap-3 mb-3">
                                 <Mail className="text-primary" size={24} />
                                 <h5 className="fw-bold mb-0 text-primary">Contact Our Privacy Team</h5>
                             </div>
-                            <p className="mb-0 text-primary opacity-75 fw-medium">
+                            <p className="mb-0 fw-medium" style={{ color: 'var(--soft-primary)', opacity: 0.85 }}>
                                 If you have any questions or concerns regarding your data privacy, please reach out to us at:
                                 <br />
-                                <span className="fw-bold opacity-100">privacy@smartsupply.ma</span>
+                                <span className="fw-bold" style={{ opacity: 1 }}>privacy@smartsupply.ma</span>
                             </p>
                         </div>
                     </SoftCard>

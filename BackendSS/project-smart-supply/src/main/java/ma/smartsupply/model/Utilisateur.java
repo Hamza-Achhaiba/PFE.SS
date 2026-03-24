@@ -33,6 +33,8 @@ public abstract class Utilisateur implements UserDetails {
     private String motDePasse;
     private String telephone;
     private String adresse;
+    private String ville;
+    private String region;
     private String tokenNotification;
     private String image;
     @Enumerated(EnumType.STRING)

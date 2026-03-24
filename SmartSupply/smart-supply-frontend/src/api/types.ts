@@ -21,6 +21,7 @@ export interface Fournisseur {
     image?: string;
     description?: string;
     verified: boolean;
+    status?: 'PENDING_APPROVAL' | 'VERIFIED' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
     yearEstablished?: number;
     categorie?: string;
 }

@@ -30,6 +30,13 @@ import { ClientsPage } from '../features/supplier/pages/ClientsPage';
 import { NotificationsPage as SupplierNotifications } from '../features/supplier/pages/NotificationsPage';
 import { SupplierProfilePage as MyProfilePage } from '../features/supplier/pages/SupplierProfilePage';
 
+// Admin Pages
+import { AdminDashboard } from '../features/admin/pages/AdminDashboard';
+import { AdminClientsPage } from '../features/admin/pages/AdminClientsPage';
+import { AdminSuppliersPage } from '../features/admin/pages/AdminSuppliersPage';
+import { AdminOrdersPage } from '../features/admin/pages/AdminOrdersPage';
+import { AdminDisputesPage } from '../features/admin/pages/AdminDisputesPage';
+
 export const AppRoutes = () => {
     return (
         <BrowserRouter>
@@ -70,6 +77,20 @@ export const AppRoutes = () => {
                         <Route path="notifications" element={<SupplierNotifications />} />
                         <Route path="profile" element={<MyProfilePage />} />
                         <Route path="messages" element={<MessagesPage />} />
+                        <Route path="settings" element={<SettingsPage />} />
+                        <Route path="privacy" element={<PrivacyPolicyPage />} />
+                    </Route>
+                </Route>
+
+                {/* Admin Routes */}
+                <Route element={<AuthGuard allowedRole="ADMIN" />}>
+                    <Route path="/admin" element={<PageShell />}>
+                        <Route index element={<Navigate to="dashboard" replace />} />
+                        <Route path="dashboard" element={<AdminDashboard />} />
+                        <Route path="clients" element={<AdminClientsPage />} />
+                        <Route path="suppliers" element={<AdminSuppliersPage />} />
+                        <Route path="orders" element={<AdminOrdersPage />} />
+                        <Route path="disputes" element={<AdminDisputesPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>

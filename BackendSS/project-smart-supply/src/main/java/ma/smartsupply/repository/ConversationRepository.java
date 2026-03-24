@@ -22,4 +22,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
            "CASE WHEN :userId = c.client.id THEN c.pinnedByClientId ELSE c.pinnedByFournisseurId END DESC NULLS LAST, " +
            "c.lastUpdateAt DESC")
     List<Conversation> findAllByUserId(@Param("userId") Long userId);
+
+    void deleteByFournisseurId(Long fournisseurId);
+    void deleteByClientId(Long clientId);
 }

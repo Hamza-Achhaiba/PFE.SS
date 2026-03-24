@@ -7,4 +7,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface LignePanierRepository extends JpaRepository<LignePanier, Long> {
     void deleteByProduitId(Long produitId);
+    void deleteByProduitFournisseurId(Long fournisseurId);
 }

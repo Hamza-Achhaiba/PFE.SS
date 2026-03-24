@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface FournisseurRepository extends JpaRepository<Fournisseur, Long> {
     List<Fournisseur> findByNomEntrepriseContainingIgnoreCase(String motCle);
     Optional<Fournisseur> findByEmail(String email);
+    long countByStatus(ma.smartsupply.enums.SupplierStatus status);
 }

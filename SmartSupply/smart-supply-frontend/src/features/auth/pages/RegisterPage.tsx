@@ -3,10 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Database, Mail, Lock, User, Users, Store, Building, MapPin, Phone } from 'lucide-react';
+import { Mail, Lock, User, Users, Store, Building, MapPin, Phone } from 'lucide-react';
 import { registerSchema, RegisterFormValues } from '../auth.schemas';
 import { authApi } from '../../../api/auth.api';
 import { AuthStore } from '../auth.store';
+import appLogo from '../../../assets/app-logo.png';
 import './LoginPage.css';
 
 export const RegisterPage: React.FC = () => {
@@ -40,8 +41,17 @@ export const RegisterPage: React.FC = () => {
     return (
         <div className="login-page-container">
             <div className="login-glass-card" style={{ maxWidth: '650px', padding: '2rem' }}>
-                <div className="login-icon-badge" style={{ width: '56px', height: '56px', marginBottom: '1rem' }}>
-                    <Database size={28} strokeWidth={2.5} />
+                <div className="login-icon-badge" style={{ width: '80px', height: '80px', marginBottom: '1rem', overflow: 'hidden' }}>
+                    <img 
+                        src={appLogo} 
+                        alt="Smart Supply Logo" 
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'contain',
+                            padding: '2px' 
+                        }} 
+                    />
                 </div>
 
                 <h2 className="login-heading" style={{ fontSize: '1.5rem' }}>Smart Supply</h2>

@@ -15,7 +15,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ allowedRole }) => {
     }
 
     if (role !== allowedRole) {
-        const defaultRoute = role === 'CLIENT' ? '/client/dashboard' : '/supplier/dashboard';
+        let defaultRoute = '/client/dashboard';
+        if (role === 'FOURNISSEUR') defaultRoute = '/supplier/dashboard';
+        if (role === 'ADMIN') defaultRoute = '/admin/dashboard';
         return <Navigate to={defaultRoute} replace />;
     }
 

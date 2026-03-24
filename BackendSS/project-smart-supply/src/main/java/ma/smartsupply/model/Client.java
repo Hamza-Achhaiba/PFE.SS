@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import lombok.Builder;
 
-import java.util.ArrayList; // <-- N'oublie pas cet import
+import ma.smartsupply.enums.ClientStatus;
+import java.util.ArrayList; 
 import java.util.List;
 
 @Entity
@@ -29,4 +30,8 @@ public class Client extends Utilisateur {
     @JoinTable(name = "client_fournisseurs_favoris", joinColumns = @JoinColumn(name = "client_id"), inverseJoinColumns = @JoinColumn(name = "fournisseur_id"))
     @Builder.Default
     private List<Fournisseur> fournisseursFavoris = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private ClientStatus status = ClientStatus.ACTIVE;
 }

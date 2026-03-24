@@ -2,20 +2,23 @@ package ma.smartsupply.service;
 
 import ma.smartsupply.dto.ProduitRequest;
 import ma.smartsupply.dto.ProduitResponse;
+import ma.smartsupply.enums.SupplierStatus;
 import ma.smartsupply.enums.TypeNotification;
+import ma.smartsupply.model.Categorie;
 import ma.smartsupply.model.Fournisseur;
 import ma.smartsupply.model.Produit;
 import ma.smartsupply.model.Stock;
 import ma.smartsupply.model.Utilisateur;
-import ma.smartsupply.model.Categorie;
 import ma.smartsupply.repository.CategorieRepository;
 import ma.smartsupply.repository.ProduitRepository;
 import ma.smartsupply.repository.StockRepository;
 import ma.smartsupply.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,14 +38,7 @@ public class ProduitService {
 
     @Transactional
     public ProduitResponse ajouterProduit(ProduitRequest request, String emailFournisseur) {
-
-        Utilisateur utilisateur = utilisateurRepository.findByEmail(emailFournisseur)
-                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));
-
-        if (!(utilisateur instanceof Fournisseur)) {
-            throw new RuntimeException("Seul un fournisseur peut ajouter des produits");
-        }
-        Fournisseur fournisseur = (Fournisseur) utilisateur;
+        Fournisseur fournisseur = getAuthorizedSupplierForProductManagement(emailFournisseur);
 
         Produit produit = Produit.builder()
                 .nom(request.getNom())
@@ -94,6 +90,7 @@ public class ProduitService {
         if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
             throw new RuntimeException("Accès refusé à ce produit");
         }
+        assertSupplierCanManageProducts(produit.getFournisseur());
 
         Stock stock = produit.getStock();
         stock.setQuantiteDisponible(nouvelleQuantite);
@@ -110,8 +107,6 @@ public class ProduitService {
         return mapToProduitResponse(produit);
     }
 
-    // Removed mapToResponse as it's consolidated into mapToProduitResponse
-
     @Transactional
     public Stock ajouterStock(Long produitId, int quantiteAjoutee, String emailFournisseur) {
         Produit produit = produitRepository.findById(produitId)
@@ -120,6 +115,7 @@ public class ProduitService {
         if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
             throw new RuntimeException("Accès refusé : Ce produit ne vous appartient pas.");
         }
+        assertSupplierCanManageProducts(produit.getFournisseur());
 
         Stock stock = produit.getStock();
         if (stock == null) {
@@ -141,6 +137,8 @@ public class ProduitService {
         if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
             throw new RuntimeException("Accès refusé : Vous ne pouvez modifier que vos propres produits.");
         }
+        assertSupplierCanManageProducts(produit.getFournisseur());
+
         produit.setActif(!produit.isActif());
         produitRepository.save(produit);
     }
@@ -154,24 +152,29 @@ public class ProduitService {
 
     @Transactional
     public ProduitResponse modifierProduit(Long produitId, ProduitRequest request, String emailFournisseur) {
-
         Produit produit = produitRepository.findById(produitId)
                 .orElseThrow(() -> new RuntimeException("Produit introuvable avec l'ID : " + produitId));
 
         if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
             throw new RuntimeException("Accès refusé : Vous ne pouvez modifier que vos propres produits.");
         }
+        assertSupplierCanManageProducts(produit.getFournisseur());
 
-        if (request.getNom() != null)
+        if (request.getNom() != null) {
             produit.setNom(request.getNom());
-        if (request.getPrix() != null)
+        }
+        if (request.getPrix() != null) {
             produit.setPrix(request.getPrix());
-        if (request.getDescription() != null)
+        }
+        if (request.getDescription() != null) {
             produit.setDescription(request.getDescription());
-        if (request.getImage() != null)
+        }
+        if (request.getImage() != null) {
             produit.setImage(request.getImage());
-        if (request.getQuantiteMinimumCommande() != null)
+        }
+        if (request.getQuantiteMinimumCommande() != null) {
             produit.setQuantiteMinimumCommande(request.getQuantiteMinimumCommande());
+        }
 
         if (request.getCategorieId() != null) {
             Categorie categorie = categorieRepository.findById(request.getCategorieId())
@@ -180,7 +183,6 @@ public class ProduitService {
         }
 
         Produit produitMaj = produitRepository.save(produit);
-
         return mapToProduitResponse(produitMaj);
     }
 
@@ -192,26 +194,21 @@ public class ProduitService {
         if (!produit.getFournisseur().getEmail().equals(emailFournisseur)) {
             throw new RuntimeException("Accès refusé : Vous ne pouvez supprimer que vos propres produits.");
         }
+        assertSupplierCanManageProducts(produit.getFournisseur());
 
-        // Vérifier si le produit est lié à des commandes existantes
         if (ligneCommandeRepository.existsByProduitId(produitId)) {
             throw new IllegalStateException(
                     "Ce produit ne peut pas être supprimé car il est lié à des commandes existantes. Veuillez le désactiver à la place.");
         }
 
-        // Supprimer les lignes de panier liées à ce produit (les paniers sont
-        // temporaires)
         lignePanierRepository.deleteByProduitId(produitId);
 
-        // Supprimer l'image associée si elle existe
         if (produit.getImage() != null && !produit.getImage().isEmpty()) {
             try {
                 String fileName = produit.getImage().substring(produit.getImage().lastIndexOf("/") + 1);
                 java.nio.file.Path imagePath = java.nio.file.Paths.get("uploads/produits").resolve(fileName);
                 java.nio.file.Files.deleteIfExists(imagePath);
             } catch (Exception e) {
-                // Ignorer l'erreur de suppression d'image pour ne pas bloquer la suppression du
-                // produit
                 System.err.println("Erreur lors de la suppression de l'image du produit : " + e.getMessage());
             }
         }
@@ -259,13 +256,36 @@ public class ProduitService {
                 .filter(p -> p.getStock() != null &&
                         p.getStock().getQuantiteDisponible() != null &&
                         p.getStock().getSeuilAlerte() != null &&
-                        p.getStock().getQuantiteDisponible() <= (p.getStock().getSeuilAlerte() * 1.5)) // Suggest if
-                                                                                                       // quantity is
-                                                                                                       // below 150% of
-                                                                                                       // alert
-                                                                                                       // threshold
+                        p.getStock().getQuantiteDisponible() <= (p.getStock().getSeuilAlerte() * 1.5))
                 .map(this::mapToProduitResponse)
                 .collect(Collectors.toList());
     }
 
+    private Fournisseur getAuthorizedSupplierForProductManagement(String emailFournisseur) {
+        Utilisateur utilisateur = utilisateurRepository.findByEmail(emailFournisseur)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));
+
+        if (!(utilisateur instanceof Fournisseur fournisseur)) {
+            throw new RuntimeException("Seul un fournisseur peut ajouter des produits");
+        }
+
+        assertSupplierCanManageProducts(fournisseur);
+        return fournisseur;
+    }
+
+    private void assertSupplierCanManageProducts(Fournisseur fournisseur) {
+        SupplierStatus status = fournisseur.getStatus();
+        if (status == null || status == SupplierStatus.ACTIVE || status == SupplierStatus.VERIFIED) {
+            return;
+        }
+
+        String message = switch (status) {
+            case SUSPENDED -> "Your supplier account is suspended. You cannot manage products.";
+            case REJECTED -> "Your supplier account has been rejected. You cannot manage products.";
+            case PENDING_APPROVAL -> "Your supplier account is pending approval. You cannot manage products yet.";
+            default -> "Your supplier account is not active. You cannot manage products.";
+        };
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, message);
+    }
 }
