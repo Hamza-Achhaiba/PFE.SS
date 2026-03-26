@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
+import { getOrderStatusLabel, getPaymentStatusLabel } from '../../../utils/orderStatus';
 
 export const AdminOrdersPage: React.FC = () => {
     const [orders, setOrders] = useState<any[]>([]);
@@ -51,7 +52,7 @@ export const AdminOrdersPage: React.FC = () => {
                                     <td className="text-muted">{o.dateCreation ? format(new Date(o.dateCreation), 'MMM dd, yyyy') : '-'}</td>
                                     <td className="text-center">
                                         <div className={`badge ${o.statut === 'LIVREE' ? 'bg-success' : o.statut === 'ANNULEE' ? 'bg-danger' : 'bg-warning'} bg-opacity-25 px-2 rounded-pill`}>
-                                            {o.statut}
+                                            {getOrderStatusLabel(o.statut)}
                                         </div>
                                     </td>
                                     <td className="text-end fw-bold text-primary">{o.montantTotal?.toFixed(2)} DH</td>
@@ -69,8 +70,8 @@ export const AdminOrdersPage: React.FC = () => {
                                                     <h6 className="fw-bold text-muted mb-2">Order Information</h6>
                                                     <div className="d-flex flex-column gap-1" style={{ fontSize: '0.85rem' }}>
                                                         <div><span className="text-muted">Payment Method:</span> {o.methodePaiement || 'Unknown'}</div>
-                                                        <div><span className="text-muted">Payment Status:</span> {o.paymentStatus || 'PENDING'}</div>
-                                                        <div><span className="text-muted">Escrow Status:</span> {o.escrowStatus || 'NONE'}</div>
+                                                        <div><span className="text-muted">Payment Status:</span> {getPaymentStatusLabel(o.paymentStatus) || 'Unpaid'}</div>
+                                                        <div><span className="text-muted">Escrow Status:</span> {getPaymentStatusLabel(o.escrowStatus) || 'None'}</div>
                                                     </div>
                                                 </div>
                                                 <div className="col-md-6">

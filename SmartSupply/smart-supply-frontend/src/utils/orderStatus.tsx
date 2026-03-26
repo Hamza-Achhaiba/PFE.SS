@@ -1,5 +1,26 @@
 import { SoftBadge } from '../components/ui/SoftBadge';
 
+export const ORDERED_STATUS_FLOW = [
+    'EN_ATTENTE_VALIDATION',
+    'VALIDEE',
+    'EN_PREPARATION',
+    'EXPEDIEE',
+    'LIVREE',
+    'ANNULEE'
+];
+
+/**
+ * Formats a raw enum-style string (e.g., "HELD_IN_ESCROW")
+ * into a human-readable Title Case string (e.g., "Held In Escrow").
+ */
+export const formatEnumLabel = (status?: string) => {
+    if (!status) return 'Unknown';
+    return status
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+};
+
 export const getOrderStatusLabel = (status: string) => {
     switch (status) {
         case 'EN_ATTENTE_VALIDATION':
@@ -15,7 +36,7 @@ export const getOrderStatusLabel = (status: string) => {
         case 'ANNULEE':
             return 'Cancelled';
         default:
-            return status;
+            return formatEnumLabel(status);
     }
 };
 
@@ -47,11 +68,18 @@ export const getPaymentStatusLabel = (status?: string) => {
         case 'RELEASED':
             return 'Released';
         case 'REFUNDED':
+        case 'REMBOURSEE':
             return 'Refunded';
         case 'DISPUTED':
             return 'Disputed';
+        case 'PAYEE':
+            return 'Paid';
+        case 'EN_ATTENTE':
+            return 'Pending';
+        case 'ECHOUEE':
+            return 'Failed';
         default:
-            return 'Unpaid';
+            return status ? formatEnumLabel(status) : 'Unpaid';
     }
 };
 

@@ -13,5 +13,7 @@ public class NotificationResponse {
     private LocalDateTime dateCreation;
     private TypeNotification type;
     private boolean lue;
+    private Long commandeId;
+    private String commandeRef;
 
 }

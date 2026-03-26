@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { notificationsApi } from '../../../api/notifications.api';
+import { formatNotificationMessage, getOrderIdFromMessage, getOrderRefFromMessage } from '../../../utils/notificationUtils';
 import { analyticsApi, SupplierAnalyticsStats, SalesTimelinePoint, TopProductPoint } from '../../../api/analytics.api';
 import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
 import { format, subDays, parseISO } from 'date-fns';
@@ -187,32 +189,53 @@ export const Dashboard: React.FC = () => {
         <div className="col-lg-4 mb-3">
           <SoftCard title="Business Activity" className="h-100">
             <div className="position-relative mt-4">
-              {demoActivity.map((notif: any, i) => (
-                <div key={i} className="d-flex mb-4 position-relative">
-                  <div className="me-3 position-relative z-1">
-                    <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: notif.type === 'warning' ? 'var(--warning)' : notif.type === 'success' ? 'var(--success)' : 'var(--soft-primary)', color: 'white', opacity: 0.9 }}>
-                      {notif.type === 'warning' ? <AlertTriangle size={14} /> : notif.type === 'success' ? <Package size={14} /> : <ShoppingBag size={14} />}
+              {(demoActivity || []).slice(0, 5).map((notif: any, i) => {
+                const formattedMessage = formatNotificationMessage(notif.message);
+                const displayTitle = formattedMessage.includes(':') ? formattedMessage.split(':')[0] : 'Activity';
+                const displayContent = formattedMessage.includes(':') ? formattedMessage.substring(formattedMessage.indexOf(':') + 1).trim() : formattedMessage;
+
+                const targetOrderId = notif.commandeId || getOrderIdFromMessage(notif.message);
+                const targetOrderRef = notif.commandeRef || getOrderRefFromMessage(notif.message);
+                
+                let linkTo = '#';
+                if (targetOrderId) {
+                  linkTo = `/supplier/orders?orderId=${targetOrderId}`;
+                } else if (targetOrderRef) {
+                  linkTo = `/supplier/orders?orderRef=${targetOrderRef}`;
+                }
+
+                return (
+                  <Link
+                    key={i}
+                    to={linkTo}
+                    className="d-flex mb-4 position-relative text-decoration-none hover-opacity transition-all translate-hover"
+                    style={{ cursor: linkTo !== '#' ? 'pointer' : 'default' }}
+                  >
+                    <div className="me-3 position-relative z-1">
+                      <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: notif.type === 'warning' ? 'var(--warning)' : notif.type === 'success' ? 'var(--success)' : 'var(--soft-primary)', color: 'white', opacity: 0.9 }}>
+                        {notif.type === 'warning' ? <AlertTriangle size={14} /> : notif.type === 'success' ? <Package size={14} /> : <ShoppingBag size={14} />}
+                      </div>
+                      {i !== Math.min(demoActivity.length, 5) - 1 && (
+                        <div className="position-absolute" style={{ width: '1px', height: '250%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
+                      )}
                     </div>
-                    {i !== demoActivity.length - 1 && (
-                      <div className="position-absolute" style={{ width: '1px', height: '250%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
-                    )}
-                  </div>
-                  <div>
-                    <h6 className="mb-1" style={{ fontSize: '0.9rem', color: 'var(--soft-text)' }}>
-                      {notif.message.split(':')[0]}
-                    </h6>
-                    <p className="mb-1 text-muted" style={{ fontSize: '0.8rem' }}>
-                      {notif.message.includes(':') ? notif.message.split(':')[1] : notif.message}
-                    </p>
-                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                      {format(new Date(notif.dateCreation), 'MMM dd, HH:mm')}
-                    </small>
-                  </div>
-                </div>
-              ))}
+                    <div>
+                      <h6 className="mb-1 fw-bold" style={{ fontSize: '0.9rem', color: 'var(--soft-primary)' }}>
+                        {displayTitle}
+                      </h6>
+                      <p className="mb-1 text-muted" style={{ fontSize: '0.8rem' }}>
+                        {displayContent}
+                      </p>
+                      <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                        {format(new Date(notif.dateCreation), 'MMM dd, HH:mm')}
+                      </small>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
-            <div className="text-center mt-3 pt-2">
-              <a href="/supplier/orders" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View All Orders</a>
+            <div className="text-center mt-3 pt-2 border-top border-soft">
+              <Link to="/supplier/notifications" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View More</Link>
             </div>
           </SoftCard>
         </div>

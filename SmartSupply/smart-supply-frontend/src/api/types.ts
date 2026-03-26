@@ -103,6 +103,7 @@ export interface NotificationMsg {
     message: string;
     lue: boolean;
     dateCreation: string;
+    commandeId?: number;
 }
 
 export interface LignePanierResponse {

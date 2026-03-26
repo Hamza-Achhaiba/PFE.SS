@@ -97,9 +97,9 @@ public class ProduitService {
         stockRepository.save(stock);
 
         if (stock.getSeuilAlerte() != null && nouvelleQuantite <= stock.getSeuilAlerte()) {
-            String messageAlerte = "⚠️ ALERTE : Votre produit '" + produit.getNom() +
-                    "' a atteint son seuil critique. Il ne reste que " +
-                    nouvelleQuantite + " unité(s) !";
+            String messageAlerte = "⚠️ ALERT: Your product '" + produit.getNom() +
+                    "' has reached its critical threshold. Only " +
+                    nouvelleQuantite + " unit(s) left!";
 
             notificationService.creer(produit.getFournisseur(), messageAlerte, TypeNotification.ALERTE_STOCK);
         }

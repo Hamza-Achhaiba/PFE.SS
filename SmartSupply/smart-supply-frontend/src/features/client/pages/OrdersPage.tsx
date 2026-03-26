@@ -33,6 +33,7 @@ export const OrdersPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const orderIdParam = searchParams.get('orderId');
+  const orderRefParam = searchParams.get('orderRef');
   const escrowParam = searchParams.get('escrow');
   const orderRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
@@ -54,18 +55,28 @@ export const OrdersPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && orderIdParam && achats.length > 0) {
-      const id = parseInt(orderIdParam, 10);
-      const element = orderRefs.current[id];
-      if (element) {
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setHighlightedOrderId(id);
-          setTimeout(() => setHighlightedOrderId(null), 3000);
-        }, 100);
+    if (!isLoading && (orderIdParam || orderRefParam) && achats.length > 0) {
+      let targetOrder: Commande | undefined;
+      
+      if (orderIdParam) {
+        const id = parseInt(orderIdParam, 10);
+        targetOrder = achats.find(a => a.id === id);
+      } else if (orderRefParam) {
+        targetOrder = achats.find(a => a.reference === orderRefParam);
+      }
+
+      if (targetOrder) {
+        const element = orderRefs.current[targetOrder.id];
+        if (element) {
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setHighlightedOrderId(targetOrder!.id);
+            setTimeout(() => setHighlightedOrderId(null), 3000);
+          }, 100);
+        }
       }
     }
-  }, [isLoading, orderIdParam, achats]);
+  }, [isLoading, orderIdParam, orderRefParam, achats]);
 
   const handleCancelOrder = async (id: number) => {
     if (!window.confirm('Are you sure you want to cancel this order?')) return;
@@ -101,7 +112,7 @@ export const OrdersPage: React.FC = () => {
       '',
       `Order number: ${orderReference}`,
       `Supplier: ${order.supportSupplierCompany || order.supportSupplierName || 'Unknown supplier'}`,
-      `Payment/Escrow status: ${order.paymentStatus || order.escrowStatus || 'UNKNOWN'}`,
+      `Payment/Escrow status: ${getPaymentStatusLabel(order.paymentStatus || order.escrowStatus) || 'UNKNOWN'}`,
       order.multipleSuppliersInOrder ? 'Note: this order contains items from multiple suppliers.' : '',
       'Issue: Please describe the problem here.',
     ].filter(Boolean).join('\n');
@@ -548,6 +559,13 @@ export const OrdersPage: React.FC = () => {
         .dispute-textarea {
           min-height: 150px;
           resize: vertical;
+        }
+
+        .highlight-order {
+          border: 2px solid var(--soft-primary) !important;
+          box-shadow: 0 0 15px rgba(var(--bs-primary-rgb), 0.2) !important;
+          transform: scale(1.005);
+          z-index: 10;
         }
       `}</style>
     </div>

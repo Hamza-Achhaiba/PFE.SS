@@ -34,8 +34,6 @@ public class FactureService {
     // Premium Brand Colors
     private static final Color PRIMARY_COLOR = new Color(0, 31, 63); // Navy Blue
     private static final Color SECONDARY_COLOR = new Color(71, 85, 105); // Slate Gray
-    private static final Color ACCENT_COLOR = new Color(59, 130, 246); // Blue
-    private static final Color LIGHT_BG = new Color(248, 250, 252); // Light Gray-Blue
 
     public String genererFacturePDF(Commande commande) throws IOException {
         Path path = Paths.get(UPLOAD_DIR);
@@ -62,34 +60,43 @@ public class FactureService {
             Font smallFont = FontFactory.getFont(FontFactory.HELVETICA, 9, SECONDARY_COLOR);
             Font footerFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9, SECONDARY_COLOR);
 
-            // 1. Header Section: Logo & Document Title
+            // 1. Header Section: Logo & Document Title (Horizontal Row)
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
             headerTable.setSpacingAfter(40);
+            headerTable.setWidths(new float[] { 1f, 1f }); // Equal proportions for balance
 
-            // Logo with Fallback
+            // Logo Branding (Left)
             PdfPCell logoCell = new PdfPCell();
             logoCell.setBorder(Rectangle.NO_BORDER);
             logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+            logoCell.setPadding(0);
+            
             try {
                 ClassPathResource res = new ClassPathResource(LOGO_PATH);
                 try (InputStream is = res.getInputStream()) {
                     byte[] logoBytes = is.readAllBytes();
                     Image logo = Image.getInstance(logoBytes);
-                    logo.scaleToFit(140, 70);
+                    logo.scaleToFit(250, 125); // Even larger logo
+                    logo.setAlignment(Image.ALIGN_LEFT);
                     logoCell.addElement(logo);
                 }
             } catch (Exception e) {
                 log.warn("Logo loading failed in PDF: {}", e.getMessage());
-                logoCell.addElement(new Paragraph("SMART SUPPLY", brandFont));
+                // Fallback brand name ONLY if logo fails
+                Paragraph fallbackBrand = new Paragraph("SMART SUPPLY", brandFont);
+                fallbackBrand.setAlignment(Element.ALIGN_LEFT);
+                logoCell.addElement(fallbackBrand);
             }
             headerTable.addCell(logoCell);
 
-            // Invoice Title & Ref
+            // Invoice Title & Ref (Right)
             PdfPCell titleCell = new PdfPCell();
             titleCell.setBorder(Rectangle.NO_BORDER);
-            titleCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
             titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            titleCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            titleCell.setPadding(0);
             
             Paragraph pInvoice = new Paragraph("INVOICE", invoiceTitleFont);
             pInvoice.setAlignment(Element.ALIGN_RIGHT);
@@ -128,9 +135,9 @@ public class FactureService {
             addSectionTitle(orderSummaryCell, "ORDER SUMMARY", sectionTitleFont);
             addDetailRow(orderSummaryCell, "Order ID", "#" + commande.getId(), normalFont, boldFont);
             addDetailRow(orderSummaryCell, "Date", commande.getDateCreation().format(DateTimeFormatter.ofPattern("dd MMM yyyy")), normalFont, boldFont);
-            addDetailRow(orderSummaryCell, "Payment Method", (commande.getPaymentMethod() != null ? commande.getPaymentMethod() : commande.getMethodePaiement()), normalFont, boldFont);
-            addDetailRow(orderSummaryCell, "Order Status", commande.getStatut().toString(), normalFont, boldFont);
-            addDetailRow(orderSummaryCell, "Payment Status", commande.getPaymentStatus().toString(), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Payment Method", formatGenericEnum(commande.getPaymentMethod() != null ? commande.getPaymentMethod() : commande.getMethodePaiement()), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Order Status", formatOrderStatus(commande.getStatut()), normalFont, boldFont);
+            addDetailRow(orderSummaryCell, "Payment Status", formatPaymentStatus(commande.getPaymentStatus()), normalFont, boldFont);
             
             infoTable.addCell(orderSummaryCell);
             document.add(infoTable);
@@ -196,10 +203,6 @@ public class FactureService {
             thankYou.setAlignment(Element.ALIGN_CENTER);
             thankYou.setSpacingBefore(80);
             document.add(thankYou);
-            
-            Paragraph smartSupply = new Paragraph("www.smart-supply.ma", smallFont);
-            smartSupply.setAlignment(Element.ALIGN_CENTER);
-            document.add(smartSupply);
 
             document.close();
             log.info("Facture PDF générée: {}", filePath);
@@ -266,5 +269,42 @@ public class FactureService {
             valueCell.setPaddingTop(10);
         }
         table.addCell(valueCell);
+    }
+    private String formatOrderStatus(ma.smartsupply.enums.StatutCommande status) {
+        if (status == null) return "Unknown";
+        return switch (status) {
+            case EN_ATTENTE_VALIDATION -> "Pending";
+            case VALIDEE -> "Validated";
+            case EN_PREPARATION -> "In Preparation";
+            case EXPEDIEE -> "Shipped";
+            case LIVREE -> "Delivered";
+            case ANNULEE -> "Cancelled";
+            default -> formatGenericEnum(status.name());
+        };
+    }
+
+    private String formatPaymentStatus(ma.smartsupply.enums.PaymentStatus status) {
+        if (status == null) return "Pending";
+        return switch (status) {
+            case UNPAID -> "Pending";
+            case HELD_IN_ESCROW -> "Held in Escrow";
+            case RELEASED -> "Paid";
+            case REFUNDED -> "Refunded";
+            case DISPUTED -> "Disputed";
+            default -> formatGenericEnum(status.name());
+        };
+    }
+
+    private String formatGenericEnum(String value) {
+        if (value == null || value.isEmpty()) return "";
+        String[] words = value.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            sb.append(Character.toUpperCase(word.charAt(0)))
+              .append(word.substring(1).toLowerCase())
+              .append(" ");
+        }
+        return sb.toString().trim();
     }
 }

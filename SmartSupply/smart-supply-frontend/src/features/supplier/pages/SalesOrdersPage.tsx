@@ -1,23 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { format } from 'date-fns';
-import { FileText, Package, Truck, Calendar, Save, User, ChevronDown, ShieldCheck } from 'lucide-react';
+import { FileText, Package, Truck, Calendar, Save, User, ChevronDown, ShieldCheck, X } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { toast } from 'react-toastify';
-import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel } from '../../../utils/orderStatus';
-
+import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel, ORDERED_STATUS_FLOW } from '../../../utils/orderStatus';
 export const SalesOrdersPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orderIdParam = searchParams.get('orderId');
+  const orderRefParam = searchParams.get('orderRef');
+  
   const [ventes, setVentes] = useState<Commande[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const orderRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+  const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
 
   // States for tracking update inputs per order
   const [trackingData, setTrackingData] = useState<Record<number, { ref: string; date: string }>>({});
-  
+
   // State for controlled dropdown menu
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -27,6 +33,7 @@ export const SalesOrdersPage: React.FC = () => {
     ordersApi.mesVentes()
       .then((data) => {
         setVentes(data);
+
         // Initialize tracking data state from actual data
         const tData: Record<number, { ref: string; date: string }> = {};
         data.forEach(order => {
@@ -44,7 +51,31 @@ export const SalesOrdersPage: React.FC = () => {
 
   useEffect(() => {
     fetchVentes();
-  }, []);
+  }, []); // Remove dependency on orderIdParam to allow full list view with targeting
+
+  useEffect(() => {
+    if (!isLoading && (orderIdParam || orderRefParam) && ventes.length > 0) {
+      let targetOrder: Commande | undefined;
+      
+      if (orderIdParam) {
+        const id = parseInt(orderIdParam, 10);
+        targetOrder = ventes.find(a => a.id === id);
+      } else if (orderRefParam) {
+        targetOrder = ventes.find(a => a.reference === orderRefParam);
+      }
+
+      if (targetOrder) {
+        const element = orderRefs.current[targetOrder.id];
+        if (element) {
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setHighlightedOrderId(targetOrder!.id);
+            setTimeout(() => setHighlightedOrderId(null), 3000);
+          }, 100);
+        }
+      }
+    }
+  }, [isLoading, orderIdParam, orderRefParam, ventes]);
 
   // Handle clicks outside the dropdown menu
   useEffect(() => {
@@ -105,31 +136,57 @@ export const SalesOrdersPage: React.FC = () => {
     );
   }
 
-  const getStatusOptions = (status: string) => {
-    switch (status) {
-      case 'EN_ATTENTE_VALIDATION':
-        return ['VALIDEE', 'ANNULEE'];
-      case 'VALIDEE':
-        return ['EN_PREPARATION', 'ANNULEE'];
-      case 'EN_PREPARATION':
-        return ['EXPEDIEE', 'ANNULEE'];
-      case 'EXPEDIEE':
-        return ['LIVREE'];
-      default:
-        return [];
-    }
+  const getStatusOptions = (currentStatus: string) => {
+    if (currentStatus === 'ANNULEE' || currentStatus === 'LIVREE') return [];
+
+    const currentIndex = ORDERED_STATUS_FLOW.indexOf(currentStatus);
+
+    return ORDERED_STATUS_FLOW.filter(status => {
+      // Ne pas afficher le statut actuel comme option cliquable
+      if (status === currentStatus) return false;
+
+      const statusIndex = ORDERED_STATUS_FLOW.indexOf(status);
+
+      // On peut toujours annuler (sauf si déjà livré/annulé, géré au-dessus)
+      if (status === 'ANNULEE') return true;
+
+      // Sinon, on ne montre que les transitions vers l'avant
+      return statusIndex > currentIndex;
+    });
   };
 
   return (
     <div className="container-fluid p-0">
       <h4 className="fw-bold mb-4">Sales Orders</h4>
 
+      {(orderIdParam || orderRefParam) && (
+        <div className="alert alert-info d-flex align-items-center justify-content-between mb-4 border-0 shadow-sm rounded-4 py-3 px-4">
+          <div className="d-flex align-items-center gap-2">
+            <div className="bg-primary bg-opacity-10 p-2 rounded-circle">
+              <Package size={18} className="text-primary" />
+            </div>
+            <span>Targeting <strong className="text-primary">Order {orderRefParam || `#${orderIdParam}`}</strong></span>
+          </div>
+          <button
+            className="btn btn-sm btn-light rounded-circle p-2 d-flex align-items-center justify-content-center transition-all hover-bg-danger hover-text-white shadow-sm"
+            onClick={() => setSearchParams({})}
+            title="Clear highlight"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="row g-4">
         {ventes.map((order) => {
           const tData = trackingData[order.id] || { ref: '', date: '' };
           return (
-            <div className="col-12" key={order.id}>
-              <SoftCard className="border-0 shadow-sm">
+            <div 
+              className="col-12" 
+              key={order.id}
+              ref={(el) => { orderRefs.current[order.id] = el; }}
+            >
+              <SoftCard className={`border-0 shadow-sm transition-all ${highlightedOrderId === order.id ? 'highlight-order' : ''}`}>
                 <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 pb-3 border-bottom">
                   <div>
                     <h5 className="fw-bold mb-1 d-flex align-items-center gap-2">
@@ -156,9 +213,9 @@ export const SalesOrdersPage: React.FC = () => {
                           <span className="fw-medium">{getOrderStatusLabel(order.statut)}</span>
                           <ChevronDown size={14} className={`text-muted transition-all ${openDropdownId === order.id ? 'rotate-180' : ''}`} />
                         </button>
-                        
+
                         {openDropdownId === order.id && (
-                          <ul 
+                          <ul
                             className="position-absolute end-0 border-0 shadow-lg mt-1 p-2 bg-white dark:bg-dark-secondary rounded-4 animate-in fade-in slide-in-from-top-1 list-unstyled"
                             style={{ zIndex: 1000, minWidth: '180px', top: '100%' }}
                           >
@@ -169,17 +226,16 @@ export const SalesOrdersPage: React.FC = () => {
                                   onClick={() => handleUpdateStatut(order.id, opt)}
                                   style={{ fontSize: '0.85rem' }}
                                 >
-                                  <div 
-                                    className="rounded-circle" 
-                                    style={{ 
-                                      width: '8px', 
-                                      height: '8px', 
-                                      backgroundColor: order.statut === opt ? 'white' : `var(--soft-${
-                                        opt === 'LIVREE' ? 'success' : 
-                                        opt === 'ANNULEE' ? 'danger' : 
-                                        opt === 'EN_ATTENTE_VALIDATION' ? 'warning' : 'primary'
-                                      })` 
-                                    }} 
+                                  <div
+                                    className="rounded-circle"
+                                    style={{
+                                      width: '8px',
+                                      height: '8px',
+                                      backgroundColor: order.statut === opt ? 'white' : `var(--soft-${opt === 'LIVREE' ? 'success' :
+                                          opt === 'ANNULEE' ? 'danger' :
+                                            opt === 'EN_ATTENTE_VALIDATION' ? 'warning' : 'primary'
+                                        })`
+                                    }}
                                   />
                                   {getOrderStatusLabel(opt)}
                                 </button>
@@ -312,6 +368,14 @@ export const SalesOrdersPage: React.FC = () => {
           );
         })}
       </div>
+      <style>{`
+        .highlight-order {
+          border: 2px solid var(--soft-primary) !important;
+          box-shadow: 0 0 15px rgba(var(--bs-primary-rgb), 0.2) !important;
+          transform: scale(1.002);
+          z-index: 10;
+        }
+      `}</style>
     </div>
   );
 };

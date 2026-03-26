@@ -4,7 +4,9 @@ import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { format } from 'date-fns';
+import { formatNotificationMessage, getOrderIdFromMessage, getOrderRefFromMessage } from '../../../utils/notificationUtils';
 import { Bell, AlertTriangle, Package, ShoppingBag } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export const NotificationsPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -56,21 +58,41 @@ export const NotificationsPage: React.FC = () => {
       <SoftCard>
         <div className="list-group list-group-flush">
           {notifications.map((notif) => {
-            const meta = getNotifMeta(notif.message);
+            const formattedMessage = formatNotificationMessage(notif.message);
+            const meta = getNotifMeta(formattedMessage);
+            const targetOrderId = notif.commandeId || getOrderIdFromMessage(notif.message);
+            const targetOrderRef = notif.commandeRef || getOrderRefFromMessage(notif.message);
+            
+            let linkTo = '#';
+            if (targetOrderId) {
+              linkTo = `/supplier/orders?orderId=${targetOrderId}`;
+            } else if (targetOrderRef) {
+              linkTo = `/supplier/orders?orderRef=${targetOrderRef}`;
+            }
+
             return (
-              <div key={notif.id} className={`list-group-item d-flex align-items-start py-3 border-bottom ${!notif.lue ? 'bg-body-tertiary' : ''}`} style={{ background: !notif.lue ? 'var(--soft-bg)' : 'transparent', borderColor: 'var(--soft-border-subtle)' }}>
+              <Link
+                key={notif.id}
+                to={linkTo}
+                className={`list-group-item list-group-item-action d-flex align-items-start py-3 border-bottom text-decoration-none ${!notif.lue ? 'bg-body-tertiary' : ''}`}
+                style={{
+                  background: !notif.lue ? 'var(--soft-bg)' : 'transparent',
+                  borderColor: 'var(--soft-border-subtle)',
+                  cursor: linkTo !== '#' ? 'pointer' : 'default'
+                }}
+              >
                 <div className="rounded-circle d-flex justify-content-center align-items-center me-3 mt-1" style={{ width: '36px', height: '36px', background: meta.color, color: 'white' }}>
                   {meta.icon}
                 </div>
                 <div className="flex-grow-1">
                   <div className="d-flex justify-content-between align-items-center mb-1">
                     <h6 className={`mb-0 ${!notif.lue ? 'fw-bold' : ''}`} style={{ color: 'var(--soft-text)' }}>
-                      {notif.message.includes(':') ? notif.message.split(':')[0] : 'Notification'}
+                      {formattedMessage.includes(':') ? formattedMessage.split(':')[0] : 'Notification'}
                     </h6>
                     <small className="text-muted">{format(new Date(notif.dateCreation), 'MMM dd, yyyy HH:mm')}</small>
                   </div>
                   <p className="mb-0 text-muted small">
-                    {notif.message.includes(':') ? notif.message.substring(notif.message.indexOf(':') + 1).trim() : notif.message}
+                    {formattedMessage.includes(':') ? formattedMessage.substring(formattedMessage.indexOf(':') + 1).trim() : formattedMessage}
                   </p>
                 </div>
                 {!notif.lue && (
@@ -78,7 +100,7 @@ export const NotificationsPage: React.FC = () => {
                     <div className="rounded-circle" style={{ width: '8px', height: '8px', background: 'var(--soft-primary)' }}></div>
                   </div>
                 )}
-              </div>
+              </Link>
             );
           })}
         </div>

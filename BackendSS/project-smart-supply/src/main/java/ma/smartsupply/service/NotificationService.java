@@ -20,12 +20,22 @@ public class NotificationService {
     private final UtilisateurRepository utilisateurRepository;
 
     public void creer(Utilisateur destinataire, String message, TypeNotification type) {
+        creer(destinataire, message, type, null, null);
+    }
+
+    public void creer(Utilisateur destinataire, String message, TypeNotification type, Long commandeId) {
+        creer(destinataire, message, type, commandeId, null);
+    }
+
+    public void creer(Utilisateur destinataire, String message, TypeNotification type, Long commandeId, String commandeRef) {
         Notification notif = Notification.builder()
                 .destinataire(destinataire)
                 .message(message)
                 .dateEnvoi(LocalDateTime.now())
                 .type(type)
                 .lue(false)
+                .commandeId(commandeId)
+                .commandeRef(commandeRef)
                 .build();
         notificationRepository.save(notif);
     }
@@ -37,7 +47,8 @@ public class NotificationService {
                 .dateCreation(notification.getDateEnvoi())
                 .type(notification.getType())
                 .lue(notification.isLue())
-
+                .commandeId(notification.getCommandeId())
+                .commandeRef(notification.getCommandeRef())
                 .build();
     }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { productsApi } from '../../../api/products.api';
@@ -9,6 +9,8 @@ import { notificationsApi } from '../../../api/notifications.api';
 import { analyticsApi, SpendingTimelinePoint } from '../../../api/analytics.api';
 import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
 import { format, parseISO } from 'date-fns';
+import { getOrderStatusLabel } from '../../../utils/orderStatus';
+import { formatNotificationMessage, getOrderIdFromMessage, getOrderRefFromMessage } from '../../../utils/notificationUtils';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -178,7 +180,7 @@ export const Dashboard: React.FC = () => {
                           <td className="text-muted">{format(new Date(o.dateCreation), 'MMM dd, yyyy')}</td>
                           <td className="text-center">
                             <div className={`badge ${o.statut === 'LIVREE' ? 'bg-success' : o.statut === 'ANNULEE' ? 'bg-danger' : 'bg-warning'} bg-opacity-25 px-2 rounded-pill`}>
-                              {o.statut}
+                              {getOrderStatusLabel(o.statut)}
                             </div>
                           </td>
                           <td className="text-end fw-bold text-primary">{o.montantTotal?.toFixed(2)} DH</td>
@@ -196,37 +198,60 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="col-lg-4 mb-3">
-          <SoftCard title="Notifications" className="h-100">
-            <div className="position-relative mt-4">
-              {notifications.map((notif: any, i) => (
-                <div key={notif.id || i} className="d-flex mb-4 position-relative">
+          <SoftCard title="Notifications" className="h-100 d-flex flex-column">
+            <div className="position-relative mt-4 flex-grow-1">
+              {notifications.slice(0, 5).map((notif: any, i) => {
+                const targetOrderId = notif.commandeId || getOrderIdFromMessage(notif.message);
+                const targetOrderRef = notif.commandeRef || getOrderRefFromMessage(notif.message);
+                
+                let linkTo = '#';
+                if (targetOrderId) {
+                  linkTo = `/client/orders?orderId=${targetOrderId}`;
+                } else if (targetOrderRef) {
+                  linkTo = `/client/orders?orderRef=${targetOrderRef}`;
+                }
+
+                return (
+                  <Link 
+                    key={notif.id || i} 
+                    to={linkTo}
+                    className="d-flex mb-4 position-relative text-decoration-none hover-opacity transition-all translate-hover"
+                    style={{ cursor: linkTo !== '#' ? 'pointer' : 'default' }}
+                  >
                   <div className="me-3 position-relative z-1">
                     <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: 'var(--soft-bg)', color: 'var(--soft-primary)', opacity: 0.9 }}>
                       <AlertTriangle size={14} />
                     </div>
-                    {i !== notifications.length - 1 && (
+                    {i !== Math.min(notifications.length, 5) - 1 && (
                       <div className="position-absolute" style={{ width: '1px', height: '150%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
                     )}
                   </div>
                   <div>
-                    <h6 className="mb-1" style={{ fontSize: '0.9rem', color: 'var(--soft-text)' }}>
+                    <h6 className="mb-1 fw-bold" style={{ fontSize: '0.9rem', color: 'var(--soft-primary)' }}>
                       Notification
                     </h6>
                     <p className="mb-1 text-muted" style={{ fontSize: '0.8rem' }}>
-                      {notif.message}
+                      {formatNotificationMessage(notif.message)}
                     </p>
                     <small className="text-muted" style={{ fontSize: '0.7rem' }}>
                       {format(new Date(notif.dateCreation), 'MMM dd, HH:mm')}
                     </small>
                   </div>
-                </div>
-              ))}
+                </Link>
+              );
+            })}
               {(!notifications || notifications.length === 0) && (
                 <p className="text-muted text-center mt-5 mb-5">No notifications available.</p>
               )}
             </div>
-            <div className="text-center mt-3 pt-2">
-              <a href="/client/orders" className="fw-bold text-decoration-none" style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}>View All Orders</a>
+            <div className="text-center mt-auto pt-3 border-top border-soft">
+              <button 
+                onClick={() => navigate('/client/notifications')}
+                className="btn btn-link fw-bold text-decoration-none p-0" 
+                style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}
+              >
+                View More
+              </button>
             </div>
           </SoftCard>
         </div>

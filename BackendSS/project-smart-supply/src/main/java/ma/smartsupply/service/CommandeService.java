@@ -77,6 +77,7 @@ public class CommandeService {
 
         double montantTotal = 0;
 
+        List<Runnable> notificationTasks = new ArrayList<>();
         for (LigneCommandeRequest lcr : request.getLignes()) {
             Produit produit = produitRepository.findById(lcr.getProduitId())
                     .orElseThrow(() -> new RuntimeException("Produit introuvable : " + lcr.getProduitId()));
@@ -88,18 +89,22 @@ public class CommandeService {
             int stockDispo = (stock.getQuantiteDisponible() != null) ? stock.getQuantiteDisponible() : 0;
 
             if (stockDispo < lcr.getQuantite()) {
-                throw new RuntimeException("Stock insuffisant pour : " + produit.getNom() +
+                throw new RuntimeException("Stock insuffisant for : " + produit.getNom() +
                         " (Dispo: " + stockDispo + ", Demandé: " + lcr.getQuantite() + ")");
             }
 
             stock.setQuantiteDisponible(stockDispo - lcr.getQuantite());
             stockRepository.save(stock);
 
-            notificationService.creer(
-                    produit.getFournisseur(),
-                    "Nouvelle commande pour votre produit : " + produit.getNom() + " (Quantité: " + lcr.getQuantite()
-                            + ")",
-                    TypeNotification.NOUVELLE_COMMANDE);
+            // Store supplier notification task to be run after save
+            final Produit fProduct = produit;
+            final int fQty = lcr.getQuantite();
+            notificationTasks.add(() -> notificationService.creer(
+                    fProduct.getFournisseur(),
+                    "Nouvelle commande " + commande.getReference() + " pour votre produit : " + fProduct.getNom() + " (Quantité: " + fQty + ")",
+                    TypeNotification.NOUVELLE_COMMANDE,
+                    commande.getId(),
+                    commande.getReference()));
 
             LigneCommande ligne = new LigneCommande();
             ligne.setCommande(commande);
@@ -123,7 +128,21 @@ public class CommandeService {
         commande.setRefundRequestStatus(RefundRequestStatus.NONE);
         applyEscrowHold(commande, now);
 
-        return commandeRepository.save(commande);
+        Commande savedCommande = commandeRepository.save(commande);
+        
+        // Now run notification tasks with saved ID
+        notificationTasks.forEach(Runnable::run);
+        
+        // Also notify client
+        notificationService.creer(
+            savedCommande.getClient(),
+            "Your order #" + savedCommande.getId() + " has been placed successfully. Ref: " + savedCommande.getReference(),
+            TypeNotification.NOUVELLE_COMMANDE,
+            savedCommande.getId(),
+            savedCommande.getReference()
+        );
+
+        return savedCommande;
     }
 
     @Transactional
@@ -141,6 +160,7 @@ public class CommandeService {
                     .orElseThrow(() -> new RuntimeException("Stock introuvable"));
 
             if (stock.estEnAlerte()) {
+
                 System.out.println("️ ALERTE STOCK : " + ligne.getProduit().getNom());
             }
         }
@@ -149,8 +169,10 @@ public class CommandeService {
 
         notificationService.creer(
                 commande.getClient(),
-                " Votre commande n°" + commande.getId() + " a été validée.",
-                TypeNotification.VALIDATION_COMMANDE);
+                "Your order #" + commande.getId() + " has been validated. Ref: " + commande.getReference(),
+                TypeNotification.VALIDATION_COMMANDE,
+                commande.getId(),
+                commande.getReference());
         return commandeMaj;
     }
 
@@ -218,9 +240,9 @@ public class CommandeService {
         commande.setStatut(nouveauStatut);
         Commande commandeMiseAJour = commandeRepository.save(commande);
 
-        String message = "Mise à jour : Votre commande #" + commande.getId() + " est maintenant "
-                + nouveauStatut.name();
-        notificationService.creer(commande.getClient(), message, TypeNotification.VALIDATION_COMMANDE);
+        String message = "Order Update: Your order #" + commande.getId() + " is now "
+                + nouveauStatut.name() + ". Ref: " + commande.getReference();
+        notificationService.creer(commande.getClient(), message, TypeNotification.VALIDATION_COMMANDE, commande.getId(), commande.getReference());
         return commandeMiseAJour;
     }
 
@@ -364,6 +386,7 @@ public class CommandeService {
 
         List<LigneCommande> lignesCommande = new ArrayList<>();
 
+        List<Runnable> notificationTasks = new ArrayList<>();
         for (LignePanier lignePanier : panier.getLignes()) {
             Produit produit = lignePanier.getProduit();
 
@@ -378,11 +401,15 @@ public class CommandeService {
             stock.setQuantiteDisponible(stock.getQuantiteDisponible() - lignePanier.getQuantite());
             stockRepository.save(stock);
 
-            notificationService.creer(
-                    produit.getFournisseur(),
-                    "Nouvelle commande pour votre produit : " + produit.getNom() + " (Quantité: "
-                            + lignePanier.getQuantite() + ")",
-                    TypeNotification.NOUVELLE_COMMANDE);
+            final Produit fProduct = produit;
+            final int fQty = lignePanier.getQuantite();
+            notificationTasks.add(() -> notificationService.creer(
+                    fProduct.getFournisseur(),
+                    "Nouvelle commande " + commande.getReference() + " pour votre produit : " + fProduct.getNom() + " (Quantité: "
+                            + fQty + ")",
+                    TypeNotification.NOUVELLE_COMMANDE,
+                    commande.getId(),
+                    commande.getReference()));
 
             LigneCommande lc = new LigneCommande();
             lc.setCommande(commande);
@@ -393,8 +420,20 @@ public class CommandeService {
         }
         commande.setLignes(lignesCommande);
         
-        // Save first to get ID/Reference for invoice
+        // Save first to get ID/Reference for invoice and notifications
         Commande savedCommande = commandeRepository.save(commande);
+
+        // Run notification tasks
+        notificationTasks.forEach(Runnable::run);
+
+        // Notify client
+        notificationService.creer(
+            savedCommande.getClient(),
+            "Your order #" + savedCommande.getId() + " has been placed successfully. Ref: " + savedCommande.getReference(),
+            TypeNotification.NOUVELLE_COMMANDE,
+            savedCommande.getId(),
+            savedCommande.getReference()
+        );
 
         // Generate PDF
         try {
@@ -440,9 +479,11 @@ public class CommandeService {
 
         notificationService.creer(
                 commande.getClient(),
-                "Mise à jour logistique : Votre commande " + commande.getReference() + " a un nouveau suivi: "
+                "Shipping Update: Your order " + commande.getReference() + " has a new tracking reference: "
                         + request.getTrackingReference(),
-                TypeNotification.VALIDATION_COMMANDE);
+                TypeNotification.VALIDATION_COMMANDE,
+                commande.getId(),
+                commande.getReference());
 
         return mapToDTO(savedCommande);
     }
@@ -563,8 +604,8 @@ public class CommandeService {
         }
 
         Commande commandeMiseAJour = commandeRepository.save(commande);
-        String message = "Mise Ã  jour : Votre commande #" + commande.getId() + " est maintenant " + nouveauStatut.name();
-        notificationService.creer(commande.getClient(), message, TypeNotification.VALIDATION_COMMANDE);
+        String message = "Order Update: Your order #" + commande.getId() + " is now " + nouveauStatut.name() + ". Ref: " + commande.getReference();
+        notificationService.creer(commande.getClient(), message, TypeNotification.VALIDATION_COMMANDE, commande.getId(), commande.getReference());
         return commandeMiseAJour;
     }
 
@@ -573,12 +614,38 @@ public class CommandeService {
             return;
         }
 
+        // Definissons l'ordre logique
+        // 1. EN_ATTENTE_VALIDATION
+        // 2. VALIDEE
+        // 3. EN_PREPARATION
+        // 4. EXPEDIEE
+        // 5. LIVREE
+        // Special: ANNULEE (peut arriver depuis n'importe quel statut sauf LIVREE)
+
+        if (statutActuel == StatutCommande.LIVREE || statutActuel == StatutCommande.ANNULEE) {
+            throw new RuntimeException("Impossible de modifier une commande déjà livrée ou annulée.");
+        }
+
+        if (nouveauStatut == StatutCommande.ANNULEE) {
+            return; // Annulation toujours possible
+        }
+
         boolean isValid = switch (statutActuel) {
-            case EN_ATTENTE_VALIDATION -> nouveauStatut == StatutCommande.VALIDEE || nouveauStatut == StatutCommande.ANNULEE;
-            case VALIDEE -> nouveauStatut == StatutCommande.EN_PREPARATION || nouveauStatut == StatutCommande.ANNULEE;
-            case EN_PREPARATION -> nouveauStatut == StatutCommande.EXPEDIEE || nouveauStatut == StatutCommande.ANNULEE;
-            case EXPEDIEE -> nouveauStatut == StatutCommande.LIVREE;
-            case LIVREE, ANNULEE -> false;
+            case EN_ATTENTE_VALIDATION -> 
+                nouveauStatut == StatutCommande.VALIDEE || 
+                nouveauStatut == StatutCommande.EN_PREPARATION || 
+                nouveauStatut == StatutCommande.EXPEDIEE || 
+                nouveauStatut == StatutCommande.LIVREE;
+            case VALIDEE -> 
+                nouveauStatut == StatutCommande.EN_PREPARATION || 
+                nouveauStatut == StatutCommande.EXPEDIEE || 
+                nouveauStatut == StatutCommande.LIVREE;
+            case EN_PREPARATION -> 
+                nouveauStatut == StatutCommande.EXPEDIEE || 
+                nouveauStatut == StatutCommande.LIVREE;
+            case EXPEDIEE -> 
+                nouveauStatut == StatutCommande.LIVREE;
+            default -> false;
         };
 
         if (!isValid) {

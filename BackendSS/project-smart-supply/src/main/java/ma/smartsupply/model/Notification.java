@@ -26,6 +26,9 @@ public class Notification {
     @Builder.Default
     private boolean lue = false;
 
+    private Long commandeId;
+    private String commandeRef;
+
     @ManyToOne
     @JoinColumn(name = "utilisateur_id")
     private Utilisateur destinataire;
