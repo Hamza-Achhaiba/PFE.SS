@@ -3,6 +3,7 @@ package ma.smartsupply.controller;
 import lombok.RequiredArgsConstructor;
 import ma.smartsupply.dto.ReviewRequest;
 import ma.smartsupply.dto.ReviewResponse;
+import ma.smartsupply.service.ActivityLogService;
 import ma.smartsupply.service.ReviewService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,11 +18,16 @@ import java.util.List;
 public class ReviewController {
 
     private final ReviewService reviewService;
+    private final ActivityLogService activityLogService;
 
     @PostMapping
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ReviewResponse> submitReview(@RequestBody ReviewRequest request, Principal principal) {
-        return ResponseEntity.ok(reviewService.submitReview(principal.getName(), request));
+        ReviewResponse response = reviewService.submitReview(principal.getName(), request);
+        activityLogService.logByEmail(principal.getName(), "REVIEW_SUBMITTED", "SUPPLIER",
+                String.valueOf(request.getFournisseurId()), null,
+                "Review submitted, rating: " + request.getRating());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/supplier/{id}")

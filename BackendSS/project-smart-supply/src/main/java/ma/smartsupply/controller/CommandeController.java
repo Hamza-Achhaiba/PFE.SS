@@ -8,6 +8,7 @@ import ma.smartsupply.dto.UpdateStatutRequest;
 import ma.smartsupply.dto.UpdateTrackingRequest;
 import ma.smartsupply.enums.StatutCommande;
 import ma.smartsupply.model.Commande;
+import ma.smartsupply.service.ActivityLogService;
 import ma.smartsupply.service.CommandeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +24,16 @@ import java.util.List;
 public class CommandeController {
 
     private final CommandeService commandeService;
+    private final ActivityLogService activityLogService;
 
     @PostMapping
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<Commande> passerCommande(@RequestBody CommandeRequest request) {
-        return ResponseEntity.ok(commandeService.passerCommande(request));
+        Commande commande = commandeService.passerCommande(request);
+        activityLogService.logByEmail(commande.getClient().getEmail(), "ORDER_PLACED", "ORDER",
+                String.valueOf(commande.getId()), commande.getReference(),
+                "Order placed, total: " + commande.getMontantTotal());
+        return ResponseEntity.ok(commande);
     }
 
     @PutMapping("/{id}/valider")
@@ -35,7 +41,10 @@ public class CommandeController {
     public ResponseEntity<CommandeResponse> validerCommande(
             @PathVariable("id") Long id,
             Principal principal) {
-        return ResponseEntity.ok(commandeService.mettreAJourStatut(id, StatutCommande.VALIDEE.name(), principal.getName()));
+        CommandeResponse resp = commandeService.mettreAJourStatut(id, StatutCommande.VALIDEE.name(), principal.getName());
+        activityLogService.logByEmail(principal.getName(), "ORDER_VALIDATED", "ORDER",
+                String.valueOf(id), resp.getReference(), "Order validated by supplier");
+        return ResponseEntity.ok(resp);
     }
 
     @PutMapping("/{id}/annuler")
@@ -45,6 +54,8 @@ public class CommandeController {
             Principal principal) {
         try {
             CommandeResponse commandeAnnulee = commandeService.annulerCommande(id, principal.getName());
+            activityLogService.logByEmail(principal.getName(), "ORDER_CANCELLED", "ORDER",
+                    String.valueOf(id), commandeAnnulee.getReference(), "Order cancelled by client");
             return ResponseEntity.ok(commandeAnnulee);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -63,6 +74,8 @@ public class CommandeController {
             @RequestParam("statut") StatutCommande statut,
             Principal principal) {
         CommandeResponse commandeMaj = commandeService.mettreAJourStatut(id, statut.name(), principal.getName());
+        activityLogService.logByEmail(principal.getName(), "ORDER_STATUS_CHANGED", "ORDER",
+                String.valueOf(id), commandeMaj.getReference(), "Status changed to " + statut.name());
         return ResponseEntity.ok(commandeMaj);
     }
 
@@ -86,6 +99,9 @@ public class CommandeController {
             @RequestBody CheckoutRequest checkoutRequest,
             Principal principal) {
         CommandeResponse commande = commandeService.validerPanier(principal.getName(), checkoutRequest);
+        activityLogService.logByEmail(principal.getName(), "ORDER_PLACED", "ORDER",
+                String.valueOf(commande.getId()), commande.getReference(),
+                "Checkout completed, total: " + commande.getMontantTotal());
         return ResponseEntity.ok(commande);
     }
 
@@ -97,6 +113,8 @@ public class CommandeController {
             Principal principal) {
         CommandeResponse commandeMaj = commandeService.mettreAJourStatut(id, request.getNouveauStatut(),
                 principal.getName());
+        activityLogService.logByEmail(principal.getName(), "ORDER_STATUS_CHANGED", "ORDER",
+                String.valueOf(id), commandeMaj.getReference(), "Status changed to " + request.getNouveauStatut());
         return ResponseEntity.ok(commandeMaj);
     }
 
@@ -107,6 +125,9 @@ public class CommandeController {
             @RequestBody UpdateTrackingRequest request,
             Principal principal) {
         CommandeResponse commandeMaj = commandeService.updateTracking(id, request, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "ORDER_TRACKING_UPDATED", "ORDER",
+                String.valueOf(id), commandeMaj.getReference(),
+                "Tracking updated: " + request.getTrackingReference());
         return ResponseEntity.ok(commandeMaj);
     }
 
@@ -116,7 +137,11 @@ public class CommandeController {
             @PathVariable("id") Long id,
             @RequestBody RaiseDisputeRequest request,
             Principal principal) {
-        return ResponseEntity.ok(commandeService.marquerEscrowEnLitige(id, request, principal.getName()));
+        CommandeResponse resp = commandeService.marquerEscrowEnLitige(id, request, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "DISPUTE_RAISED", "ORDER",
+                String.valueOf(id), resp.getReference(),
+                "Dispute raised: " + (request != null ? request.getReason() : ""));
+        return ResponseEntity.ok(resp);
     }
 
     @PatchMapping("/{id}/refund-request")
@@ -124,7 +149,10 @@ public class CommandeController {
     public ResponseEntity<CommandeResponse> openRefundRequest(
             @PathVariable("id") Long id,
             Principal principal) {
-        return ResponseEntity.ok(commandeService.ouvrirDemandeRemboursement(id, principal.getName()));
+        CommandeResponse resp = commandeService.ouvrirDemandeRemboursement(id, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "REFUND_REQUESTED", "ORDER",
+                String.valueOf(id), resp.getReference(), "Refund request opened by client");
+        return ResponseEntity.ok(resp);
     }
 
     @GetMapping("/{id}/facture")

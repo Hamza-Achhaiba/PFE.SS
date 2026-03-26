@@ -1,11 +1,16 @@
 package ma.smartsupply.controller;
 
 import lombok.RequiredArgsConstructor;
+import ma.smartsupply.dto.AdminChartDataDTO;
 import ma.smartsupply.dto.AdminDashboardMetricsDTO;
 import ma.smartsupply.dto.AdminFournisseurResponse;
+import ma.smartsupply.dto.ProduitResponse;
+import ma.smartsupply.enums.StatutProduit;
 import ma.smartsupply.enums.SupplierStatus;
+import ma.smartsupply.model.ActivityLog;
 import ma.smartsupply.model.Commande;
 import ma.smartsupply.model.Fournisseur;
+import ma.smartsupply.model.Utilisateur;
 import ma.smartsupply.repository.ClientRepository;
 import ma.smartsupply.repository.CommandeRepository;
 import ma.smartsupply.repository.ConversationRepository;
@@ -14,6 +19,9 @@ import ma.smartsupply.repository.LigneCommandeRepository;
 import ma.smartsupply.repository.LignePanierRepository;
 import ma.smartsupply.repository.PanierRepository;
 import ma.smartsupply.repository.ProduitRepository;
+import ma.smartsupply.repository.UtilisateurRepository;
+import ma.smartsupply.service.ActivityLogService;
+import ma.smartsupply.service.ProduitService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +30,11 @@ import ma.smartsupply.enums.ClientStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.Principal;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -39,6 +51,13 @@ public class AdminController {
     private final LignePanierRepository lignePanierRepository;
     private final PanierRepository panierRepository;
     private final LigneCommandeRepository ligneCommandeRepository;
+    private final ProduitService produitService;
+    private final ActivityLogService activityLogService;
+    private final UtilisateurRepository utilisateurRepository;
+
+    private Utilisateur getCurrentAdmin(Principal principal) {
+        return utilisateurRepository.findByEmail(principal.getName()).orElse(null);
+    }
 
     @GetMapping("/metrics")
     public ResponseEntity<AdminDashboardMetricsDTO> getDashboardMetrics() {
@@ -59,6 +78,52 @@ public class AdminController {
                 .build();
 
         return ResponseEntity.ok(metrics);
+    }
+
+    @GetMapping("/chart-data")
+    public ResponseEntity<AdminChartDataDTO> getChartData() {
+        var allOrders = commandeRepository.findAll();
+        var allProducts = produitRepository.findAll();
+
+        // Orders over time — group by month (last 6 months + current)
+        DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("yyyy-MM");
+        Map<String, Long> ordersByMonth = allOrders.stream()
+                .filter(o -> o.getDateCreation() != null)
+                .collect(Collectors.groupingBy(
+                        o -> o.getDateCreation().format(monthFmt),
+                        java.util.TreeMap::new,
+                        Collectors.counting()));
+
+        List<AdminChartDataDTO.MonthlyOrderCount> ordersOverTime = ordersByMonth.entrySet().stream()
+                .map(e -> AdminChartDataDTO.MonthlyOrderCount.builder()
+                        .month(e.getKey())
+                        .count(e.getValue())
+                        .build())
+                .collect(Collectors.toList());
+
+        // Orders by status
+        Map<String, Long> ordersByStatus = allOrders.stream()
+                .filter(o -> o.getStatut() != null)
+                .collect(Collectors.groupingBy(
+                        o -> o.getStatut().name(),
+                        LinkedHashMap::new,
+                        Collectors.counting()));
+
+        // Products by approval status
+        Map<String, Long> productsByStatus = allProducts.stream()
+                .filter(p -> p.getStatutApprobation() != null)
+                .collect(Collectors.groupingBy(
+                        p -> p.getStatutApprobation().name(),
+                        LinkedHashMap::new,
+                        Collectors.counting()));
+
+        AdminChartDataDTO chartData = AdminChartDataDTO.builder()
+                .ordersOverTime(ordersOverTime)
+                .ordersByStatus(ordersByStatus)
+                .productsByStatus(productsByStatus)
+                .build();
+
+        return ResponseEntity.ok(chartData);
     }
 
     @GetMapping("/fournisseurs")
@@ -90,30 +155,34 @@ public class AdminController {
 
     @DeleteMapping("/fournisseurs/{id}")
     @Transactional
-    public ResponseEntity<Void> deleteSupplier(@PathVariable("id") Long id) {
+    public ResponseEntity<Void> deleteSupplier(@PathVariable("id") Long id, Principal principal) {
         Fournisseur fournisseur = fournisseurRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Supplier not found"));
+                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                        "Supplier not found"));
 
         if (ligneCommandeRepository.existsByProduitFournisseurId(id)) {
             throw new ResponseStatusException(
                     org.springframework.http.HttpStatus.CONFLICT,
-                    "This supplier cannot be deleted because it is linked to existing orders."
-            );
+                    "This supplier cannot be deleted because it is linked to existing orders.");
         }
 
+        String supplierName = fournisseur.getNomEntreprise() != null ? fournisseur.getNomEntreprise() : fournisseur.getNom();
         clientRepository.deleteFavoriteLinksBySupplierId(id);
         conversationRepository.deleteByFournisseurId(id);
         lignePanierRepository.deleteByProduitFournisseurId(id);
         produitRepository.deleteAll(produitRepository.findByFournisseurId(id));
         fournisseurRepository.delete(fournisseur);
 
+        Utilisateur admin = getCurrentAdmin(principal);
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                "DELETED_SUPPLIER", "SUPPLIER", String.valueOf(id), supplierName, "Supplier account deleted");
+
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/clients")
     public ResponseEntity<List<AdminClientResponse>> getAllClients() {
-        List<AdminClientResponse> responses = clientRepository.findAll().stream().map(c -> 
-            AdminClientResponse.builder()
+        List<AdminClientResponse> responses = clientRepository.findAll().stream().map(c -> AdminClientResponse.builder()
                 .id(c.getId())
                 .nom(c.getNom())
                 .email(c.getEmail())
@@ -123,37 +192,56 @@ public class AdminController {
                 .adresse(c.getAdresse())
                 .ville(c.getVille())
                 .region(c.getRegion())
-                .build()
-        ).collect(Collectors.toList());
+                .build()).collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @PatchMapping("/clients/{id}/status")
-    public ResponseEntity<Void> updateClientStatus(@PathVariable("id") Long id, @RequestParam("status") ClientStatus status) {
+    public ResponseEntity<Void> updateClientStatus(@PathVariable("id") Long id,
+            @RequestParam("status") ClientStatus status, Principal principal) {
         ma.smartsupply.model.Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Client not found"));
+                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                        "Client not found"));
+        ClientStatus oldStatus = client.getStatus();
         client.setStatus(status);
         clientRepository.save(client);
+
+        Utilisateur admin = getCurrentAdmin(principal);
+        String action = switch (status) {
+            case ACTIVE -> "APPROVED_CLIENT";
+            case SUSPENDED -> "SUSPENDED_CLIENT";
+            case REJECTED -> "REJECTED_CLIENT";
+            default -> "UPDATED_CLIENT_STATUS";
+        };
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                action, "CLIENT", String.valueOf(id), client.getNom(),
+                "Status changed from " + oldStatus + " to " + status);
+
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/clients/{id}")
     @Transactional
-    public ResponseEntity<Void> deleteClient(@PathVariable("id") Long id) {
+    public ResponseEntity<Void> deleteClient(@PathVariable("id") Long id, Principal principal) {
         ma.smartsupply.model.Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Client not found"));
-        
-        // Before deleting a client, we should handle their orders or prevent deletion if they have active orders
+                .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND,
+                        "Client not found"));
+
         if (commandeRepository.existsByClientId(id)) {
             throw new ResponseStatusException(
                     org.springframework.http.HttpStatus.CONFLICT,
-                    "This client cannot be deleted because it has existing orders."
-            );
+                    "This client cannot be deleted because it has existing orders.");
         }
 
+        String clientName = client.getNom();
         conversationRepository.deleteByClientId(id);
         panierRepository.deleteByClientId(id);
         clientRepository.delete(client);
+
+        Utilisateur admin = getCurrentAdmin(principal);
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                "DELETED_CLIENT", "CLIENT", String.valueOf(id), clientName, "Client account deleted");
+
         return ResponseEntity.noContent().build();
     }
 
@@ -165,20 +253,29 @@ public class AdminController {
 
     @GetMapping("/disputes")
     public ResponseEntity<List<Commande>> getDisputesAndRefunds() {
-        return ResponseEntity.ok(commandeRepository.findByRefundRequestStatusIsNotNullOrDisputeRaisedAtIsNotNullOrderByDateCreationDesc());
+        return ResponseEntity.ok(commandeRepository
+                .findByRefundRequestStatusIsNotNullOrDisputeRaisedAtIsNotNullOrderByDateCreationDesc());
     }
 
     @PatchMapping("/commandes/{id}/resolve-dispute")
-    public ResponseEntity<Commande> resolveDispute(@PathVariable("id") Long id) {
+    public ResponseEntity<Commande> resolveDispute(@PathVariable("id") Long id, Principal principal) {
         Commande commande = commandeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Commande non trouvée"));
         commande.setDisputeRaisedAt(null);
-        commande.setDisputeReason("RESOLVED by Admin. " + (commande.getDisputeReason() != null ? "Past reason: " + commande.getDisputeReason() : ""));
-        return ResponseEntity.ok(commandeRepository.save(commande));
+        commande.setDisputeReason("RESOLVED by Admin. "
+                + (commande.getDisputeReason() != null ? "Past reason: " + commande.getDisputeReason() : ""));
+        Commande saved = commandeRepository.save(commande);
+
+        Utilisateur admin = getCurrentAdmin(principal);
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                "RESOLVED_DISPUTE", "ORDER", String.valueOf(id), commande.getReference(), "Dispute resolved for order");
+
+        return ResponseEntity.ok(saved);
     }
 
     @PatchMapping("/commandes/{id}/refund-decision")
-    public ResponseEntity<Commande> refundDecision(@PathVariable("id") Long id, @RequestParam("decision") ma.smartsupply.enums.RefundRequestStatus decision) {
+    public ResponseEntity<Commande> refundDecision(@PathVariable("id") Long id,
+            @RequestParam("decision") ma.smartsupply.enums.RefundRequestStatus decision, Principal principal) {
         Commande commande = commandeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Commande non trouvée"));
         commande.setRefundRequestStatus(decision);
@@ -186,6 +283,60 @@ public class AdminController {
             commande.setRefundedAt(java.time.LocalDateTime.now());
             commande.setStatut(ma.smartsupply.enums.StatutCommande.ANNULEE);
         }
-        return ResponseEntity.ok(commandeRepository.save(commande));
+        Commande saved = commandeRepository.save(commande);
+
+        Utilisateur admin = getCurrentAdmin(principal);
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                "REFUND_DECISION", "ORDER", String.valueOf(id), commande.getReference(),
+                "Refund decision: " + decision);
+
+        return ResponseEntity.ok(saved);
+    }
+
+    // ── Product Management ────────────────────────────────────────────
+
+    @GetMapping("/produits")
+    public ResponseEntity<List<ProduitResponse>> getAllProduitsAdmin() {
+        return ResponseEntity.ok(produitService.getAllProduitsAdmin());
+    }
+
+    @PatchMapping("/produits/{id}/statut")
+    public ResponseEntity<ProduitResponse> updateProduitStatut(
+            @PathVariable("id") Long id,
+            @RequestParam("statut") StatutProduit statut, Principal principal) {
+        ProduitResponse response = produitService.updateStatutApprobation(id, statut);
+
+        Utilisateur admin = getCurrentAdmin(principal);
+        String action = switch (statut) {
+            case APPROVED -> "APPROVED_PRODUCT";
+            case REJECTED -> "REJECTED_PRODUCT";
+            default -> "UPDATED_PRODUCT_STATUS";
+        };
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                action, "PRODUCT", String.valueOf(id), response.getNom(),
+                "Product status set to " + statut);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/produits/{id}")
+    @Transactional
+    public ResponseEntity<Map<String, String>> deleteProduitAdmin(@PathVariable("id") Long id, Principal principal) {
+        var produit = produitRepository.findById(id).orElse(null);
+        String produitName = produit != null ? produit.getNom() : "Unknown";
+        produitService.supprimerProduitParAdmin(id);
+
+        Utilisateur admin = getCurrentAdmin(principal);
+        activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
+                "DELETED_PRODUCT", "PRODUCT", String.valueOf(id), produitName, "Product deleted by admin");
+
+        return ResponseEntity.ok(Map.of("message", "Product deleted successfully."));
+    }
+
+    // ── Activity Logs ────────────────────────────────────────────────
+
+    @GetMapping("/activity-logs")
+    public ResponseEntity<List<ActivityLog>> getActivityLogs() {
+        return ResponseEntity.ok(activityLogService.getAllLogs());
     }
 }

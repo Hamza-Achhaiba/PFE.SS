@@ -8,6 +8,13 @@ import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftInput } from '../../../components/ui/SoftInput';
 
+const resolveImage = (url: string | undefined) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
+    return `${backendUrl}${url}`;
+};
+
 export const SettingsPage: React.FC = () => {
     const role = AuthStore.getRole();
     const isClient = role === 'CLIENT';
@@ -145,7 +152,7 @@ export const SettingsPage: React.FC = () => {
                                         className="rounded-circle overflow-hidden shadow-sm"
                                         style={{ width: '100px', height: '100px', border: '3px solid var(--soft-secondary)' }}
                                     >
-                                        <img src={profile.image} alt="Profile" className="w-100 h-100" style={{ objectFit: 'cover' }} />
+                                        <img src={resolveImage(profile.image)} alt="Profile" className="w-100 h-100" style={{ objectFit: 'cover' }} />
                                     </div>
                                 ) : (
                                     <div 

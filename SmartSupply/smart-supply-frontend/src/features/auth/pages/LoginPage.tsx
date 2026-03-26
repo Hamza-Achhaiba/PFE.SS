@@ -43,7 +43,9 @@ export const LoginPage: React.FC = () => {
             AuthStore.login(res.token, role, userName);
             toast.success('Login successful');
 
-            if (role === 'CLIENT') {
+            if (role === 'ADMIN') {
+                navigate('/admin/dashboard');
+            } else if (role === 'CLIENT') {
                 navigate('/client/dashboard');
             } else {
                 navigate('/supplier/dashboard');

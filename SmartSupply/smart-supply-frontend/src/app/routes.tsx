@@ -36,6 +36,8 @@ import { AdminClientsPage } from '../features/admin/pages/AdminClientsPage';
 import { AdminSuppliersPage } from '../features/admin/pages/AdminSuppliersPage';
 import { AdminOrdersPage } from '../features/admin/pages/AdminOrdersPage';
 import { AdminDisputesPage } from '../features/admin/pages/AdminDisputesPage';
+import { AdminProductsPage } from '../features/admin/pages/AdminProductsPage';
+import { AdminActivityLogsPage } from '../features/admin/pages/AdminActivityLogsPage';
 
 export const AppRoutes = () => {
     return (
@@ -89,8 +91,10 @@ export const AppRoutes = () => {
                         <Route path="dashboard" element={<AdminDashboard />} />
                         <Route path="clients" element={<AdminClientsPage />} />
                         <Route path="suppliers" element={<AdminSuppliersPage />} />
+                        <Route path="products" element={<AdminProductsPage />} />
                         <Route path="orders" element={<AdminOrdersPage />} />
                         <Route path="disputes" element={<AdminDisputesPage />} />
+                        <Route path="activity-logs" element={<AdminActivityLogsPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>

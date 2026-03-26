@@ -35,13 +35,12 @@ public class Fournisseur extends Utilisateur {
     private SupplierStatus status = SupplierStatus.PENDING_APPROVAL;
 
     private Integer yearEstablished;
-    
-    @Builder.Default
-    private Double onTimeDelivery = 95.0;
-    @Builder.Default
-    private Double responseTime = 90.0;
-    @Builder.Default
-    private Double qualityAcceptance = 98.0;
+
+    // Legacy columns kept for schema compatibility. Profile performance is now
+    // computed dynamically from orders, reviews, and conversation activity.
+    private Double onTimeDelivery;
+    private Double responseTime;
+    private Double qualityAcceptance;
 
     @OneToMany(mappedBy = "fournisseur", cascade = CascadeType.ALL)
     @JsonIgnore

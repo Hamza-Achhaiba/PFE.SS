@@ -1,5 +1,6 @@
 package ma.smartsupply.repository;
 
+import ma.smartsupply.enums.StatutProduit;
 import ma.smartsupply.model.Categorie;
 import ma.smartsupply.model.Produit;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,11 +16,13 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
 
     List<Produit> findByNomContainingIgnoreCase(String keyword);
 
+    List<Produit> findByStatutApprobation(StatutProduit statutApprobation);
+
     boolean existsByNomAndFournisseurId(String nom, Long fournisseurId);
 
     java.util.Optional<Produit> findByNomAndFournisseurId(String nom, Long fournisseurId);
 
-    @Query("SELECT p FROM Produit p JOIN p.stock s WHERE p.actif = true " +
+    @Query("SELECT p FROM Produit p JOIN p.stock s WHERE p.actif = true AND p.statutApprobation = 'APPROVED' " +
             "AND (:motCle IS NULL OR :motCle = '' OR LOWER(p.nom) LIKE LOWER(CONCAT('%', :motCle, '%'))) " +
             "AND (:enStock = false OR s.quantiteDisponible > 0)")
     List<Produit> rechercherProduits(

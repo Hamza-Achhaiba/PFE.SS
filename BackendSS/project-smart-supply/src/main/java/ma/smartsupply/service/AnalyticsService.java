@@ -2,15 +2,24 @@ package ma.smartsupply.service;
 
 import lombok.RequiredArgsConstructor;
 import ma.smartsupply.dto.AnalyticsStatsResponse;
+import ma.smartsupply.dto.SpendingTimelineResponse;
 import ma.smartsupply.model.Commande;
+import ma.smartsupply.model.Fournisseur;
+import ma.smartsupply.enums.EscrowStatus;
+import ma.smartsupply.enums.PaymentStatus;
 import ma.smartsupply.enums.StatutCommande;
 import ma.smartsupply.repository.CommandeRepository;
+import ma.smartsupply.repository.FournisseurRepository;
 import ma.smartsupply.repository.ProduitRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,11 +35,14 @@ public class AnalyticsService {
 
     private final CommandeRepository commandeRepository;
     private final ProduitRepository produitRepository;
+    private final FournisseurRepository fournisseurRepository;
 
     public AnalyticsStatsResponse getFournisseurStats(String emailFournisseur) {
         // Find all orders that contain products from this supplier
         List<Commande> ventesFournisseur = commandeRepository
                 .findDistinctByLignes_Produit_Fournisseur_Email(emailFournisseur);
+        Fournisseur fournisseur = fournisseurRepository.findByEmail(emailFournisseur)
+                .orElseThrow(() -> new RuntimeException("Fournisseur introuvable"));
 
         double caTotal = 0;
         long totalCommandes = ventesFournisseur.size();
@@ -54,9 +66,7 @@ public class AnalyticsService {
                 .count();
 
         // Calculate out-of-stock products for this supplier
-        long produitsEnRupture = produitRepository.findByFournisseurId(
-                ventesFournisseur.isEmpty() ? null
-                        : ventesFournisseur.get(0).getLignes().get(0).getProduit().getFournisseur().getId())
+        long produitsEnRupture = produitRepository.findByFournisseurId(fournisseur.getId())
                 .stream()
                 .filter(p -> p.getStock() != null && p.getStock().getQuantiteDisponible() != null
                         && p.getStock().getQuantiteDisponible() <= 0)
@@ -96,6 +106,36 @@ public class AnalyticsService {
                 .collect(Collectors.toList());
     }
 
+    public List<SpendingTimelineResponse> getClientSpendingTimeline(String emailClient) {
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = today.minusDays(29);
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = today.atTime(LocalTime.MAX);
+
+        List<Commande> commandesClient = commandeRepository
+                .findByClientEmailAndDateCreationBetweenOrderByDateCreationAsc(emailClient, startDateTime, endDateTime);
+
+        Map<String, Double> spendingParJour = new LinkedHashMap<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
+            spendingParJour.put(date.format(formatter), 0.0);
+        }
+
+        for (Commande commande : commandesClient) {
+            if (!countsAsClientSpending(commande)) {
+                continue;
+            }
+
+            String dateJour = commande.getDateCreation().toLocalDate().format(formatter);
+            spendingParJour.put(dateJour, spendingParJour.getOrDefault(dateJour, 0.0) + getOrderTotal(commande));
+        }
+
+        return spendingParJour.entrySet().stream()
+                .map(entry -> new SpendingTimelineResponse(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
     public List<TopProduitResponse> getTopProduits(String emailFournisseur) {
         List<Commande> ventesFournisseur = commandeRepository
                 .findDistinctByLignes_Produit_Fournisseur_Email(emailFournisseur);
@@ -123,5 +163,24 @@ public class AnalyticsService {
                 .sorted(Comparator.comparing(TopProduitResponse::getChiffreAffaires).reversed())
                 .limit(5) // Top 5
                 .collect(Collectors.toList());
+    }
+
+    private boolean countsAsClientSpending(Commande commande) {
+        if (commande.getDateCreation() == null || commande.getStatut() == StatutCommande.ANNULEE) {
+            return false;
+        }
+
+        if (commande.getPaymentStatus() == PaymentStatus.REFUNDED || commande.getEscrowStatus() == EscrowStatus.REFUNDED) {
+            return false;
+        }
+
+        return commande.getPaymentStatus() != PaymentStatus.UNPAID && commande.getEscrowStatus() != EscrowStatus.UNPAID;
+    }
+
+    private double getOrderTotal(Commande commande) {
+        if (commande.getMontantTotal() != null) {
+            return commande.getMontantTotal();
+        }
+        return commande.getAmount() != null ? commande.getAmount() : 0.0;
     }
 }

@@ -5,6 +5,7 @@ import {
     MoreHorizontal,
     Pause,
     RotateCcw,
+    Search,
     Trash2,
     X
 } from 'lucide-react';
@@ -92,6 +93,17 @@ const getSupplierActions = (status: SupplierStatus): SupplierAction[] => {
     ];
 };
 
+// Filter pill keys — 'APPROVED' covers both ACTIVE + VERIFIED; 'REMOVED' = deleted (always 0)
+type SupplierStatusFilter = 'ALL' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'REMOVED';
+
+const SUPPLIER_FILTER_PILLS: { key: SupplierStatusFilter; label: string }[] = [
+    { key: 'ALL',       label: 'All'       },
+    { key: 'APPROVED',  label: 'Approved'  },
+    { key: 'REJECTED',  label: 'Rejected'  },
+    { key: 'SUSPENDED', label: 'Suspended' },
+    { key: 'REMOVED',   label: 'Removed'   },
+];
+
 export const AdminSuppliersPage: React.FC = () => {
     const [suppliers, setSuppliers] = useState<AdminSupplier[]>([]);
     const [loading, setLoading] = useState(true);
@@ -100,6 +112,8 @@ export const AdminSuppliersPage: React.FC = () => {
     const [supplierToDelete, setSupplierToDelete] = useState<AdminSupplier | null>(null);
     const [selectedSupplier, setSelectedSupplier] = useState<AdminSupplier | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<SupplierStatusFilter>('ALL');
     const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
     const loadSuppliers = () => {
@@ -168,15 +182,101 @@ export const AdminSuppliersPage: React.FC = () => {
         ACTIVE: { bg: 'rgba(16, 185, 129, 0.12)', color: '#10b981' },
         VERIFIED: { bg: 'rgba(16, 185, 129, 0.12)', color: '#10b981' },
         PENDING_APPROVAL: { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' },
-        SUSPENDED: { bg: 'rgba(249, 115, 22, 0.12)', color: '#f97316' }, // Soft Orange
+        SUSPENDED: { bg: 'rgba(249, 115, 22, 0.12)', color: '#f97316' },
         REJECTED: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' }
     }), []);
+
+    const filteredSuppliers = useMemo(() => {
+        return suppliers.filter((s) => {
+            const q = searchTerm.toLowerCase();
+            const matchesSearch = q === '' ||
+                s.nom.toLowerCase().includes(q) ||
+                s.email.toLowerCase().includes(q) ||
+                (s.nomEntreprise && s.nomEntreprise.toLowerCase().includes(q)) ||
+                (s.telephone && s.telephone.toLowerCase().includes(q)) ||
+                (s.categorie && s.categorie.toLowerCase().includes(q));
+            let matchesStatus: boolean;
+            if (statusFilter === 'ALL') {
+                matchesStatus = true;
+            } else if (statusFilter === 'APPROVED') {
+                matchesStatus = s.status === 'ACTIVE' || s.status === 'VERIFIED';
+            } else if (statusFilter === 'REMOVED') {
+                matchesStatus = false; // deleted records no longer exist in the dataset
+            } else {
+                matchesStatus = s.status === statusFilter;
+            }
+            return matchesSearch && matchesStatus;
+        });
+    }, [suppliers, searchTerm, statusFilter]);
+
+    const statusCounts = useMemo(() => {
+        const counts: Record<SupplierStatusFilter, number> = {
+            ALL: suppliers.length,
+            APPROVED: 0,
+            REJECTED: 0,
+            SUSPENDED: 0,
+            REMOVED: 0,
+        };
+        suppliers.forEach((s) => {
+            if (s.status === 'ACTIVE' || s.status === 'VERIFIED') counts.APPROVED++;
+            else if (s.status === 'REJECTED') counts.REJECTED++;
+            else if (s.status === 'SUSPENDED') counts.SUSPENDED++;
+        });
+        return counts;
+    }, [suppliers]);
+
+    const pillActiveStyles: Record<SupplierStatusFilter, { bg: string; color: string }> = {
+        ALL:       { bg: 'var(--soft-primary)',            color: '#fff'     },
+        APPROVED:  { bg: 'rgba(16, 185, 129, 0.15)',       color: '#10b981'  },
+        REJECTED:  { bg: 'rgba(239, 68, 68, 0.15)',        color: '#ef4444'  },
+        SUSPENDED: { bg: 'rgba(249, 115, 22, 0.15)',       color: '#f97316'  },
+        REMOVED:   { bg: 'rgba(100, 116, 139, 0.15)',      color: '#64748b'  },
+    };
 
     return (
         <div className="container-fluid p-0">
             <div className="mb-4">
                 <h4 className="fw-bold mb-1">Manage Suppliers</h4>
                 <p className="text-muted mb-0">Approve, reject, suspend or remove supplier accounts</p>
+            </div>
+
+            {/* Filter bar — same pattern as Manage Products / Manage Clients */}
+            <div className="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                <div className="position-relative flex-grow-1" style={{ maxWidth: '320px' }}>
+                    <Search size={16} className="position-absolute text-muted" style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                        type="text"
+                        className="form-control rounded-pill ps-5"
+                        placeholder="Search suppliers..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            background: 'var(--soft-glass-bg)',
+                            border: '1px solid var(--soft-border)',
+                            fontSize: '0.85rem'
+                        }}
+                    />
+                </div>
+                {SUPPLIER_FILTER_PILLS.map(({ key, label }) => {
+                    const isActive = statusFilter === key;
+                    const active = pillActiveStyles[key];
+                    return (
+                        <button
+                            key={key}
+                            className={`btn btn-sm rounded-pill px-3 fw-medium ${isActive ? 'active' : ''}`}
+                            onClick={() => setStatusFilter(key)}
+                            style={{
+                                background: isActive ? active.bg : 'var(--soft-glass-bg)',
+                                color: isActive ? active.color : 'var(--soft-text)',
+                                border: `1px solid ${isActive ? 'transparent' : 'var(--soft-border)'}`,
+                                fontSize: '0.78rem',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {label} ({statusCounts[key]})
+                        </button>
+                    );
+                })}
             </div>
 
             <SoftCard>
@@ -190,7 +290,7 @@ export const AdminSuppliersPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {suppliers.map((supplier) => {
+                            {filteredSuppliers.map((supplier) => {
                                 const actions = getSupplierActions(supplier.status);
                                 const menuOpen = activeMenuId === supplier.id;
 
@@ -202,10 +302,10 @@ export const AdminSuppliersPage: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="text-center">
-                                            <div 
+                                            <div
                                                 className="px-3 py-1 rounded-pill d-inline-block fw-medium"
-                                                style={{ 
-                                                    backgroundColor: statusStyles[supplier.status].bg, 
+                                                style={{
+                                                    backgroundColor: statusStyles[supplier.status].bg,
                                                     color: statusStyles[supplier.status].color,
                                                     fontSize: '0.75rem'
                                                 }}
@@ -296,7 +396,7 @@ export const AdminSuppliersPage: React.FC = () => {
                                     </td>
                                 </tr>
                             )}
-                            {!loading && suppliers.length === 0 && (
+                            {!loading && filteredSuppliers.length === 0 && (
                                 <tr>
                                     <td colSpan={3} className="text-center text-muted py-4">No suppliers found.</td>
                                 </tr>
@@ -384,10 +484,10 @@ export const AdminSuppliersPage: React.FC = () => {
                                     </div>
                                     <div>
                                         <label className="text-muted small d-block mb-1" style={{ color: 'var(--soft-text-muted)' }}>Current Status</label>
-                                        <div 
+                                        <div
                                             className="px-3 py-1 rounded-pill d-inline-block fw-medium mt-1"
-                                            style={{ 
-                                                backgroundColor: statusStyles[selectedSupplier.status].bg, 
+                                            style={{
+                                                backgroundColor: statusStyles[selectedSupplier.status].bg,
                                                 color: statusStyles[selectedSupplier.status].color,
                                                 fontSize: '0.75rem'
                                             }}

@@ -19,8 +19,6 @@ public class FournisseurResponse {
     private String categorie;
     private SupplierStatus status;
     private Integer yearEstablished;
-    private Double onTimeDelivery;
-    private Double responseTime;
-    private Double qualityAcceptance;
     private Double averageRating;
+    private SupplierPerformanceResponse performance;
 }

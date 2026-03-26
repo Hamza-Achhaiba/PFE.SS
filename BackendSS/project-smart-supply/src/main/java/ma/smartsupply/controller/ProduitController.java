@@ -3,6 +3,7 @@ package ma.smartsupply.controller;
 import ma.smartsupply.dto.ProduitRequest;
 import ma.smartsupply.dto.ProduitResponse;
 import ma.smartsupply.model.Stock;
+import ma.smartsupply.service.ActivityLogService;
 import ma.smartsupply.service.ProduitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,13 +27,18 @@ import java.util.Map;
 public class ProduitController {
 
     private final ProduitService produitService;
+    private final ActivityLogService activityLogService;
 
     @PostMapping
     @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<ProduitResponse> ajouterProduit(
             @RequestBody ProduitRequest request,
             Principal principal) {
-        return ResponseEntity.ok(produitService.ajouterProduit(request, principal.getName()));
+        ProduitResponse response = produitService.ajouterProduit(request, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "PRODUCT_CREATED", "PRODUCT",
+                String.valueOf(response.getId()), response.getNom(),
+                "Product created, price: " + response.getPrix());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
@@ -75,6 +81,8 @@ public class ProduitController {
             @PathVariable("id") Long id,
             Principal principal) {
         produitService.toggleStatutProduit(id, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "PRODUCT_STATUS_TOGGLED", "PRODUCT",
+                String.valueOf(id), null, "Product active status toggled");
         return ResponseEntity.ok("Le statut du produit a été mis à jour avec succès.");
     }
 
@@ -94,6 +102,8 @@ public class ProduitController {
             @RequestBody ProduitRequest request,
             Principal principal) {
         ProduitResponse produitMaj = produitService.modifierProduit(id, request, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "PRODUCT_UPDATED", "PRODUCT",
+                String.valueOf(id), produitMaj.getNom(), "Product details updated");
         return ResponseEntity.ok(produitMaj);
     }
 
@@ -102,6 +112,8 @@ public class ProduitController {
     public ResponseEntity<Map<String, String>> supprimerProduit(
             @PathVariable("id") Long id,
             Principal principal) {
+        activityLogService.logByEmail(principal.getName(), "PRODUCT_DELETED", "PRODUCT",
+                String.valueOf(id), null, "Product deleted by supplier");
         produitService.supprimerProduit(id, principal.getName());
         return ResponseEntity.ok(Map.of("message", "Produit supprimé avec succès."));
     }

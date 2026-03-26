@@ -15,6 +15,8 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     @Query("SELECT c FROM Conversation c WHERE c.client.id = :clientId AND c.fournisseur.id = :fournisseurId")
     Optional<Conversation> findExistingConversation(@Param("clientId") Long clientId, @Param("fournisseurId") Long fournisseurId);
 
+    List<Conversation> findByFournisseurId(Long fournisseurId);
+
     @Query("SELECT c FROM Conversation c " +
            "WHERE (:userId = c.client.id AND c.deletedByClient = false) " +
            "OR (:userId = c.fournisseur.id AND c.deletedByFournisseur = false) " +

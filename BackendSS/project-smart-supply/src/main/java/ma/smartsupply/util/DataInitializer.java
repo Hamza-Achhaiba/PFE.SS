@@ -4,11 +4,14 @@ import lombok.RequiredArgsConstructor;
 import ma.smartsupply.model.*;
 import ma.smartsupply.repository.*;
 import ma.smartsupply.enums.Role;
+import ma.smartsupply.enums.StatutProduit;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.InputStream;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -25,6 +28,31 @@ public class DataInitializer implements CommandLineRunner {
         private final FileStorageUtil fileStorageUtil;
 
         private static final String UPLOAD_DIR = "uploads/produits";
+        private static final String SUPPLIER_PROFILE_DIR = "uploads/profils";
+
+        /**
+         * Copies a seed image from classpath to the uploads directory.
+         * Returns the relative URL path (e.g. /uploads/profils/filename.png).
+         * Skips if the file already exists (idempotent).
+         */
+        private String copySeedImage(String classpathFile, String targetFileName) {
+                try {
+                        Path targetDir = Paths.get(SUPPLIER_PROFILE_DIR);
+                        Files.createDirectories(targetDir);
+                        Path targetPath = targetDir.resolve(targetFileName);
+
+                        if (!Files.exists(targetPath) || Files.size(targetPath) == 0) {
+                                ClassPathResource resource = new ClassPathResource("seed-images/suppliers/" + classpathFile);
+                                try (InputStream in = resource.getInputStream()) {
+                                        Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                                }
+                        }
+                        return "/" + SUPPLIER_PROFILE_DIR + "/" + targetFileName;
+                } catch (Exception e) {
+                        System.err.println("  ⚠️ Failed to copy seed image " + classpathFile + ": " + e.getMessage());
+                        return null;
+                }
+        }
 
         @Override
         @Transactional
@@ -48,6 +76,11 @@ public class DataInitializer implements CommandLineRunner {
         // ──────────────────────────────────────────────────────────────
         private void seedCategories() {
                 System.out.println("🌱 Seeding Categories...");
+
+                // Clean up malformed (mojibake) duplicate categories from previous bad-encoding seeds.
+                // Malformed names contain "Ã" (UTF-8 bytes misread as Latin-1). We match them to
+                // the correct category by checking common suffixes.
+                cleanupMalformedCategories();
 
                 // name -> {description, image_url}
                 Map<String, String[]> categories = new LinkedHashMap<>();
@@ -177,6 +210,73 @@ public class DataInitializer implements CommandLineRunner {
                                 + " existaient déjà.");
         }
 
+        /**
+         * Removes mojibake duplicate categories. A category is considered malformed if its name
+         * contains "Ã" (the telltale sign of UTF-8 bytes misread as Latin-1/Windows-1252).
+         * For each malformed category we find the correct version by matching the ASCII suffix
+         * (e.g. "picerie" matches "Épicerie"), move any linked products, then delete it.
+         */
+        private void cleanupMalformedCategories() {
+                List<Categorie> allCategories = new ArrayList<>(categorieRepository.findAll());
+                // Separate into good and malformed
+                List<Categorie> malformed = allCategories.stream()
+                                .filter(c -> c.getNom().contains("\u00C3"))  // "Ã" in Latin-1
+                                .toList();
+                if (malformed.isEmpty())
+                        return;
+
+                List<Categorie> good = allCategories.stream()
+                                .filter(c -> !c.getNom().contains("\u00C3"))
+                                .toList();
+
+                for (Categorie bad : malformed) {
+                        // Extract ASCII-only suffix for matching (e.g. "Ãƒâ€°picerie" -> "picerie")
+                        String suffix = bad.getNom().replaceAll("[^a-zA-Z ]", "").trim().toLowerCase();
+
+                        Categorie match = good.stream()
+                                        .filter(g -> {
+                                                String gs = g.getNom().replaceAll("[^a-zA-Z ]", "").trim().toLowerCase();
+                                                return gs.equals(suffix) || gs.endsWith(suffix) || suffix.endsWith(gs);
+                                        })
+                                        .findFirst().orElse(null);
+
+                        if (match != null) {
+                                // Move products from malformed to correct category
+                                List<Produit> products = produitRepository.findByCategorie(bad);
+                                for (Produit p : products) {
+                                        p.setCategorie(match);
+                                        produitRepository.save(p);
+                                }
+                                categorieRepository.delete(bad);
+                                System.out.println("  🧹 Removed malformed category '" + bad.getNom()
+                                                + "' (ID " + bad.getId() + "), merged into '" + match.getNom() + "'");
+                        } else {
+                                // No correct version yet — fix the name by stripping mojibake
+                                // This maps known suffixes to correct names
+                                String corrected = guessCorrectedName(suffix);
+                                if (corrected != null) {
+                                        bad.setNom(corrected);
+                                        categorieRepository.save(bad);
+                                        System.out.println("  🔧 Renamed malformed category ID " + bad.getId()
+                                                        + " to '" + corrected + "'");
+                                }
+                        }
+                }
+        }
+
+        private String guessCorrectedName(String asciiSuffix) {
+                Map<String, String> suffixToName = Map.of(
+                                "picerie", "Épicerie",
+                                "th caf  infusions", "Thé Café & Infusions",
+                                "hygine corporelle", "Hygiène Corporelle",
+                                "lectronique", "Électronique");
+                for (Map.Entry<String, String> e : suffixToName.entrySet()) {
+                        if (asciiSuffix.contains(e.getKey()))
+                                return e.getValue();
+                }
+                return null;
+        }
+
         // ──────────────────────────────────────────────────────────────
         // FOURNISSEURS + CLIENTS
         // ──────────────────────────────────────────────────────────────
@@ -209,48 +309,61 @@ public class DataInitializer implements CommandLineRunner {
                 System.out.println("🌱 Seeding Fournisseurs...");
                 String encodedPassword = passwordEncoder.encode("password123");
 
+                // Each map now includes an "image" key with the seed image filename
                 List<Map<String, String>> fournisseurs = List.of(
                                 Map.of("nom", "Karim El Amrani", "entreprise", "Distribution Al Baraka",
                                                 "email", "karim.elamrani@gmail.com", "telephone", "+212 6 12 34 56 01",
                                                 "adresse", "12 Avenue Saada, Casablanca",
+                                                "image", "distribution-al-baraka.png",
                                                 "description", "Spécialiste de l'épicerie fine et des produits de base au Maroc depuis plus de 15 ans. Nous garantissons une qualité irréprochable et une livraison rapide."),
                                 Map.of("nom", "Youssef Bennani", "entreprise", "Atlas Boissons Pro",
                                                 "email", "youssef.bennani@gmail.com", "telephone", "+212 6 12 34 56 02",
                                                 "adresse", "24 Avenue Saada, Rabat",
+                                                "image", "atlas-boissons-pro.png",
                                                 "description", "Le partenaire privilégié pour tous vos besoins en boissons rafraîchissantes et eaux minérales filtrées."),
                                 Map.of("nom", "Fatima-Zahra Chraibi", "entreprise", "Laiterie du Nord",
                                                 "email", "fatimazahra.chraibi@gmail.com", "telephone",
                                                 "+212 6 12 34 56 03",
                                                 "adresse", "8 Avenue Saada, Tanger",
+                                                "image", "laiterie-du-nord.png",
                                                 "description", "Produits laitiers frais issus des meilleures fermes du nord du pays. Tradition et fraîcheur garanties."),
                                 Map.of("nom", "Omar Lahlou", "entreprise", "Saveurs d'Orient Négoc",
                                                 "email", "omar.lahlou@gmail.com", "telephone", "+212 6 12 34 56 04",
                                                 "adresse", "31 Avenue Saada, Fès",
+                                                "image", "saveurs-dorient-negoc.png",
                                                 "description", "Expert en thés et cafés de haute qualité. Nous importons les meilleures saveurs pour le plaisir de vos clients."),
                                 Map.of("nom", "Mehdi El Idrissi", "entreprise", "Zitounia Express",
                                                 "email", "mehdi.elidrissi@gmail.com", "telephone", "+212 6 12 34 56 05",
                                                 "adresse", "17 Avenue Saada, Marrakech",
+                                                "image", "zitounia-express.png",
                                                 "description", "Le meilleur des huiles et olives du terroir marocain, livré directement à votre magasin."),
                                 Map.of("nom", "Khadija Tazi", "entreprise", "Propreté Maghreb",
                                                 "email", "khadija.tazi@gmail.com", "telephone", "+212 6 12 34 56 06",
                                                 "adresse", "5 Avenue Saada, Agadir",
+                                                "image", "proprete-maghreb.png",
                                                 "description", "Solutions professionnelles de nettoyage et d'entretien pour tous types d'établissements."),
                                 Map.of("nom", "Imane Alaoui", "entreprise", "Beauté & Soins Casa",
                                                 "email", "imane.alaoui@gmail.com", "telephone", "+212 6 12 34 56 07",
                                                 "adresse", "19 Avenue Saada, Casablanca",
+                                                "image", "beaute-soins-casa.png",
                                                 "description", "Large gamme de produits d'hygiène et de soins corporels pour toute la famille."),
                                 Map.of("nom", "Amine Bennis", "entreprise", "Papeterie Al Wifaq",
                                                 "email", "amine.bennis@gmail.com", "telephone", "+212 6 12 34 56 08",
                                                 "adresse", "43 Avenue Saada, Meknès",
+                                                "image", "papeterie-al-wifaq.png",
                                                 "description", "Fournitures de bureau et produits papier indispensables pour votre commerce."),
                                 Map.of("nom", "Hamza El Fassi", "entreprise", "Tech Maroc Solutions",
                                                 "email", "hamza.elfassi@gmail.com", "telephone", "+212 6 12 34 56 09",
                                                 "adresse", "27 Avenue Saada, Casablanca",
+                                                "image", "tech-maroc-solutions.png",
                                                 "description", "Équipements électroniques et solutions technologiques modernes pour le commerce de détail."));
 
                 int added = 0;
                 for (Map<String, String> f : fournisseurs) {
                         try {
+                                String imageFileName = f.get("image");
+                                String imagePath = copySeedImage(imageFileName, imageFileName);
+
                                 if (!utilisateurRepository.existsByEmail(f.get("email"))) {
                                         Fournisseur fournisseur = Fournisseur.builder()
                                                         .nom(f.get("nom"))
@@ -262,13 +375,23 @@ public class DataInitializer implements CommandLineRunner {
                                                         .nomEntreprise(f.get("entreprise"))
                                                         .infoContact(f.get("telephone"))
                                                         .description(f.get("description"))
-                                                        .status(f.get("nom").contains("El Amrani") || f.get("nom").contains("Bennani") 
-                                                                ? ma.smartsupply.enums.SupplierStatus.VERIFIED 
+                                                        .image(imagePath)
+                                                        .status(f.get("nom").contains("El Amrani") || f.get("nom").contains("Bennani")
+                                                                ? ma.smartsupply.enums.SupplierStatus.VERIFIED
                                                                 : ma.smartsupply.enums.SupplierStatus.PENDING_APPROVAL)
                                                         .build();
                                         utilisateurRepository.save(fournisseur);
-                                        System.out.println("  ➕ Fournisseur créé: " + f.get("email"));
+                                        System.out.println("  ➕ Fournisseur créé: " + f.get("email") + " (image: " + imagePath + ")");
                                         added++;
+                                } else {
+                                        // Update image for existing suppliers that have no image yet
+                                        utilisateurRepository.findByEmail(f.get("email")).ifPresent(u -> {
+                                                if (u.getImage() == null || u.getImage().isBlank()) {
+                                                        u.setImage(imagePath);
+                                                        utilisateurRepository.save(u);
+                                                        System.out.println("  🖼️ Image set for existing supplier: " + f.get("email"));
+                                                }
+                                        });
                                 }
                         } catch (Exception e) {
                                 System.err.println("  ⚠️ Fournisseur skip (" + f.get("email") + "): " + e.getMessage());
@@ -637,6 +760,7 @@ public class DataInitializer implements CommandLineRunner {
                                                         .fournisseur(fournisseur)
                                                         .categorie(categorie)
                                                         .actif(true)
+                                                        .statutApprobation(StatutProduit.APPROVED)
                                                         .build();
                                         produit = produitRepository.save(produit);
 

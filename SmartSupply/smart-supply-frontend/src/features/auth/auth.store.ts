@@ -1,5 +1,6 @@
 import { getStorageItem, setStorageItem, removeStorageItem } from '../../utils/storage';
 import { decodeToken, isTokenValid } from './auth.utils';
+import { authApi } from '../../api/auth.api';
 
 export const AuthStore = {
     getToken: () => getStorageItem('ss_token'),
@@ -34,6 +35,14 @@ export const AuthStore = {
         }
         return null;
     },
+    getEmail: () => {
+        const token = getStorageItem('ss_token');
+        if (token && isTokenValid(token)) {
+            const decoded = decodeToken(token);
+            return decoded?.sub || null;
+        }
+        return null;
+    },
     login: (token: string, role: string, name?: string) => {
         setStorageItem('ss_token', token);
         setStorageItem('ss_role', role);
@@ -42,6 +51,17 @@ export const AuthStore = {
         }
     },
     logout: () => {
+        // Fire-and-forget logout log to backend
+        try {
+            const token = getStorageItem('ss_token');
+            if (token && isTokenValid(token)) {
+                const decoded = decodeToken(token);
+                const email = decoded?.sub || 'unknown';
+                authApi.logout(email);
+            }
+        } catch (_) {
+            // Ignore errors — logout must always succeed locally
+        }
         removeStorageItem('ss_token');
         removeStorageItem('ss_role');
         removeStorageItem('ss_name');

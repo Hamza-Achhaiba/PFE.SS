@@ -6,6 +6,13 @@ import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { Truck, Heart, UserX } from 'lucide-react';
 import { User } from '../../../api/types';
 
+const resolveImage = (url: string | undefined) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+    return `${backendUrl}${url}`;
+};
+
 export const FavoritesPage: React.FC = () => {
     const [favorites, setFavorites] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +48,7 @@ export const FavoritesPage: React.FC = () => {
                 <div className="soft-badge primary rounded-circle p-2">
                     <Heart size={24} fill="white" color="white" />
                 </div>
-                <h4 className="fw-bold mb-0">Mes Fournisseurs Favoris</h4>
+                <h4 className="fw-bold mb-0">My Favorite Suppliers</h4>
             </div>
 
             {isLoading ? <SoftLoader /> : (
@@ -57,8 +64,28 @@ export const FavoritesPage: React.FC = () => {
                                     <Heart size={20} fill="currentColor" />
                                 </button>
 
-                                <div className="soft-badge info rounded-circle p-3 mb-3">
-                                    <Truck size={32} color="white" />
+                                <div
+                                    className="rounded-circle p-1 mb-3"
+                                    style={{
+                                        width: 84,
+                                        height: 84,
+                                        background: 'linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.08)), var(--soft-bg, #f8fafc)',
+                                        border: '1px solid rgba(148,163,184,0.28)',
+                                        boxShadow: '0 8px 20px rgba(15,23,42,0.10)',
+                                    }}
+                                >
+                                    <div
+                                        className="rounded-circle w-100 h-100 d-flex align-items-center justify-content-center overflow-hidden"
+                                        style={{ background: 'var(--soft-bg, #f1f5f9)' }}
+                                    >
+                                        {fournisseur.image ? (
+                                            <img src={resolveImage(fournisseur.image)} alt={fournisseur.nomEntreprise || fournisseur.nom} className="w-100 h-100 object-fit-cover" />
+                                        ) : (
+                                            <div className="soft-badge info rounded-circle p-3">
+                                                <Truck size={32} color="white" />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <Link 
                                     to={`/client/suppliers/${fournisseur.id}`}

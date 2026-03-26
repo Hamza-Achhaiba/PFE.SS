@@ -2,6 +2,7 @@ package ma.smartsupply.service;
 
 import ma.smartsupply.dto.ProduitRequest;
 import ma.smartsupply.dto.ProduitResponse;
+import ma.smartsupply.enums.StatutProduit;
 import ma.smartsupply.enums.SupplierStatus;
 import ma.smartsupply.enums.TypeNotification;
 import ma.smartsupply.model.Categorie;
@@ -70,9 +71,49 @@ public class ProduitService {
     }
 
     public List<ProduitResponse> getAllProduits() {
+        return produitRepository.findByStatutApprobation(StatutProduit.APPROVED).stream()
+                .map(this::mapToProduitResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<ProduitResponse> getAllProduitsAdmin() {
         return produitRepository.findAll().stream()
                 .map(this::mapToProduitResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public ProduitResponse updateStatutApprobation(Long produitId, StatutProduit statut) {
+        Produit produit = produitRepository.findById(produitId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produit non trouvé"));
+        produit.setStatutApprobation(statut);
+        produitRepository.save(produit);
+        return mapToProduitResponse(produit);
+    }
+
+    @Transactional
+    public void supprimerProduitParAdmin(Long produitId) {
+        Produit produit = produitRepository.findById(produitId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Produit non trouvé"));
+
+        if (ligneCommandeRepository.existsByProduitId(produitId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This product cannot be deleted because it is linked to existing orders. Consider rejecting it instead.");
+        }
+
+        lignePanierRepository.deleteByProduitId(produitId);
+
+        if (produit.getImage() != null && !produit.getImage().isEmpty()) {
+            try {
+                String fileName = produit.getImage().substring(produit.getImage().lastIndexOf("/") + 1);
+                java.nio.file.Path imagePath = java.nio.file.Paths.get("uploads/produits").resolve(fileName);
+                java.nio.file.Files.deleteIfExists(imagePath);
+            } catch (Exception e) {
+                System.err.println("Error deleting product image: " + e.getMessage());
+            }
+        }
+
+        produitRepository.delete(produit);
     }
 
     public List<ProduitResponse> getMesProduits(String emailFournisseur) {
@@ -247,6 +288,7 @@ public class ProduitService {
                 .quantiteMinimumCommande(p.getQuantiteMinimumCommande() != null ? p.getQuantiteMinimumCommande() : 1)
                 .alerteStock(isAlerte)
                 .actif(p.isActif())
+                .statutApprobation(p.getStatutApprobation())
                 .build();
     }
 

@@ -3,6 +3,7 @@ package ma.smartsupply.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import ma.smartsupply.enums.StatutProduit;
 
 @Entity
 @Data
@@ -28,6 +29,10 @@ public class Produit {
 
     @Builder.Default
     private boolean actif = true;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private StatutProduit statutApprobation = StatutProduit.PENDING;
 
     @ManyToOne
     @JoinColumn(name = "fournisseur_id")

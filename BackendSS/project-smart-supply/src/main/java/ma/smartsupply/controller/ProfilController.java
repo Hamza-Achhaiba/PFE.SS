@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import ma.smartsupply.dto.UpdateProfilRequest;
 import ma.smartsupply.dto.ChangePasswordRequest;
 import ma.smartsupply.model.Utilisateur;
+import ma.smartsupply.service.ActivityLogService;
 import ma.smartsupply.service.UtilisateurService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import java.security.Principal;
 public class ProfilController {
 
     private final UtilisateurService utilisateurService;
+    private final ActivityLogService activityLogService;
 
     @GetMapping("/moi")
     @PreAuthorize("isAuthenticated()")
@@ -30,6 +32,8 @@ public class ProfilController {
             @RequestBody UpdateProfilRequest request,
             Principal principal) {
         Utilisateur profilMaj = utilisateurService.mettreAJourProfil(principal.getName(), request);
+        activityLogService.logByEmail(principal.getName(), "PROFILE_UPDATED", "USER",
+                String.valueOf(profilMaj.getId()), profilMaj.getNom(), "Profile information updated");
         return ResponseEntity.ok(profilMaj);
     }
 
@@ -39,6 +43,8 @@ public class ProfilController {
             @RequestBody ChangePasswordRequest request,
             Principal principal) {
         utilisateurService.changerMotDePasse(principal.getName(), request);
+        activityLogService.logByEmail(principal.getName(), "PASSWORD_CHANGED", "AUTH",
+                null, principal.getName(), "Password changed successfully");
         return ResponseEntity.ok().build();
     }
 

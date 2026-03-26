@@ -2,6 +2,7 @@ package ma.smartsupply.dto;
 
 import lombok.Builder;
 import lombok.Data;
+import ma.smartsupply.enums.StatutProduit;
 
 @Data
 @Builder
@@ -21,4 +22,5 @@ public class ProduitResponse {
     private Integer quantiteMinimumCommande;
     private boolean alerteStock;
     private boolean actif;
+    private StatutProduit statutApprobation;
 }

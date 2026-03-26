@@ -3,6 +3,7 @@ package ma.smartsupply.controller;
 import lombok.RequiredArgsConstructor;
 import ma.smartsupply.dto.AnalyticsStatsResponse;
 import ma.smartsupply.dto.SalesTimelineResponse;
+import ma.smartsupply.dto.SpendingTimelineResponse;
 import ma.smartsupply.dto.TopProduitResponse;
 import ma.smartsupply.service.AnalyticsService;
 import org.springframework.http.ResponseEntity;
@@ -22,20 +23,26 @@ public class AnalyticsController {
     private final AnalyticsService analyticsService;
 
     @GetMapping("/fournisseur/stats")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<AnalyticsStatsResponse> getFournisseurStats(Principal principal) {
         AnalyticsStatsResponse stats = analyticsService.getFournisseurStats(principal.getName());
         return ResponseEntity.ok(stats);
     }
 
     @GetMapping("/fournisseur/sales-timeline")
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<SalesTimelineResponse>> getSalesTimeline(Principal principal) {
         return ResponseEntity.ok(analyticsService.getSalesTimeline(principal.getName()));
     }
 
+    @GetMapping("/client/spending-timeline")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<SpendingTimelineResponse>> getClientSpendingTimeline(Principal principal) {
+        return ResponseEntity.ok(analyticsService.getClientSpendingTimeline(principal.getName()));
+    }
+
     @GetMapping("/fournisseur/top-produits") // matched to frontend '/api/analytics/fournisseur/top-produits'
-    @PreAuthorize("hasAuthority('FOURNISSEUR')")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<TopProduitResponse>> getTopProduits(Principal principal) {
         return ResponseEntity.ok(analyticsService.getTopProduits(principal.getName()));
     }

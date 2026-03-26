@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare, AlertCircle, ClipboardList } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
 import appLogo from '../../assets/app-logo.png';
 
@@ -17,7 +17,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/client/orders', icon: <FileText size={20} />, label: 'Orders' },
         { to: '/client/suppliers', icon: <Users size={20} />, label: 'Suppliers' },
         { to: '/client/notifications', icon: <Bell size={20} />, label: 'Notifications' },
-        { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favoris' },
+        { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favorites' },
         { to: '/client/messages', icon: <MessageSquare size={20} />, label: 'Messages' },
         { to: '/client/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/client/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
@@ -39,8 +39,10 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
         { to: '/admin/clients', icon: <User size={20} />, label: 'Manage Clients' },
         { to: '/admin/suppliers', icon: <Users size={20} />, label: 'Manage Suppliers' },
+        { to: '/admin/products', icon: <Package size={20} />, label: 'Manage Products' },
         { to: '/admin/orders', icon: <FileText size={20} />, label: 'Global Orders' },
         { to: '/admin/disputes', icon: <AlertCircle size={20} />, label: 'Disputes & Refunds' },
+        { to: '/admin/activity-logs', icon: <ClipboardList size={20} />, label: 'Activity Logs' },
         { to: '/admin/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/admin/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
@@ -68,15 +70,15 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                             overflow: 'hidden'
                         }}
                     >
-                        <img 
-                            src={appLogo} 
-                            alt="Smart Supply Logo" 
-                            style={{ 
-                                width: '100%', 
-                                height: '100%', 
+                        <img
+                            src={appLogo}
+                            alt="Smart Supply Logo"
+                            style={{
+                                width: '100%',
+                                height: '100%',
                                 objectFit: 'contain',
                                 padding: '1px'
-                            }} 
+                            }}
                         />
                     </div>
                     <div>

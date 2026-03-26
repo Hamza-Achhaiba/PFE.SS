@@ -5,6 +5,7 @@ import {
     MoreHorizontal,
     Pause,
     RotateCcw,
+    Search,
     Trash2,
     Users,
     X
@@ -78,6 +79,16 @@ const getClientActions = (status: ClientStatus): ClientAction[] => {
     ];
 };
 
+// Filter pill definition: label shown in UI → ClientStatus value(s) to match
+type ClientStatusFilter = 'ALL' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
+
+const CLIENT_FILTER_PILLS: { key: ClientStatusFilter; label: string }[] = [
+    { key: 'ALL',       label: 'All'       },
+    { key: 'ACTIVE',    label: 'Approved'  },
+    { key: 'SUSPENDED', label: 'Suspended' },
+    { key: 'REJECTED',  label: 'Removed'   },
+];
+
 export const AdminClientsPage: React.FC = () => {
     const [clients, setClients] = useState<AdminClient[]>([]);
     const [loading, setLoading] = useState(true);
@@ -86,6 +97,8 @@ export const AdminClientsPage: React.FC = () => {
     const [clientToDelete, setClientToDelete] = useState<AdminClient | null>(null);
     const [selectedClient, setSelectedClient] = useState<AdminClient | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<ClientStatusFilter>('ALL');
     const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
     const loadClients = () => {
@@ -150,6 +163,36 @@ export const AdminClientsPage: React.FC = () => {
         REJECTED: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444' }
     }), []);
 
+    const filteredClients = useMemo(() => {
+        return clients.filter((c) => {
+            const q = searchTerm.toLowerCase();
+            const matchesSearch = q === '' ||
+                c.nom.toLowerCase().includes(q) ||
+                c.email.toLowerCase().includes(q) ||
+                (c.nomMagasin && c.nomMagasin.toLowerCase().includes(q)) ||
+                (c.telephone && c.telephone.toLowerCase().includes(q));
+            const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+            return matchesSearch && matchesStatus;
+        });
+    }, [clients, searchTerm, statusFilter]);
+
+    const statusCounts = useMemo(() => {
+        const counts: Record<ClientStatusFilter, number> = { ALL: clients.length, ACTIVE: 0, SUSPENDED: 0, REJECTED: 0 };
+        clients.forEach((c) => {
+            if (c.status === 'ACTIVE') counts.ACTIVE++;
+            else if (c.status === 'SUSPENDED') counts.SUSPENDED++;
+            else if (c.status === 'REJECTED') counts.REJECTED++;
+        });
+        return counts;
+    }, [clients]);
+
+    const pillActiveStyles: Record<ClientStatusFilter, { bg: string; color: string }> = {
+        ALL:       { bg: 'var(--soft-primary)', color: '#fff' },
+        ACTIVE:    { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981' },
+        SUSPENDED: { bg: 'rgba(249, 115, 22, 0.15)',  color: '#f97316' },
+        REJECTED:  { bg: 'rgba(239, 68, 68, 0.15)',   color: '#ef4444' },
+    };
+
     return (
         <div className="container-fluid p-0">
             <div className="mb-4">
@@ -158,6 +201,45 @@ export const AdminClientsPage: React.FC = () => {
                     <h4 className="mb-0 fw-bold">Manage Clients</h4>
                 </div>
                 <p className="text-muted mb-0">Approve, suspend or remove registered client accounts</p>
+            </div>
+
+            {/* Filter bar — same pattern as Manage Products */}
+            <div className="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                <div className="position-relative flex-grow-1" style={{ maxWidth: '320px' }}>
+                    <Search size={16} className="position-absolute text-muted" style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                        type="text"
+                        className="form-control rounded-pill ps-5"
+                        placeholder="Search clients..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            background: 'var(--soft-glass-bg)',
+                            border: '1px solid var(--soft-border)',
+                            fontSize: '0.85rem'
+                        }}
+                    />
+                </div>
+                {CLIENT_FILTER_PILLS.map(({ key, label }) => {
+                    const isActive = statusFilter === key;
+                    const active = pillActiveStyles[key];
+                    return (
+                        <button
+                            key={key}
+                            className={`btn btn-sm rounded-pill px-3 fw-medium ${isActive ? 'active' : ''}`}
+                            onClick={() => setStatusFilter(key)}
+                            style={{
+                                background: isActive ? active.bg : 'var(--soft-glass-bg)',
+                                color: isActive ? active.color : 'var(--soft-text)',
+                                border: `1px solid ${isActive ? 'transparent' : 'var(--soft-border)'}`,
+                                fontSize: '0.78rem',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {label} ({statusCounts[key]})
+                        </button>
+                    );
+                })}
             </div>
 
             <SoftCard>
@@ -171,7 +253,7 @@ export const AdminClientsPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {clients.map((client) => {
+                            {filteredClients.map((client) => {
                                 const actions = getClientActions(client.status);
                                 const menuOpen = activeMenuId === client.id;
 
@@ -259,7 +341,7 @@ export const AdminClientsPage: React.FC = () => {
                             {loading && (
                                 <tr><td colSpan={3} className="text-center py-4"><div className="spinner-border spinner-border-sm text-primary"></div></td></tr>
                             )}
-                            {!loading && clients.length === 0 && (
+                            {!loading && filteredClients.length === 0 && (
                                 <tr><td colSpan={3} className="text-center text-muted py-4">No clients found.</td></tr>
                             )}
                         </tbody>
