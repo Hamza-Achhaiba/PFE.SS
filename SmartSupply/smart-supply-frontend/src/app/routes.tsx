@@ -75,7 +75,9 @@ export const AppRoutes = () => {
                         <Route path="dashboard" element={<SupplierDashboard />} />
                         <Route path="products" element={<ProductsPage />} />
                         <Route path="orders" element={<SalesOrdersPage />} />
-                        <Route path="clients" element={<ClientsPage />} />
+                        <Route path="clients" element={<Navigate to="clients/engaged" replace />} />
+                        <Route path="clients/engaged" element={<ClientsPage mode="engaged" />} />
+                        <Route path="clients/unique" element={<ClientsPage mode="unique" />} />
                         <Route path="notifications" element={<SupplierNotifications />} />
                         <Route path="profile" element={<MyProfilePage />} />
                         <Route path="messages" element={<MessagesPage />} />

@@ -1,6 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare, AlertCircle, ClipboardList } from 'lucide-react';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Package, ShoppingCart, FileText, Users, Bell, LogOut, PackagePlus, Settings, X, Layers, Heart, User, ShieldCheck, MessageSquare, AlertCircle, ClipboardList, ChevronDown } from 'lucide-react';
 import { AuthStore } from '../../features/auth/auth.store';
 import appLogo from '../../assets/app-logo.png';
 
@@ -8,6 +8,10 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const role = AuthStore.getRole();
     const isClient = role === 'CLIENT';
     const isAdmin = role === 'ADMIN';
+    const location = useLocation();
+    const [clientsOpen, setClientsOpen] = useState(
+        location.pathname.startsWith('/supplier/clients')
+    );
 
     const clientLinks = [
         { to: '/client/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -27,7 +31,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/supplier/profile', icon: <User size={20} />, label: 'Supplier Profile' },
         { to: '/supplier/products', icon: <PackagePlus size={20} />, label: 'My Products' },
         { to: '/supplier/orders', icon: <FileText size={20} />, label: 'Sales Orders' },
-        { to: '/supplier/clients', icon: <Users size={20} />, label: 'Clients' },
+        // clients dropdown handled separately below
         { to: '/supplier/notifications', icon: <Bell size={20} />, label: 'Notifications' },
         { to: '/supplier/messages', icon: <MessageSquare size={20} />, label: 'Messages' },
         { to: '/supplier/settings', icon: <Settings size={20} />, label: 'Settings' },
@@ -51,6 +55,8 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const handleLogout = () => {
         AuthStore.logout();
     };
+
+    const isClientsActive = location.pathname.startsWith('/supplier/clients');
 
     return (
         <div className="soft-sidebar">
@@ -95,16 +101,67 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </div>
 
             <nav className="flex-grow-1 overflow-y-auto pr-2 custom-scrollbar" style={{ minHeight: 0 }}>
-                {links.map((link) => (
-                    <NavLink
-                        key={link.to}
-                        to={link.to}
-                        className={({ isActive }) => `soft-nav-item text-decoration-none ${isActive ? 'active' : ''}`}
-                    >
-                        {link.icon}
-                        <span>{link.label}</span>
-                    </NavLink>
-                ))}
+                {links.map((link, index) => {
+                    // Inject the Clients dropdown after Sales Orders (index 3 in supplierLinks)
+                    const isAfterOrders = !isClient && !isAdmin && link.to === '/supplier/notifications';
+                    return (
+                        <React.Fragment key={link.to}>
+                            {isAfterOrders && (
+                                <div>
+                                    {/* Clients dropdown toggle */}
+                                    <button
+                                        onClick={() => setClientsOpen(o => !o)}
+                                        className={`soft-nav-item text-decoration-none w-100 border-0 bg-transparent text-start d-flex align-items-center gap-2${isClientsActive ? ' active' : ''}`}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <Users size={20} />
+                                        <span style={{ flex: 1 }}>Clients</span>
+                                        <ChevronDown
+                                            size={14}
+                                            style={{
+                                                transition: 'transform 0.2s',
+                                                transform: clientsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                                opacity: 0.6,
+                                            }}
+                                        />
+                                    </button>
+                                    {/* Sub-items */}
+                                    {clientsOpen && (
+                                        <div style={{ paddingLeft: '2rem' }}>
+                                            <NavLink
+                                                to="/supplier/clients/engaged"
+                                                className={({ isActive }) =>
+                                                    `soft-nav-item text-decoration-none${isActive ? ' active' : ''}`
+                                                }
+                                                style={{ fontSize: '0.9rem' }}
+                                            >
+                                                <span className="ms-1">Engaged Clients</span>
+                                            </NavLink>
+                                            <NavLink
+                                                to="/supplier/clients/unique"
+                                                className={({ isActive }) =>
+                                                    `soft-nav-item text-decoration-none${isActive ? ' active' : ''}`
+                                                }
+                                                style={{ fontSize: '0.9rem' }}
+                                            >
+                                                <span className="ms-1">Unique Clients</span>
+                                            </NavLink>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <NavLink
+                                to={link.to}
+                                className={({ isActive }) =>
+                                    `soft-nav-item text-decoration-none ${isActive ? 'active' : ''}`
+                                }
+                            >
+                                {link.icon}
+                                <span>{link.label}</span>
+                            </NavLink>
+                        </React.Fragment>
+                    );
+                })}
             </nav>
 
             <div className="pt-3 mt-auto border-top border-soft">

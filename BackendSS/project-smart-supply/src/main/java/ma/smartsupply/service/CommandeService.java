@@ -33,7 +33,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -267,6 +269,91 @@ public class CommandeService {
                 .findDistinctByLignes_Produit_Fournisseur_EmailOrderByDateCreationDesc(emailFournisseur)
                 .stream()
                 .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClientEngagementDTO> getMesClientsEngages(String emailFournisseur) {
+        List<Commande> orders = commandeRepository
+                .findDistinctByLignes_Produit_Fournisseur_EmailOrderByDateCreationDesc(emailFournisseur);
+
+        Map<Long, ClientEngagementDTO> clientMap = new LinkedHashMap<>();
+        for (Commande order : orders) {
+            Client client = order.getClient();
+            clientMap.computeIfAbsent(client.getId(), id -> {
+                ClientEngagementDTO dto = new ClientEngagementDTO();
+                dto.setId(client.getId());
+                dto.setNom(client.getNom());
+                dto.setEmail(client.getEmail());
+                dto.setTelephone(client.getTelephone());
+                dto.setNomMagasin(client.getNomMagasin());
+                dto.setAdresse(client.getAdresse());
+                dto.setOrderCount(0);
+                dto.setTotalSpent(0.0);
+                return dto;
+            });
+            ClientEngagementDTO dto = clientMap.get(client.getId());
+            dto.setOrderCount(dto.getOrderCount() + 1);
+            double amount = order.getMontantTotal() != null ? order.getMontantTotal() : 0.0;
+            dto.setTotalSpent(dto.getTotalSpent() + amount);
+            if (dto.getLastOrderDate() == null || order.getDateCreation().isAfter(dto.getLastOrderDate())) {
+                dto.setLastOrderDate(order.getDateCreation());
+            }
+        }
+        return new ArrayList<>(clientMap.values());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommandeResponse> getOrdersByClientForSupplier(Long clientId, String supplierEmail) {
+        return commandeRepository
+                .findDistinctByClientIdAndLignes_Produit_Fournisseur_EmailOrderByDateCreationDesc(clientId, supplierEmail)
+                .stream()
+                .map(c -> mapToDTOFilteredBySupplier(c, supplierEmail))
+                .collect(Collectors.toList());
+    }
+
+    private CommandeResponse mapToDTOFilteredBySupplier(Commande commande, String supplierEmail) {
+        CommandeResponse dto = new CommandeResponse();
+        dto.setId(commande.getId());
+        dto.setReference(commande.getReference());
+        dto.setDateCreation(commande.getDateCreation());
+        dto.setStatut(commande.getStatut().name());
+        dto.setPaymentStatus(commande.getPaymentStatus() != null ? commande.getPaymentStatus().name() : null);
+
+        UtilisateurInfoDTO clientDto = new UtilisateurInfoDTO();
+        clientDto.setId(commande.getClient().getId());
+        clientDto.setNom(commande.getClient().getNom());
+        clientDto.setEmail(commande.getClient().getEmail());
+        clientDto.setTelephone(commande.getClient().getTelephone());
+        dto.setClient(clientDto);
+
+        List<LigneCommandeInfoDTO> lignesDto = commande.getLignes().stream()
+                .filter(l -> l.getProduit().getFournisseur().getEmail().equals(supplierEmail))
+                .map(ligne -> {
+                    LigneCommandeInfoDTO lDto = new LigneCommandeInfoDTO();
+                    lDto.setId(ligne.getId());
+                    lDto.setQuantite(ligne.getQuantite());
+                    lDto.setSousTotal(ligne.getSousTotal() != null ? ligne.getSousTotal() : 0.0);
+                    ProduitInfoDTO pDto = new ProduitInfoDTO();
+                    pDto.setId(ligne.getProduit().getId());
+                    pDto.setNom(ligne.getProduit().getNom());
+                    pDto.setPrix(ligne.getProduit().getPrix());
+                    lDto.setProduit(pDto);
+                    return lDto;
+                })
+                .collect(Collectors.toList());
+        dto.setLignes(lignesDto);
+
+        double total = lignesDto.stream().mapToDouble(LigneCommandeInfoDTO::getSousTotal).sum();
+        dto.setMontantTotal(total);
+
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClientEngagementDTO> getMesClientsUniques(String emailFournisseur) {
+        return getMesClientsEngages(emailFournisseur).stream()
+                .filter(c -> c.getOrderCount() >= 10)
                 .collect(Collectors.toList());
     }
 

@@ -26,6 +26,8 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
 
     List<Commande> findDistinctByLignes_Produit_Fournisseur_Email(String email);
 
+    List<Commande> findDistinctByClientIdAndLignes_Produit_Fournisseur_EmailOrderByDateCreationDesc(Long clientId, String supplierEmail);
+
     List<Commande> findByClientEmailAndStatutOrderByDateCreationDesc(String email, StatutCommande statut);
     
     long countByRefundRequestStatusIsNotNull();

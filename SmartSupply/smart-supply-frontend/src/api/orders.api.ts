@@ -5,6 +5,9 @@ export const ordersApi = {
     validerPanier: (data: any) => apiClient.post('/api/commandes/valider-panier', data).then(res => res.data),
     mesAchats: () => apiClient.get<Commande[]>('/api/commandes/mes-achats').then(res => res.data),
     mesVentes: () => apiClient.get<Commande[]>('/api/commandes/mes-ventes').then(res => res.data),
+    mesClients: () => apiClient.get('/api/commandes/mes-clients').then(res => res.data),
+    mesClientsUniques: () => apiClient.get('/api/commandes/mes-clients-uniques').then(res => res.data),
+    ventesParClient: (clientId: number) => apiClient.get<Commande[]>(`/api/commandes/mes-ventes/client/${clientId}`).then(res => res.data),
     valider: (id: number) => apiClient.put(`/api/commandes/${id}/valider`).then(res => res.data),
     updateStatut: (id: number, nouveauStatut: string) =>
         apiClient.patch(`/api/commandes/${id}/statut`, { nouveauStatut }).then(res => res.data),

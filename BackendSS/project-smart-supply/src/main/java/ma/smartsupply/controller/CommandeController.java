@@ -1,6 +1,7 @@
 package ma.smartsupply.controller;
 
 import ma.smartsupply.dto.CheckoutRequest;
+import ma.smartsupply.dto.ClientEngagementDTO;
 import ma.smartsupply.dto.CommandeRequest;
 import ma.smartsupply.dto.CommandeResponse;
 import ma.smartsupply.dto.RaiseDisputeRequest;
@@ -91,6 +92,26 @@ public class CommandeController {
     @PreAuthorize("hasRole('FOURNISSEUR')")
     public ResponseEntity<List<CommandeResponse>> getMesVentes(Principal principal) {
         return ResponseEntity.ok(commandeService.getMesVentes(principal.getName()));
+    }
+
+    @GetMapping("/mes-clients")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
+    public ResponseEntity<List<ClientEngagementDTO>> getMesClients(Principal principal) {
+        return ResponseEntity.ok(commandeService.getMesClientsEngages(principal.getName()));
+    }
+
+    @GetMapping("/mes-clients-uniques")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
+    public ResponseEntity<List<ClientEngagementDTO>> getMesClientsUniques(Principal principal) {
+        return ResponseEntity.ok(commandeService.getMesClientsUniques(principal.getName()));
+    }
+
+    @GetMapping("/mes-ventes/client/{clientId}")
+    @PreAuthorize("hasRole('FOURNISSEUR')")
+    public ResponseEntity<List<CommandeResponse>> getOrdersByClient(
+            @PathVariable Long clientId,
+            Principal principal) {
+        return ResponseEntity.ok(commandeService.getOrdersByClientForSupplier(clientId, principal.getName()));
     }
 
     @PostMapping("/valider-panier")
