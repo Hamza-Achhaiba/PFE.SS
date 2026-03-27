@@ -10,6 +10,13 @@ import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { useNavigate } from 'react-router-dom';
 
+const resolveImage = (url: string) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
+  return `${backendUrl}${url}`;
+};
+
 export const CartPage: React.FC = () => {
   const [panier, setPanier] = useState<PanierResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,7 +118,7 @@ export const CartPage: React.FC = () => {
                           style={{ width: '48px', height: '48px', objectFit: 'cover' }}
                         >
                           {item.image ? (
-                            <img src={item.image} alt={item.nomProduit} className="w-100 h-100 rounded" style={{ objectFit: 'cover' }} />
+                            <img src={resolveImage(item.image) || ''} alt={item.nomProduit} className="w-100 h-100 rounded" style={{ objectFit: 'cover' }} />
                           ) : (
                             <ShoppingCart className="text-secondary opacity-50" />
                           )}

@@ -10,6 +10,13 @@ import { toast } from 'react-toastify';
 import { PanierResponse } from '../../../api/types';
 import { ShoppingCart, User, Phone, MapPin, CreditCard, Banknote, ChevronLeft, Minus, Plus, ShieldCheck } from 'lucide-react';
 
+const resolveImage = (url: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
+    return `${backendUrl}${url}`;
+};
+
 export const CheckoutPage: React.FC = () => {
     const [panier, setPanier] = useState<PanierResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -274,7 +281,7 @@ export const CheckoutPage: React.FC = () => {
                                         style={{ width: '60px', height: '60px', flexShrink: 0 }}
                                     >
                                         {item.image ? (
-                                            <img src={item.image} alt={item.nomProduit} className="w-100 h-100 object-fit-cover" />
+                                            <img src={resolveImage(item.image) || ''} alt={item.nomProduit} className="w-100 h-100 object-fit-cover" />
                                         ) : (
                                             <ShoppingCart size={20} className="text-muted opacity-50" />
                                         )}
