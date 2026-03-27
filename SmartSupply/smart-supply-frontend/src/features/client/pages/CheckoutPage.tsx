@@ -96,25 +96,6 @@ export const CheckoutPage: React.FC = () => {
         try {
             const response = await ordersApi.validerPanier(formData);
             toast.success("Payment secured. Your payment is being held in escrow until delivery is confirmed.");
-            
-            // Trigger automatic download
-            if (response && response.id) {
-                try {
-                    const blob = await ordersApi.downloadFacture(response.id);
-                    const url = window.URL.createObjectURL(new Blob([blob]));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', `facture-${response.reference || response.id}.pdf`);
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                    window.URL.revokeObjectURL(url);
-                } catch (downloadError) {
-                    console.error("Failed to download invoice:", downloadError);
-                    toast.warning("Order placed, but invoice download failed. You can find it in your orders.");
-                }
-            }
-            
             navigate(`/client/orders?orderId=${response.id}&escrow=held`);
         } catch (error: any) {
             toast.error(error.response?.data?.message || "Failed to place order");

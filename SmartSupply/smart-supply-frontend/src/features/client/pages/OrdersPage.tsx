@@ -9,7 +9,7 @@ import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { SoftModal } from '../../../components/ui/SoftModal';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle, ChevronDown, FileText, MessageSquare, Package, ShieldCheck, Truck, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, Download, FileText, MessageSquare, Package, ShieldCheck, Truck, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel } from '../../../utils/orderStatus';
 
@@ -38,6 +38,7 @@ export const OrdersPage: React.FC = () => {
   const orderRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [isDownloadingFactureId, setIsDownloadingFactureId] = useState<number | null>(null);
 
   const toggleOrder = (id: number) => {
     setExpandedOrderId((prev) => (prev === id ? null : id));
@@ -92,6 +93,25 @@ export const OrdersPage: React.FC = () => {
       fetchOrders();
     } catch (e: any) {
       toast.error(e.response?.data || 'Failed to cancel order');
+    }
+  };
+
+  const handleDownloadFacture = async (order: Commande) => {
+    setIsDownloadingFactureId(order.id);
+    try {
+      const blob = await ordersApi.downloadFacture(order.id);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `facture-${order.reference || order.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error('Failed to download invoice. Please try again.');
+    } finally {
+      setIsDownloadingFactureId(null);
     }
   };
 
@@ -401,6 +421,17 @@ export const OrdersPage: React.FC = () => {
                             </SoftButton>
                           </div>
                         )}
+
+                        <div className="mt-3 pt-3 border-top">
+                          <SoftButton
+                            className="btn-light border w-100 fw-medium"
+                            onClick={() => handleDownloadFacture(order)}
+                            disabled={isDownloadingFactureId === order.id}
+                          >
+                            <Download size={16} className="me-2" />
+                            {isDownloadingFactureId === order.id ? 'Generating...' : 'Export Facture PDF'}
+                          </SoftButton>
+                        </div>
 
                         <div className="mt-3 pt-3 border-top">
                           <div className="support-action-card rounded-4 p-3">
