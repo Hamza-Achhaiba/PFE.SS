@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { SoftCard } from '../../../components/ui/SoftCard';
+import { SoftModal } from '../../../components/ui/SoftModal';
 import { notificationsApi } from '../../../api/notifications.api';
 import { formatNotificationMessage, getOrderIdFromMessage, getOrderRefFromMessage } from '../../../utils/notificationUtils';
 import { analyticsApi, SupplierAnalyticsStats, SalesTimelinePoint, TopProductPoint } from '../../../api/analytics.api';
@@ -9,10 +10,12 @@ import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YA
 import { format, subDays, parseISO } from 'date-fns';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [stats, setStats] = useState<SupplierAnalyticsStats | null>(null);
   const [timeline, setTimeline] = useState<SalesTimelinePoint[]>([]);
   const [topProducts, setTopProducts] = useState<TopProductPoint[]>([]);
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
 
   useEffect(() => {
     notificationsApi.getNotifications().then(setNotifications).catch(console.error);
@@ -35,21 +38,40 @@ export const Dashboard: React.FC = () => {
       { id: 3, message: 'Low Stock Alert: Requires Replenishment', dateCreation: subDays(new Date(), 3).toISOString(), lue: false, type: 'warning' },
     ];
 
-  const StatCard = ({ title, value, icon, trend, up, prefix }: any) => (
-    <SoftCard className="h-100 d-flex flex-column justify-content-between p-3">
-      <div className="d-flex justify-content-between mb-2">
-        <div className="soft-badge rounded-circle p-2" style={{ background: 'var(--soft-bg)' }}>
-          {icon}
+  const StatCard = ({ title, value, icon, trend, up, prefix, onClick }: any) => (
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+      onMouseEnter={onClick ? (e: React.MouseEvent<HTMLDivElement>) => {
+        const card = e.currentTarget.querySelector('.soft-card') as HTMLElement;
+        if (card) { card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'; card.style.transform = 'translateY(-2px)'; }
+      } : undefined}
+      onMouseLeave={onClick ? (e: React.MouseEvent<HTMLDivElement>) => {
+        const card = e.currentTarget.querySelector('.soft-card') as HTMLElement;
+        if (card) { card.style.boxShadow = ''; card.style.transform = ''; }
+      } : undefined}
+      style={{ cursor: onClick ? 'pointer' : 'default', outline: 'none' }}
+    >
+      <SoftCard
+        className="h-100 d-flex flex-column justify-content-between p-3"
+        style={onClick ? { transition: 'box-shadow 0.15s, transform 0.15s' } : undefined}
+      >
+        <div className="d-flex justify-content-between mb-2">
+          <div className="soft-badge rounded-circle p-2" style={{ background: 'var(--soft-bg)' }}>
+            {icon}
+          </div>
+          <div className={`fw-bold d-flex align-items-center gap-1 ${up ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.85rem' }}>
+            {trend} {up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+          </div>
         </div>
-        <div className={`fw-bold d-flex align-items-center gap-1 ${up ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.85rem' }}>
-          {trend} {up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+        <div>
+          <div className="text-muted mb-1" style={{ fontSize: '0.875rem' }}>{title}</div>
+          <h3 className="fw-bold mb-0" style={{ color: 'var(--soft-text)' }}>{prefix}{value}</h3>
         </div>
-      </div>
-      <div>
-        <div className="text-muted mb-1" style={{ fontSize: '0.875rem' }}>{title}</div>
-        <h3 className="fw-bold mb-0" style={{ color: 'var(--soft-text)' }}>{prefix}{value}</h3>
-      </div>
-    </SoftCard>
+      </SoftCard>
+    </div>
   );
 
   return (
@@ -63,16 +85,16 @@ export const Dashboard: React.FC = () => {
 
       <div className="row g-4 mb-4">
         <div className="col-md-6 col-lg-3">
-          <StatCard title="Total Revenue" suffix="" value={revenue.toFixed(2)} icon={<ShoppingBag size={20} color="var(--soft-primary)" />} trend="" up={true} prefix="DH " />
+          <StatCard title="Total Revenue" suffix="" value={revenue.toFixed(2)} icon={<ShoppingBag size={20} color="var(--soft-primary)" />} trend="" up={true} prefix="DH " onClick={() => setShowRevenueModal(true)} />
         </div>
         <div className="col-md-6 col-lg-3">
-          <StatCard title="Total Orders" value={pendingOrders} icon={<Truck size={20} color="var(--soft-primary)" />} trend="" up={true} prefix="" />
+          <StatCard title="Total Orders" value={pendingOrders} icon={<Truck size={20} color="var(--soft-primary)" />} trend="" up={true} prefix="" onClick={() => navigate('/supplier/orders')} />
         </div>
         <div className="col-md-6 col-lg-3">
-          <StatCard title="Unique Clients" value={uniqueClients} icon={<Package size={20} color="var(--soft-primary)" />} trend="" up={true} prefix="" />
+          <StatCard title="Unique Clients" value={uniqueClients} icon={<Package size={20} color="var(--soft-primary)" />} trend="" up={true} prefix="" onClick={() => navigate('/supplier/clients/unique')} />
         </div>
         <div className="col-md-6 col-lg-3">
-          <StatCard title="Items Out of Stock" value={lowStock} icon={<AlertTriangle size={20} color="var(--warning)" />} trend="" up={false} prefix="" />
+          <StatCard title="Items Out of Stock" value={lowStock} icon={<AlertTriangle size={20} color="var(--warning)" />} trend="" up={false} prefix="" onClick={() => navigate('/supplier/products?filter=out-of-stock')} />
         </div>
       </div>
 
@@ -240,6 +262,52 @@ export const Dashboard: React.FC = () => {
           </SoftCard>
         </div>
       </div>
+
+      {/* Revenue Details Modal */}
+      <SoftModal isOpen={showRevenueModal} onClose={() => setShowRevenueModal(false)} title="Revenue Details">
+        <div className="mb-4 p-3 rounded-3" style={{ background: 'var(--soft-bg)' }}>
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <TrendingUp size={18} color="var(--soft-primary)" />
+            <span className="text-muted" style={{ fontSize: '0.85rem' }}>Total Revenue</span>
+          </div>
+          <h2 className="fw-bold mb-0" style={{ color: 'var(--soft-primary)' }}>DH {revenue.toFixed(2)}</h2>
+          <small className="text-muted">from {stats?.nombreCommandes ?? 0} order{(stats?.nombreCommandes ?? 0) !== 1 ? 's' : ''}</small>
+        </div>
+
+        {topProducts.length > 0 && (
+          <div className="mb-3">
+            <h6 className="fw-semibold mb-3 text-muted" style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Products by Revenue</h6>
+            {topProducts.map((p, i) => (
+              <div key={p.produitId} className="d-flex justify-content-between align-items-center py-2" style={{ borderBottom: i < topProducts.length - 1 ? '1px solid var(--soft-border)' : 'none' }}>
+                <div>
+                  <div className="fw-medium" style={{ fontSize: '0.9rem' }}>{p.nomProduit}</div>
+                  <div className="text-muted" style={{ fontSize: '0.8rem' }}>{p.totalVendu} unit{p.totalVendu !== 1 ? 's' : ''} sold</div>
+                </div>
+                <div className="fw-bold" style={{ color: 'var(--soft-primary)', fontSize: '0.9rem' }}>DH {p.chiffreAffaires.toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {timeline.some(p => p.revenue > 0) && (() => {
+          const recentDays = timeline.filter(p => p.revenue > 0).slice(-7);
+          if (recentDays.length === 0) return null;
+          const periodTotal = recentDays.reduce((sum, p) => sum + p.revenue, 0);
+          return (
+            <div className="p-3 rounded-3" style={{ background: 'var(--soft-bg)' }}>
+              <div className="text-muted mb-1" style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last 7 Active Days</div>
+              <div className="fw-bold" style={{ color: 'var(--soft-text)', fontSize: '1.1rem' }}>DH {periodTotal.toFixed(2)}</div>
+              <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                {recentDays[0]?.date && (() => { try { return format(parseISO(recentDays[0].date), 'MMM dd'); } catch { return recentDays[0].date; } })()} – {recentDays[recentDays.length - 1]?.date && (() => { try { return format(parseISO(recentDays[recentDays.length - 1].date), 'MMM dd'); } catch { return recentDays[recentDays.length - 1].date; } })()}
+              </div>
+            </div>
+          );
+        })()}
+
+        {topProducts.length === 0 && !timeline.some(p => p.revenue > 0) && (
+          <p className="text-muted text-center py-3">No detailed revenue data available yet.</p>
+        )}
+      </SoftModal>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ChevronDown, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { AlertTriangle, ChevronDown, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { productsApi } from '../../../api/products.api';
 import { SoftBadge } from '../../../components/ui/SoftBadge';
@@ -16,6 +17,9 @@ import { useSupplierStatus } from '../hooks/useSupplierStatus';
 
 
 export const ProductsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const outOfStockFilter = searchParams.get('filter') === 'out-of-stock';
+
   const [produits, setProduits] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -234,6 +238,20 @@ export const ProductsPage: React.FC = () => {
 
 
 
+      {outOfStockFilter && (
+        <div className="d-flex align-items-center gap-2 mb-3 px-3 py-2 rounded-3" style={{ background: 'rgba(var(--bs-danger-rgb), 0.08)', border: '1px solid rgba(var(--bs-danger-rgb), 0.25)' }}>
+          <AlertTriangle size={16} className="text-danger flex-shrink-0" />
+          <span className="text-danger fw-semibold" style={{ fontSize: '0.875rem' }}>Showing out-of-stock products only</span>
+          <button
+            className="btn btn-sm ms-auto p-0 border-0 bg-transparent text-danger"
+            onClick={() => setSearchParams({})}
+            title="Clear filter"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {suggestions && suggestions.length > 0 && (
         <SoftCard className="mb-4 border-warning bg-warning bg-opacity-10 border-2">
           <div className="d-flex align-items-center mb-3">
@@ -254,7 +272,7 @@ export const ProductsPage: React.FC = () => {
       <SoftCard className="p-0 border-0 shadow-none bg-transparent">
         <div className="table-responsive">
           <SoftTable headers={['Name', 'Category', 'Price', 'Stock', 'Status', 'Actions']}>
-            {produits?.map(p => (
+            {(outOfStockFilter ? produits.filter(p => p.stockDisponible === 0) : produits)?.map(p => (
               <tr
                 key={p.id}
                 className={supplierCanManageProducts ? 'cursor-pointer hover-bg-light' : ''}
@@ -338,9 +356,11 @@ export const ProductsPage: React.FC = () => {
                 </td>
               </tr>
             ))}
-            {(!produits || produits.length === 0) && (
+            {(outOfStockFilter ? produits.filter(p => p.stockDisponible === 0) : produits).length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center p-4">No products found.</td>
+                <td colSpan={6} className="text-center p-4">
+                  {outOfStockFilter ? 'No out-of-stock products found.' : 'No products found.'}
+                </td>
               </tr>
             )}
           </SoftTable>
