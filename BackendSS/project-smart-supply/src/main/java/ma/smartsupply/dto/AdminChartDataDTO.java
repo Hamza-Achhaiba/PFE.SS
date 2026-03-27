@@ -14,7 +14,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class AdminChartDataDTO {
 
-    private List<MonthlyOrderCount> ordersOverTime;
+    private List<DailyOrderCount> ordersOverTime;
     private Map<String, Long> ordersByStatus;
     private Map<String, Long> productsByStatus;
 
@@ -22,8 +22,8 @@ public class AdminChartDataDTO {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class MonthlyOrderCount {
-        private String month;
+    public static class DailyOrderCount {
+        private String day;
         private long count;
     }
 }

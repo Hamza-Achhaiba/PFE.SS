@@ -21,11 +21,15 @@ import {
     AlertTriangle,
     ArrowRightLeft,
     Filter,
-    ChevronDown
+    ChevronDown,
+    Calendar,
+    X as XIcon,
+    Download
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { adminApi } from '../../../api/admin.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
+import { SoftModal } from '../../../components/ui/SoftModal';
 
 interface ActivityLog {
     id: number;
@@ -154,6 +158,19 @@ function formatTargetType(type: string): string {
     return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
 }
 
+// ── Detail modal helper ────────────────────────────────────
+
+const LogDetailField: React.FC<{ label: string; value?: string | null; mono?: boolean }> = ({ label, value, mono }) => (
+    <div className="mb-3">
+        <div className="text-muted fw-semibold mb-1" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {label}
+        </div>
+        <div style={{ fontSize: '0.83rem', fontFamily: mono ? 'monospace' : undefined, color: 'var(--soft-text)', wordBreak: 'break-all' }}>
+            {value || <span style={{ opacity: 0.35 }}>—</span>}
+        </div>
+    </div>
+);
+
 // ── Component ──────────────────────────────────────────────
 
 export const AdminActivityLogsPage: React.FC = () => {
@@ -163,6 +180,10 @@ export const AdminActivityLogsPage: React.FC = () => {
     const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('ALL');
     const [showFilters, setShowFilters] = useState(false);
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
+    const [exportingCsv, setExportingCsv] = useState(false);
 
     const loadLogs = useCallback(() => {
         setLoading(true);
@@ -192,9 +213,25 @@ export const AdminActivityLogsPage: React.FC = () => {
             const matchesRole = roleFilter === 'ALL' || log.actorRole === roleFilter;
             const meta = getActionMeta(log.action, log.actorRole);
             const matchesCategory = categoryFilter === 'ALL' || meta.category === categoryFilter;
-            return matchesSearch && matchesRole && matchesCategory;
+
+            let matchesDate = true;
+            if (dateFrom || dateTo) {
+                const logDate = new Date(log.createdAt);
+                if (dateFrom) {
+                    const from = new Date(dateFrom);
+                    from.setHours(0, 0, 0, 0);
+                    if (logDate < from) matchesDate = false;
+                }
+                if (dateTo) {
+                    const to = new Date(dateTo);
+                    to.setHours(23, 59, 59, 999);
+                    if (logDate > to) matchesDate = false;
+                }
+            }
+
+            return matchesSearch && matchesRole && matchesCategory && matchesDate;
         });
-    }, [logs, searchTerm, roleFilter, categoryFilter]);
+    }, [logs, searchTerm, roleFilter, categoryFilter, dateFrom, dateTo]);
 
     // Stats
     const stats = useMemo(() => {
@@ -205,7 +242,76 @@ export const AdminActivityLogsPage: React.FC = () => {
         return { total: logs.length, today: todayCount, failedLogins };
     }, [logs]);
 
-    const hasActiveFilters = roleFilter !== 'ALL' || categoryFilter !== 'ALL' || searchTerm !== '';
+    const hasActiveFilters = roleFilter !== 'ALL' || categoryFilter !== 'ALL' || searchTerm !== '' || dateFrom !== '' || dateTo !== '';
+
+    const exportToCsv = useCallback(() => {
+        if (filteredLogs.length === 0) {
+            toast.warning('No logs to export — adjust your filters first.');
+            return;
+        }
+        setExportingCsv(true);
+        try {
+            const escapeCell = (v: string | null | undefined): string => {
+                const s = v == null ? '' : String(v);
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                    return `"${s.replace(/"/g, '""')}"`;
+                }
+                return s;
+            };
+
+            const headers = [
+                'ID', 'Date', 'Time',
+                'Actor Name', 'Actor Role',
+                'Action', 'Action Label', 'Category',
+                'Target Type', 'Target Name', 'Target ID',
+                'Details', 'Status', 'IP Address',
+            ];
+
+            const rows = filteredLogs.map((log) => {
+                const meta = getActionMeta(log.action, log.actorRole);
+                const d = new Date(log.createdAt);
+                const date = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                const time = d.toLocaleTimeString('en-US', { hour12: false });
+                return [
+                    String(log.id),
+                    date,
+                    time,
+                    log.actorName || '',
+                    formatRoleLabel(log.actorRole),
+                    log.action,
+                    meta.label,
+                    meta.category,
+                    log.targetType || '',
+                    log.targetName || '',
+                    log.targetId || '',
+                    log.details || '',
+                    log.status || '',
+                    log.ipAddress || '',
+                ].map(escapeCell).join(',');
+            });
+
+            const csvContent = [headers.join(','), ...rows].join('\r\n');
+            // UTF-8 BOM for Excel compatibility
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const today = new Date().toLocaleDateString('en-CA');
+            const suffix = hasActiveFilters ? '-filtered' : '';
+            const filename = `activity-logs${suffix}-${today}.csv`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${filteredLogs.length} log${filteredLogs.length === 1 ? '' : 's'} to ${filename}`);
+        } catch (err) {
+            console.error(err);
+            toast.error('Export failed — please try again.');
+        } finally {
+            setExportingCsv(false);
+        }
+    }, [filteredLogs, hasActiveFilters]);
 
     return (
         <div className="container-fluid p-0">
@@ -305,7 +411,7 @@ export const AdminActivityLogsPage: React.FC = () => {
                     {hasActiveFilters && (
                         <span className="rounded-circle d-inline-flex align-items-center justify-content-center ms-1"
                             style={{ width: '18px', height: '18px', background: '#8b5cf6', color: '#fff', fontSize: '0.65rem' }}>
-                            {(roleFilter !== 'ALL' ? 1 : 0) + (categoryFilter !== 'ALL' ? 1 : 0)}
+                            {(roleFilter !== 'ALL' ? 1 : 0) + (categoryFilter !== 'ALL' ? 1 : 0) + (dateFrom !== '' || dateTo !== '' ? 1 : 0)}
                         </span>
                     )}
                     <ChevronDown size={13} style={{ transform: showFilters ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -314,7 +420,7 @@ export const AdminActivityLogsPage: React.FC = () => {
                 {hasActiveFilters && (
                     <button
                         className="btn btn-sm rounded-pill px-3"
-                        onClick={() => { setRoleFilter('ALL'); setCategoryFilter('ALL'); setSearchTerm(''); }}
+                        onClick={() => { setRoleFilter('ALL'); setCategoryFilter('ALL'); setSearchTerm(''); setDateFrom(''); setDateTo(''); }}
                         style={{
                             background: 'transparent',
                             color: '#ef4444',
@@ -327,7 +433,32 @@ export const AdminActivityLogsPage: React.FC = () => {
                     </button>
                 )}
 
-                <div className="ms-auto text-muted" style={{ fontSize: '0.76rem' }}>
+                <button
+                    className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3 ms-auto"
+                    onClick={exportToCsv}
+                    disabled={exportingCsv || loading || filteredLogs.length === 0}
+                    title={filteredLogs.length === 0 ? 'No logs to export' : `Export ${filteredLogs.length} log${filteredLogs.length === 1 ? '' : 's'} as CSV`}
+                    style={{
+                        background: filteredLogs.length > 0 ? 'rgba(16, 185, 129, 0.09)' : 'var(--soft-glass-bg)',
+                        color: filteredLogs.length > 0 ? '#10b981' : 'var(--soft-text-muted)',
+                        border: `1px solid ${filteredLogs.length > 0 ? 'rgba(16, 185, 129, 0.25)' : 'var(--soft-border)'}`,
+                        fontSize: '0.8rem',
+                        height: '38px',
+                        opacity: exportingCsv ? 0.7 : 1,
+                        transition: 'all 0.2s ease',
+                    }}
+                >
+                    <Download size={14} className={exportingCsv ? 'spin-animation' : ''} />
+                    {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                    {!exportingCsv && filteredLogs.length > 0 && (
+                        <span className="rounded-pill px-2 fw-semibold ms-1"
+                            style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', fontSize: '0.65rem' }}>
+                            {filteredLogs.length}
+                        </span>
+                    )}
+                </button>
+
+                <div className="text-muted" style={{ fontSize: '0.76rem' }}>
                     {filteredLogs.length} {filteredLogs.length === 1 ? 'result' : 'results'}
                 </div>
             </div>
@@ -396,6 +527,93 @@ export const AdminActivityLogsPage: React.FC = () => {
                             })}
                         </div>
                     </div>
+
+                    {/* Date range filter */}
+                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--soft-border)' }}>
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                            <Calendar size={12} style={{ color: '#8b5cf6' }} />
+                            <span className="text-muted fw-semibold" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                By Date Range
+                            </span>
+                            {(dateFrom || dateTo) && (
+                                <button
+                                    className="btn btn-sm p-0 d-inline-flex align-items-center ms-1"
+                                    onClick={() => { setDateFrom(''); setDateTo(''); }}
+                                    style={{ color: '#ef4444', background: 'none', border: 'none', fontSize: '0.7rem' }}
+                                    title="Clear date filter"
+                                >
+                                    <XIcon size={12} />
+                                </button>
+                            )}
+                        </div>
+                        <div className="d-flex flex-wrap align-items-center gap-2">
+                            <div className="d-flex align-items-center gap-1">
+                                <span className="text-muted" style={{ fontSize: '0.75rem', minWidth: '24px' }}>From</span>
+                                <input
+                                    type="date"
+                                    className="form-control form-control-sm rounded-3"
+                                    value={dateFrom}
+                                    onChange={(e) => setDateFrom(e.target.value)}
+                                    max={dateTo || undefined}
+                                    style={{
+                                        background: 'var(--soft-glass-bg)',
+                                        border: `1px solid ${dateFrom ? 'rgba(139,92,246,0.4)' : 'var(--soft-border)'}`,
+                                        fontSize: '0.78rem',
+                                        width: '148px',
+                                        color: 'var(--soft-text)',
+                                    }}
+                                />
+                            </div>
+                            <div className="d-flex align-items-center gap-1">
+                                <span className="text-muted" style={{ fontSize: '0.75rem', minWidth: '24px' }}>To</span>
+                                <input
+                                    type="date"
+                                    className="form-control form-control-sm rounded-3"
+                                    value={dateTo}
+                                    onChange={(e) => setDateTo(e.target.value)}
+                                    min={dateFrom || undefined}
+                                    style={{
+                                        background: 'var(--soft-glass-bg)',
+                                        border: `1px solid ${dateTo ? 'rgba(139,92,246,0.4)' : 'var(--soft-border)'}`,
+                                        fontSize: '0.78rem',
+                                        width: '148px',
+                                        color: 'var(--soft-text)',
+                                    }}
+                                />
+                            </div>
+                            {/* Quick shortcuts */}
+                            {(() => {
+                                const today = new Date().toISOString().slice(0, 10);
+                                const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                                const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+                                const isToday = dateFrom === today && dateTo === today;
+                                const isYesterday = dateFrom === yesterday && dateTo === yesterday;
+                                const isWeek = dateFrom === weekAgo && dateTo === today;
+                                return (
+                                    <div className="d-flex gap-1 ms-1">
+                                        {[
+                                            { label: 'Today', active: isToday, onClick: () => { setDateFrom(today); setDateTo(today); } },
+                                            { label: 'Yesterday', active: isYesterday, onClick: () => { setDateFrom(yesterday); setDateTo(yesterday); } },
+                                            { label: 'Last 7 days', active: isWeek, onClick: () => { setDateFrom(weekAgo); setDateTo(today); } },
+                                        ].map(({ label, active, onClick }) => (
+                                            <button
+                                                key={label}
+                                                className="btn btn-sm rounded-pill px-2 fw-medium"
+                                                onClick={onClick}
+                                                style={{
+                                                    background: active ? 'rgba(139,92,246,0.12)' : 'transparent',
+                                                    color: active ? '#8b5cf6' : 'var(--soft-text-muted)',
+                                                    border: `1px solid ${active ? 'rgba(139,92,246,0.3)' : 'var(--soft-border)'}`,
+                                                    fontSize: '0.7rem',
+                                                    transition: 'all 0.2s',
+                                                }}
+                                            >{label}</button>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -420,7 +638,12 @@ export const AdminActivityLogsPage: React.FC = () => {
                                 const dt = formatDate(log.createdAt);
 
                                 return (
-                                    <tr key={log.id} style={{ transition: 'background 0.15s ease' }}>
+                                    <tr
+                                        key={log.id}
+                                        onClick={() => setSelectedLog(log)}
+                                        style={{ transition: 'background 0.15s ease', cursor: 'pointer' }}
+                                        title="Click to view full details"
+                                    >
                                         {/* User */}
                                         <td className="ps-3">
                                             <div className="d-flex align-items-center gap-2">
@@ -438,11 +661,6 @@ export const AdminActivityLogsPage: React.FC = () => {
                                                     <div className="fw-semibold text-body text-truncate" style={{ fontSize: '0.82rem', maxWidth: '140px' }}>
                                                         {log.actorName || 'System'}
                                                     </div>
-                                                    {log.ipAddress && (
-                                                        <div className="text-muted text-truncate" style={{ fontSize: '0.68rem', maxWidth: '140px' }}>
-                                                            {log.ipAddress}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -560,7 +778,7 @@ export const AdminActivityLogsPage: React.FC = () => {
                                             {hasActiveFilters && (
                                                 <button
                                                     className="btn btn-sm rounded-pill px-3 mt-1"
-                                                    onClick={() => { setRoleFilter('ALL'); setCategoryFilter('ALL'); setSearchTerm(''); }}
+                                                    onClick={() => { setRoleFilter('ALL'); setCategoryFilter('ALL'); setSearchTerm(''); setDateFrom(''); setDateTo(''); }}
                                                     style={{
                                                         background: 'var(--soft-glass-bg)',
                                                         border: '1px solid var(--soft-border)',
@@ -580,6 +798,106 @@ export const AdminActivityLogsPage: React.FC = () => {
                 </div>
             </SoftCard>
 
+            {/* Log Detail Modal */}
+            <SoftModal
+                isOpen={!!selectedLog}
+                onClose={() => setSelectedLog(null)}
+                title="Log Details"
+            >
+                {selectedLog && (() => {
+                    const meta = getActionMeta(selectedLog.action, selectedLog.actorRole);
+                    const rc = roleColors[selectedLog.actorRole] || roleColors.UNKNOWN;
+                    const dt = formatDate(selectedLog.createdAt);
+                    return (
+                        <div>
+                            {/* Action + Status badges row */}
+                            <div className="d-flex flex-wrap gap-2 mb-4">
+                                <span className="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill fw-semibold"
+                                    style={{ backgroundColor: meta.bg, color: meta.color, fontSize: '0.78rem' }}>
+                                    {meta.icon} {meta.label}
+                                </span>
+                                <span className="px-3 py-1 rounded-pill fw-semibold"
+                                    style={{ backgroundColor: rc.bg, color: rc.color, fontSize: '0.78rem' }}>
+                                    {formatRoleLabel(selectedLog.actorRole)}
+                                </span>
+                                {selectedLog.status && (
+                                    <span className="px-3 py-1 rounded-pill fw-semibold"
+                                        style={{
+                                            fontSize: '0.78rem',
+                                            background: selectedLog.status === 'SUCCESS'
+                                                ? 'rgba(16, 185, 129, 0.10)' : selectedLog.status === 'FAILURE'
+                                                    ? 'rgba(239, 68, 68, 0.10)' : 'rgba(245, 158, 11, 0.10)',
+                                            color: selectedLog.status === 'SUCCESS'
+                                                ? '#10b981' : selectedLog.status === 'FAILURE'
+                                                    ? '#ef4444' : '#f59e0b',
+                                        }}>
+                                        {selectedLog.status}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Actor section */}
+                            <div className="mb-4 pb-3" style={{ borderBottom: '1px solid var(--soft-border)' }}>
+                                <div className="fw-bold mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#8b5cf6' }}>
+                                    Actor
+                                </div>
+                                <div className="row g-0">
+                                    <div className="col-6"><LogDetailField label="Name" value={selectedLog.actorName || 'System'} /></div>
+                                    <div className="col-6"><LogDetailField label="Role" value={formatRoleLabel(selectedLog.actorRole)} /></div>
+                                    {selectedLog.actorId && <div className="col-6"><LogDetailField label="User ID" value={String(selectedLog.actorId)} mono /></div>}
+                                    {selectedLog.ipAddress && <div className="col-6"><LogDetailField label="IP Address" value={selectedLog.ipAddress} mono /></div>}
+                                </div>
+                            </div>
+
+                            {/* Event section */}
+                            <div className="mb-4 pb-3" style={{ borderBottom: '1px solid var(--soft-border)' }}>
+                                <div className="fw-bold mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#3b82f6' }}>
+                                    Event
+                                </div>
+                                <div className="row g-0">
+                                    <div className="col-6"><LogDetailField label="Action" value={selectedLog.action} mono /></div>
+                                    <div className="col-6"><LogDetailField label="Category" value={meta.category.replace(/_/g, ' ')} /></div>
+                                </div>
+                                {selectedLog.details && <LogDetailField label="Details" value={selectedLog.details} />}
+                            </div>
+
+                            {/* Target section */}
+                            <div className="mb-4 pb-3" style={{ borderBottom: '1px solid var(--soft-border)' }}>
+                                <div className="fw-bold mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#10b981' }}>
+                                    Target
+                                </div>
+                                <div className="row g-0">
+                                    <div className="col-6"><LogDetailField label="Target Type" value={formatTargetType(selectedLog.targetType)} /></div>
+                                    {selectedLog.targetName && <div className="col-6"><LogDetailField label="Target Name" value={selectedLog.targetName} /></div>}
+                                    {selectedLog.targetId && <div className="col-6"><LogDetailField label="Target ID" value={selectedLog.targetId} mono /></div>}
+                                </div>
+                            </div>
+
+                            {/* Timestamp */}
+                            <div>
+                                <div className="fw-bold mb-2" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6b7280' }}>
+                                    Timestamp
+                                </div>
+                                <div className="d-flex gap-3">
+                                    <div>
+                                        <div className="text-muted" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Date</div>
+                                        <div style={{ fontSize: '0.83rem' }}>{dt.date}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-muted" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Time</div>
+                                        <div style={{ fontSize: '0.83rem', fontFamily: 'monospace' }}>{dt.time}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-muted" style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Log ID</div>
+                                        <div style={{ fontSize: '0.83rem', fontFamily: 'monospace', color: '#9ca3af' }}>#{selectedLog.id}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </SoftModal>
+
             {/* Inline CSS for spinner animation */}
             <style>{`
                 .spin-animation {
@@ -588,6 +906,9 @@ export const AdminActivityLogsPage: React.FC = () => {
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+                .log-row:hover {
+                    background: rgba(139, 92, 246, 0.04) !important;
                 }
             `}</style>
         </div>

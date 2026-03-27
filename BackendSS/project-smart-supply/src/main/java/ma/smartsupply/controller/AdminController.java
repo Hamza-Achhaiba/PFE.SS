@@ -31,6 +31,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,18 +87,23 @@ public class AdminController {
         var allOrders = commandeRepository.findAll();
         var allProducts = produitRepository.findAll();
 
-        // Orders over time — group by month (last 6 months + current)
-        DateTimeFormatter monthFmt = DateTimeFormatter.ofPattern("yyyy-MM");
-        Map<String, Long> ordersByMonth = allOrders.stream()
-                .filter(o -> o.getDateCreation() != null)
-                .collect(Collectors.groupingBy(
-                        o -> o.getDateCreation().format(monthFmt),
-                        java.util.TreeMap::new,
-                        Collectors.counting()));
+        // Orders over time — daily counts for last 30 days, zero-filled
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter dayFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        // Build scaffold: every day in [today-29 .. today] initialised to 0
+        java.util.TreeMap<String, Long> ordersByDay = new java.util.TreeMap<>();
+        for (int i = 29; i >= 0; i--) {
+            ordersByDay.put(today.minusDays(i).format(dayFmt), 0L);
+        }
+        // Merge real counts (inclusive start of the window)
+        LocalDateTime startOfWindow = today.minusDays(29).atStartOfDay();
+        allOrders.stream()
+                .filter(o -> o.getDateCreation() != null && !o.getDateCreation().isBefore(startOfWindow))
+                .forEach(o -> ordersByDay.computeIfPresent(o.getDateCreation().format(dayFmt), (k, v) -> v + 1));
 
-        List<AdminChartDataDTO.MonthlyOrderCount> ordersOverTime = ordersByMonth.entrySet().stream()
-                .map(e -> AdminChartDataDTO.MonthlyOrderCount.builder()
-                        .month(e.getKey())
+        List<AdminChartDataDTO.DailyOrderCount> ordersOverTime = ordersByDay.entrySet().stream()
+                .map(e -> AdminChartDataDTO.DailyOrderCount.builder()
+                        .day(e.getKey())
                         .count(e.getValue())
                         .build())
                 .collect(Collectors.toList());

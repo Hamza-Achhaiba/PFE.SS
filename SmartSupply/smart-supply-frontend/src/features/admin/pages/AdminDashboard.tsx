@@ -82,7 +82,7 @@ export const AdminDashboard: React.FC = () => {
 
     // Prepare chart data
     const ordersOverTime = chartData?.ordersOverTime?.map((item: any) => ({
-        month: item.month,
+        day: item.day,
         Orders: item.count,
     })) || [];
 
@@ -152,16 +152,21 @@ export const AdminDashboard: React.FC = () => {
                     {/* Orders Over Time — Bar Chart */}
                     <SoftCard className="p-4 mb-4">
                         <h6 className="fw-bold mb-1" style={{ color: 'var(--soft-text)' }}>Orders Overview</h6>
-                        <p className="text-muted mb-3" style={{ fontSize: '0.82rem' }}>Monthly order volume</p>
+                        <p className="text-muted mb-3" style={{ fontSize: '0.82rem' }}>Daily order volume — last 30 days</p>
                         {ordersOverTime.length > 0 ? (
                             <ResponsiveContainer width="100%" height={300}>
                                 <BarChart data={ordersOverTime} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--soft-border, #e2e8f0)" vertical={false} />
                                     <XAxis
-                                        dataKey="month"
+                                        dataKey="day"
                                         tick={{ fill: 'var(--soft-text-muted)', fontSize: 12 }}
                                         axisLine={{ stroke: 'var(--soft-border, #e2e8f0)' }}
                                         tickLine={false}
+                                        interval="preserveStartEnd"
+                                        tickFormatter={(value: string) => {
+                                            const d = new Date(value + 'T00:00:00');
+                                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                        }}
                                     />
                                     <YAxis
                                         allowDecimals={false}
