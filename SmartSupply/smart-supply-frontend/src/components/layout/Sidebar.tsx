@@ -12,7 +12,6 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const clientLinks = [
         { to: '/client/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
         { to: '/client/categories', icon: <Layers size={20} />, label: 'Categories' },
-        { to: '/client/catalog', icon: <Package size={20} />, label: 'Catalog' },
         { to: '/client/cart', icon: <ShoppingCart size={20} />, label: 'Cart' },
         { to: '/client/orders', icon: <FileText size={20} />, label: 'Orders' },
         { to: '/client/suppliers', icon: <Users size={20} />, label: 'Suppliers' },
