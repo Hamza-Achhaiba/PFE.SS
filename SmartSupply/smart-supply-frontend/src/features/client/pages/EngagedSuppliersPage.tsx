@@ -12,10 +12,18 @@ interface EngagedSupplier {
   id: number;
   company: string;
   contactName: string;
+  image?: string;
   orderCount: number;
   totalSpent: number;
   lastOrderDate: string;
 }
+
+const resolveImage = (url: string | undefined) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
+  return `${backendUrl}${url}`;
+};
 
 export const EngagedSuppliersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,6 +54,7 @@ export const EngagedSuppliersPage: React.FC = () => {
                 order.supportSupplierName ||
                 `Supplier #${id}`,
               contactName: order.supportSupplierName || '',
+              image: order.supportSupplierImage,
               orderCount: 1,
               totalSpent: order.montantTotal,
               lastOrderDate: order.dateCreation,
@@ -91,14 +100,22 @@ export const EngagedSuppliersPage: React.FC = () => {
                   {/* Supplier identity */}
                   <div className="d-flex align-items-center gap-3 mb-4">
                     <div
-                      className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                      className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 overflow-hidden"
                       style={{
                         width: '48px',
                         height: '48px',
                         background: 'var(--soft-bg)',
                       }}
                     >
-                      <Truck size={22} color="var(--soft-primary)" />
+                      {supplier.image ? (
+                        <img
+                          src={resolveImage(supplier.image)}
+                          alt={supplier.company}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <Truck size={22} color="var(--soft-primary)" />
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div

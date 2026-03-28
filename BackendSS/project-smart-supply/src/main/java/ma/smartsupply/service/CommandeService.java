@@ -428,6 +428,7 @@ public class CommandeService {
             dto.setSupportSupplierId(supportSupplier.getId());
             dto.setSupportSupplierName(supportSupplier.getNom());
             dto.setSupportSupplierCompany(supportSupplier.getNomEntreprise());
+            dto.setSupportSupplierImage(supportSupplier.getImage());
             dto.setMultipleSuppliersInOrder(suppliers.size() > 1);
         }
 

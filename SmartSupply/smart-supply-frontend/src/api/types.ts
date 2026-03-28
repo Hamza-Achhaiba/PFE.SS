@@ -84,6 +84,7 @@ export interface Commande {
     supportSupplierId?: number;
     supportSupplierName?: string;
     supportSupplierCompany?: string;
+    supportSupplierImage?: string;
     multipleSuppliersInOrder?: boolean;
     invoicePath?: string;
     statut: 'EN_ATTENTE_VALIDATION' | 'VALIDEE' | 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';

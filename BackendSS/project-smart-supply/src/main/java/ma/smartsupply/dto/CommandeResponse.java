@@ -39,6 +39,7 @@ public class CommandeResponse {
     private Long supportSupplierId;
     private String supportSupplierName;
     private String supportSupplierCompany;
+    private String supportSupplierImage;
     private boolean multipleSuppliersInOrder;
     private Double amount;
     private Double platformFee;

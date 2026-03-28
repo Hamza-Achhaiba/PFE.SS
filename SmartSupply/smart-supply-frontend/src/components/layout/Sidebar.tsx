@@ -12,13 +12,16 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const [clientsOpen, setClientsOpen] = useState(
         location.pathname.startsWith('/supplier/clients')
     );
+    const [suppliersOpen, setSuppliersOpen] = useState(
+        location.pathname.startsWith('/client/suppliers')
+    );
 
     const clientLinks = [
         { to: '/client/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
         { to: '/client/categories', icon: <Layers size={20} />, label: 'Categories' },
         { to: '/client/cart', icon: <ShoppingCart size={20} />, label: 'Cart' },
         { to: '/client/orders', icon: <FileText size={20} />, label: 'Orders' },
-        { to: '/client/suppliers', icon: <Users size={20} />, label: 'Suppliers' },
+        // suppliers dropdown handled separately below
         { to: '/client/notifications', icon: <Bell size={20} />, label: 'Notifications' },
         { to: '/client/favorites', icon: <Heart size={20} />, label: 'Favorites' },
         { to: '/client/messages', icon: <MessageSquare size={20} />, label: 'Messages' },
@@ -57,6 +60,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     };
 
     const isClientsActive = location.pathname.startsWith('/supplier/clients');
+    const isSuppliersActive = location.pathname.startsWith('/client/suppliers');
 
     return (
         <div className="soft-sidebar">
@@ -102,10 +106,57 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             <nav className="flex-grow-1 overflow-y-auto pr-2 custom-scrollbar" style={{ minHeight: 0 }}>
                 {links.map((link, index) => {
+                    // Inject the Suppliers dropdown before Notifications on the client side
+                    const isBeforeClientNotifications = isClient && link.to === '/client/notifications';
                     // Inject the Clients dropdown after Sales Orders (index 3 in supplierLinks)
                     const isAfterOrders = !isClient && !isAdmin && link.to === '/supplier/notifications';
                     return (
                         <React.Fragment key={link.to}>
+                            {isBeforeClientNotifications && (
+                                <div>
+                                    {/* Suppliers dropdown toggle */}
+                                    <button
+                                        onClick={() => setSuppliersOpen(o => !o)}
+                                        className={`soft-nav-item text-decoration-none w-100 border-0 bg-transparent text-start d-flex align-items-center gap-2${isSuppliersActive ? ' active' : ''}`}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <Users size={20} />
+                                        <span style={{ flex: 1 }}>Suppliers</span>
+                                        <ChevronDown
+                                            size={14}
+                                            style={{
+                                                transition: 'transform 0.2s',
+                                                transform: suppliersOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                                opacity: 0.6,
+                                            }}
+                                        />
+                                    </button>
+                                    {/* Sub-items */}
+                                    {suppliersOpen && (
+                                        <div style={{ paddingLeft: '2rem' }}>
+                                            <NavLink
+                                                to="/client/suppliers"
+                                                end
+                                                className={({ isActive }) =>
+                                                    `soft-nav-item text-decoration-none${isActive ? ' active' : ''}`
+                                                }
+                                                style={{ fontSize: '0.9rem' }}
+                                            >
+                                                <span className="ms-1">All Suppliers</span>
+                                            </NavLink>
+                                            <NavLink
+                                                to="/client/suppliers/engaged"
+                                                className={({ isActive }) =>
+                                                    `soft-nav-item text-decoration-none${isActive ? ' active' : ''}`
+                                                }
+                                                style={{ fontSize: '0.9rem' }}
+                                            >
+                                                <span className="ms-1">Engaged Suppliers</span>
+                                            </NavLink>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {isAfterOrders && (
                                 <div>
                                     {/* Clients dropdown toggle */}
