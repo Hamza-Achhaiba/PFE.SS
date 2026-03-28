@@ -44,18 +44,23 @@ export const Categories: React.FC = () => {
         }
     };
 
+    /** Normalize a string for accent-insensitive, case-insensitive matching.
+     *  e.g. "Épicerie" → "epicerie", "Aïcha" → "aicha" */
+    const normalize = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
     const isSearchActive = searchTerm.trim().length > 0;
-    const term = searchTerm.toLowerCase();
+    const term = normalize(searchTerm);
 
     const filteredCategories = isSearchActive
         ? categories.filter(c =>
-            c.nom?.toLowerCase().includes(term) ||
-            (c.description?.toLowerCase().includes(term) ?? false)
+            normalize(c.nom ?? '').includes(term) ||
+            normalize(c.description ?? '').includes(term)
         )
         : categories;
 
     const filteredProducts = isSearchActive
-        ? products.filter(p => p.nom?.toLowerCase().includes(term))
+        ? products.filter(p => normalize(p.nom ?? '').includes(term))
         : [];
 
     const handleCategoryClick = (categoryName: string) => {
