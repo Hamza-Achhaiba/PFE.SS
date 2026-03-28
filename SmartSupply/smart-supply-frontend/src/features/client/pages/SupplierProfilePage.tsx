@@ -80,6 +80,7 @@ export const SupplierProfilePage: React.FC = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState("");
+  const [myReview, setMyReview] = useState<any | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -126,7 +127,7 @@ export const SupplierProfilePage: React.FC = () => {
       setSupplier(supplierData);
 
       // Then load non-critical data in parallel, with individual catch blocks
-      const [productsData, reviewsData, favoritesData] = await Promise.all([
+      const [productsData, reviewsData, myReviewData, favoritesData] = await Promise.all([
         fournisseursApi.getFournisseurProduits(supplierId).catch((err) => {
           console.warn("Failed to load products", err);
           return [];
@@ -135,6 +136,7 @@ export const SupplierProfilePage: React.FC = () => {
           console.warn("Failed to load reviews", err);
           return [];
         }),
+        reviewsApi.getMyReview(supplierId).catch(() => null),
         favorisApi.getFavorites().catch((err) => {
           console.warn("Failed to load favorites", err);
           return [];
@@ -143,6 +145,7 @@ export const SupplierProfilePage: React.FC = () => {
 
       setProducts(productsData);
       setReviews(reviewsData);
+      setMyReview(myReviewData);
       setIsFavorite(
         favoritesData.find(
           (f: any) => f.id === supplierId || f.fournisseurId === supplierId,
@@ -193,20 +196,29 @@ export const SupplierProfilePage: React.FC = () => {
     if (!supplier) return;
     setIsSubmitting(true);
     try {
-      await reviewsApi.submitReview({
-        fournisseurId: supplier.id,
-        rating: newRating,
-        comment: newComment,
-      });
-      toast.success("Review submitted successfully");
+      let savedReview: any;
+      if (myReview) {
+        savedReview = await reviewsApi.updateReview(myReview.id, {
+          fournisseurId: supplier.id,
+          rating: newRating,
+          comment: newComment,
+        });
+        toast.success("Review updated successfully");
+      } else {
+        savedReview = await reviewsApi.submitReview({
+          fournisseurId: supplier.id,
+          rating: newRating,
+          comment: newComment,
+        });
+        toast.success("Review submitted successfully");
+      }
+      setMyReview(savedReview);
       setShowReviewModal(false);
-      setNewComment("");
-      setNewRating(5);
       // Reload reviews
       const updatedReviews = await reviewsApi.getReviews(supplier.id);
       setReviews(updatedReviews);
     } catch (error) {
-      toast.error("Failed to submit review");
+      toast.error(myReview ? "Failed to update review" : "Failed to submit review");
     } finally {
       setIsSubmitting(false);
     }
@@ -803,9 +815,18 @@ export const SupplierProfilePage: React.FC = () => {
               </p>
               <SoftButton
                 className="profile-rating-action w-100 bg-white text-primary border-0 rounded-pill py-3 fw-bold"
-                onClick={() => setShowReviewModal(true)}
+                onClick={() => {
+                  if (myReview) {
+                    setNewRating(myReview.rating);
+                    setNewComment(myReview.comment || "");
+                  } else {
+                    setNewRating(5);
+                    setNewComment("");
+                  }
+                  setShowReviewModal(true);
+                }}
               >
-                Write a Review
+                {myReview ? "Edit Your Review" : "Write a Review"}
               </SoftButton>
             </SoftCard>
 
@@ -965,8 +986,8 @@ export const SupplierProfilePage: React.FC = () => {
       {/* Review Modal */}
       <SoftModal
         isOpen={showReviewModal}
-        onClose={() => setShowReviewModal(false)}
-        title="Rate this Supplier"
+        onClose={() => { setShowReviewModal(false); }}
+        title={myReview ? "Edit Your Review" : "Rate this Supplier"}
       >
         <form onSubmit={handleSubmitReview}>
           <div className="text-center mb-4">
@@ -1018,7 +1039,7 @@ export const SupplierProfilePage: React.FC = () => {
               variant="outline"
               type="button"
               className="px-4 rounded-pill"
-              onClick={() => setShowReviewModal(false)}
+              onClick={() => { setShowReviewModal(false); }}
             >
               Cancel
             </SoftButton>
@@ -1027,7 +1048,7 @@ export const SupplierProfilePage: React.FC = () => {
               className="px-5 rounded-pill"
               isLoading={isSubmitting}
             >
-              Submit Review
+              {myReview ? "Update Review" : "Submit Review"}
             </SoftButton>
           </div>
         </form>

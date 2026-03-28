@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -28,6 +29,27 @@ public class ReviewController {
                 String.valueOf(request.getFournisseurId()), null,
                 "Review submitted, rating: " + request.getRating());
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ReviewResponse> updateReview(@PathVariable("id") Long id,
+                                                       @RequestBody ReviewRequest request,
+                                                       Principal principal) {
+        ReviewResponse response = reviewService.updateReview(principal.getName(), id, request);
+        activityLogService.logByEmail(principal.getName(), "REVIEW_UPDATED", "SUPPLIER",
+                String.valueOf(request.getFournisseurId()), null,
+                "Review updated, rating: " + request.getRating());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/my/{supplierId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ReviewResponse> getMyReview(@PathVariable("supplierId") Long supplierId,
+                                                      Principal principal) {
+        Optional<ReviewResponse> review = reviewService.getMyReview(principal.getName(), supplierId);
+        return review.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
     }
 
     @GetMapping("/supplier/{id}")

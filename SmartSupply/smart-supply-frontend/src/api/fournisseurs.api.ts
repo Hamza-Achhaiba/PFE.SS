@@ -38,5 +38,13 @@ export const reviewsApi = {
     submitReview: async (data: { fournisseurId: number; rating: number; comment: string }): Promise<any> => {
         const response = await api.post('/api/reviews', data);
         return response.data;
-    }
+    },
+    updateReview: async (reviewId: number, data: { fournisseurId: number; rating: number; comment: string }): Promise<any> => {
+        const response = await api.put(`/api/reviews/${reviewId}`, data);
+        return response.data;
+    },
+    getMyReview: async (supplierId: number): Promise<any | null> => {
+        const response = await api.get(`/api/reviews/my/${supplierId}`);
+        return response.status === 204 ? null : response.data;
+    },
 };
