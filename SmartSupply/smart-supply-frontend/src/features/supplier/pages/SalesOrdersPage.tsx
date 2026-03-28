@@ -11,6 +11,16 @@ import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { toast } from 'react-toastify';
 import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel, ORDERED_STATUS_FLOW } from '../../../utils/orderStatus';
 
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'All' },
+  { value: 'EN_ATTENTE_VALIDATION', label: 'Pending' },
+  { value: 'VALIDEE', label: 'Validated' },
+  { value: 'EN_PREPARATION', label: 'In Preparation' },
+  { value: 'EXPEDIEE', label: 'Shipped' },
+  { value: 'LIVREE', label: 'Delivered' },
+  { value: 'ANNULEE', label: 'Cancelled' },
+];
+
 export const SalesOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const orderIdParam = searchParams.get('orderId');
@@ -22,6 +32,7 @@ export const SalesOrdersPage: React.FC = () => {
   const orderRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // States for tracking update inputs per order
   const [trackingData, setTrackingData] = useState<Record<number, { ref: string; date: string }>>({});
@@ -139,6 +150,15 @@ export const SalesOrdersPage: React.FC = () => {
     );
   }
 
+  const statusCounts = ventes.reduce<Record<string, number>>((acc, o) => {
+    acc[o.statut] = (acc[o.statut] || 0) + 1;
+    return acc;
+  }, {});
+
+  const filteredVentes = statusFilter === 'ALL'
+    ? ventes
+    : ventes.filter((o) => o.statut === statusFilter);
+
   const getStatusOptions = (currentStatus: string) => {
     if (currentStatus === 'ANNULEE' || currentStatus === 'LIVREE') return [];
     const currentIndex = ORDERED_STATUS_FLOW.indexOf(currentStatus);
@@ -153,6 +173,26 @@ export const SalesOrdersPage: React.FC = () => {
   return (
     <div className="container-fluid p-0">
       <h4 className="fw-bold mb-4">Sales Orders</h4>
+
+      {/* ── Status filter bar ── */}
+      <div className="order-filter-bar mb-4">
+        {STATUS_FILTERS.map((f) => {
+          const count = f.value === 'ALL' ? ventes.length : (statusCounts[f.value] || 0);
+          const isActive = statusFilter === f.value;
+          return (
+            <button
+              key={f.value}
+              className={`order-filter-pill ${isActive ? 'order-filter-pill--active' : ''}`}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+              <span className={`order-filter-count ${isActive ? 'order-filter-count--active' : ''}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {(orderIdParam || orderRefParam) && (
         <div className="alert alert-info d-flex align-items-center justify-content-between mb-4 border-0 shadow-sm rounded-4 py-3 px-4">
@@ -172,8 +212,21 @@ export const SalesOrdersPage: React.FC = () => {
         </div>
       )}
 
+      {filteredVentes.length === 0 && (
+        <div className="text-center py-5 text-muted">
+          <Package size={36} className="mb-3 opacity-40" />
+          <div className="fw-medium">No orders match this filter.</div>
+          <button
+            className="btn btn-link text-primary p-0 mt-2 small"
+            onClick={() => setStatusFilter('ALL')}
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
       <div className="row g-4">
-        {ventes.map((order) => {
+        {filteredVentes.map((order) => {
           const paymentState = order.paymentStatus || order.escrowStatus;
           const tData = trackingData[order.id] || { ref: '', date: '' };
           const isExpanded = expandedOrderId === order.id;
@@ -405,6 +458,62 @@ export const SalesOrdersPage: React.FC = () => {
       </div>
 
       <style>{`
+        /* ── Order status filter bar ── */
+        .order-filter-bar {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.4rem;
+        }
+
+        .order-filter-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.35rem 0.85rem;
+          border-radius: 2rem;
+          border: 1px solid var(--soft-border, #e2e8f0);
+          background: var(--soft-bg, #fff);
+          color: var(--soft-text-muted, #6b7280);
+          font-size: 0.82rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+          white-space: nowrap;
+        }
+        .order-filter-pill:hover {
+          border-color: rgba(var(--bs-primary-rgb), 0.4);
+          color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.05);
+        }
+        .order-filter-pill--active {
+          background: var(--bs-primary);
+          border-color: var(--bs-primary);
+          color: #fff;
+          box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.25);
+        }
+        .order-filter-pill--active:hover {
+          background: var(--bs-primary);
+          color: #fff;
+          border-color: var(--bs-primary);
+        }
+
+        .order-filter-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 1.25rem;
+          height: 1.25rem;
+          padding: 0 0.3rem;
+          border-radius: 2rem;
+          background: rgba(var(--bs-secondary-rgb), 0.12);
+          color: inherit;
+          font-size: 0.72rem;
+          font-weight: 600;
+        }
+        .order-filter-count--active {
+          background: rgba(255, 255, 255, 0.25);
+        }
+
         .highlight-order {
           border: 2px solid var(--soft-primary) !important;
           box-shadow: 0 0 15px rgba(var(--bs-primary-rgb), 0.2) !important;
