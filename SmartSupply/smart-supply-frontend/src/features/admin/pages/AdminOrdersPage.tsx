@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
 import { getOrderStatusLabel, getPaymentStatusLabel } from '../../../utils/orderStatus';
+import { Download } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
     { value: 'ALL', label: 'All' },
@@ -19,6 +21,7 @@ export const AdminOrdersPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
+    const [exportingCsv, setExportingCsv] = useState(false);
 
     useEffect(() => {
         adminApi.getOrders()
@@ -40,11 +43,98 @@ export const AdminOrdersPage: React.FC = () => {
         ? orders
         : orders.filter(o => o.statut === statusFilter);
 
+    const hasActiveFilters = statusFilter !== 'ALL';
+
+    const exportToCsv = useCallback(() => {
+        if (filteredOrders.length === 0) {
+            toast.warning('No orders to export — adjust your filters first.');
+            return;
+        }
+        setExportingCsv(true);
+        try {
+            const escapeCell = (v: string | null | undefined): string => {
+                const s = v == null ? '' : String(v);
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                    return `"${s.replace(/"/g, '""')}"`;
+                }
+                return s;
+            };
+
+            const headers = [
+                'Order Ref', 'Client Name', 'Client Email',
+                'Date', 'Order Status', 'Total Amount (DH)',
+                'Payment Method', 'Payment Status', 'Escrow Status',
+                'Supplier', 'Address', 'City',
+            ];
+
+            const rows = filteredOrders.map((o) => [
+                o.reference || `#${o.id}`,
+                o.client?.nom || 'Unknown',
+                o.client?.email || '',
+                o.dateCreation ? format(new Date(o.dateCreation), 'yyyy-MM-dd HH:mm') : '',
+                getOrderStatusLabel(o.statut),
+                o.montantTotal?.toFixed(2) || '0.00',
+                o.methodePaiement || '',
+                getPaymentStatusLabel(o.paymentStatus) || '',
+                getPaymentStatusLabel(o.escrowStatus) || '',
+                o.lignes?.[0]?.produit?.fournisseur?.nomEntreprise || '',
+                o.adresse || '',
+                o.ville || '',
+            ].map(escapeCell).join(','));
+
+            const csvContent = [headers.join(','), ...rows].join('\r\n');
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const today = new Date().toLocaleDateString('en-CA');
+            const suffix = hasActiveFilters ? '-filtered' : '';
+            const filename = `global-orders${suffix}-${today}.csv`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${filteredOrders.length} order${filteredOrders.length === 1 ? '' : 's'} to ${filename}`);
+        } catch (err) {
+            console.error(err);
+            toast.error('Export failed — please try again.');
+        } finally {
+            setExportingCsv(false);
+        }
+    }, [filteredOrders, hasActiveFilters]);
+
     return (
         <div className="container-fluid p-0">
-            <div className="mb-4">
-                <h4 className="fw-bold mb-1">Global Orders</h4>
-                <p className="text-muted mb-0">Overview of all marketplace transactions</p>
+            <div className="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h4 className="fw-bold mb-1">Global Orders</h4>
+                    <p className="text-muted mb-0">Overview of all marketplace transactions</p>
+                </div>
+                <button
+                    className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
+                    onClick={exportToCsv}
+                    disabled={exportingCsv || loading || filteredOrders.length === 0}
+                    title={filteredOrders.length === 0 ? 'No orders to export' : `Export ${filteredOrders.length} order${filteredOrders.length === 1 ? '' : 's'} as CSV`}
+                    style={{
+                        background: filteredOrders.length > 0 ? 'rgba(16, 185, 129, 0.09)' : 'var(--soft-glass-bg)',
+                        color: filteredOrders.length > 0 ? '#10b981' : 'var(--soft-text-muted)',
+                        border: `1px solid ${filteredOrders.length > 0 ? 'rgba(16, 185, 129, 0.25)' : 'var(--soft-border)'}`,
+                        fontSize: '0.8rem',
+                        height: '38px',
+                        opacity: exportingCsv ? 0.7 : 1,
+                        transition: 'all 0.2s ease',
+                    }}
+                >
+                    <Download size={14} />
+                    {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                    {!exportingCsv && filteredOrders.length > 0 && (
+                        <span className="rounded-pill px-2 fw-semibold ms-1"
+                            style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', fontSize: '0.65rem' }}>
+                            {filteredOrders.length}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* ── Status filter bar ── */}

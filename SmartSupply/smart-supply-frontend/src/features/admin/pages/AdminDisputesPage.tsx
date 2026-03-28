@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
+import { Download } from 'lucide-react';
 
 type DisputeStatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'REJECTED';
 
@@ -21,6 +22,7 @@ export const AdminDisputesPage: React.FC = () => {
     const [disputes, setDisputes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<DisputeStatusFilter>('ALL');
+    const [exportingCsv, setExportingCsv] = useState(false);
 
     useEffect(() => {
         adminApi.getDisputes()
@@ -59,11 +61,105 @@ export const AdminDisputesPage: React.FC = () => {
         ? disputes
         : disputes.filter(d => getEffectiveStatus(d) === statusFilter);
 
+    const hasActiveFilters = statusFilter !== 'ALL';
+
+    const exportToCsv = useCallback(() => {
+        if (filteredDisputes.length === 0) {
+            toast.warning('No items to export — adjust your filters first.');
+            return;
+        }
+        setExportingCsv(true);
+        try {
+            const escapeCell = (v: string | null | undefined): string => {
+                const s = v == null ? '' : String(v);
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                    return `"${s.replace(/"/g, '""')}"`;
+                }
+                return s;
+            };
+
+            const headers = [
+                'Order Ref', 'Client Name', 'Type',
+                'Date Raised', 'Reason', 'Status',
+                'Dispute Category', 'Refund Status',
+                'Order Total (DH)',
+            ];
+
+            const rows = filteredDisputes.map((d) => {
+                const isRefund = !!d.refundRequestStatus;
+                const isDispute = !!d.disputeRaisedAt;
+                const type = [isRefund && 'Refund', isDispute && 'Dispute'].filter(Boolean).join('+');
+                const dateRaised = isRefund && d.refundRequestedAt
+                    ? format(new Date(d.refundRequestedAt), 'yyyy-MM-dd HH:mm')
+                    : isDispute && d.disputeRaisedAt
+                        ? format(new Date(d.disputeRaisedAt), 'yyyy-MM-dd HH:mm')
+                        : '';
+                return [
+                    d.reference || `#${d.id}`,
+                    d.client?.nom || 'Unknown',
+                    type,
+                    dateRaised,
+                    d.refundRequestMessage || d.disputeReason || '',
+                    getEffectiveStatus(d),
+                    d.disputeCategory || '',
+                    d.refundRequestStatus || '',
+                    d.montantTotal?.toFixed(2) || '',
+                ].map(escapeCell).join(',');
+            });
+
+            const csvContent = [headers.join(','), ...rows].join('\r\n');
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const today = new Date().toLocaleDateString('en-CA');
+            const suffix = hasActiveFilters ? '-filtered' : '';
+            const filename = `disputes-refunds${suffix}-${today}.csv`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${filteredDisputes.length} item${filteredDisputes.length === 1 ? '' : 's'} to ${filename}`);
+        } catch (err) {
+            console.error(err);
+            toast.error('Export failed — please try again.');
+        } finally {
+            setExportingCsv(false);
+        }
+    }, [filteredDisputes, hasActiveFilters]);
+
     return (
         <div className="container-fluid p-0">
-            <div className="mb-4">
-                <h4 className="fw-bold mb-1">Disputes & Refunds</h4>
-                <p className="text-muted mb-0">Manage problematic orders</p>
+            <div className="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h4 className="fw-bold mb-1">Disputes & Refunds</h4>
+                    <p className="text-muted mb-0">Manage problematic orders</p>
+                </div>
+                <button
+                    className="btn btn-sm rounded-pill d-flex align-items-center gap-1 px-3"
+                    onClick={exportToCsv}
+                    disabled={exportingCsv || loading || filteredDisputes.length === 0}
+                    title={filteredDisputes.length === 0 ? 'No items to export' : `Export ${filteredDisputes.length} item${filteredDisputes.length === 1 ? '' : 's'} as CSV`}
+                    style={{
+                        background: filteredDisputes.length > 0 ? 'rgba(16, 185, 129, 0.09)' : 'var(--soft-glass-bg)',
+                        color: filteredDisputes.length > 0 ? '#10b981' : 'var(--soft-text-muted)',
+                        border: `1px solid ${filteredDisputes.length > 0 ? 'rgba(16, 185, 129, 0.25)' : 'var(--soft-border)'}`,
+                        fontSize: '0.8rem',
+                        height: '38px',
+                        opacity: exportingCsv ? 0.7 : 1,
+                        transition: 'all 0.2s ease',
+                    }}
+                >
+                    <Download size={14} />
+                    {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                    {!exportingCsv && filteredDisputes.length > 0 && (
+                        <span className="rounded-pill px-2 fw-semibold ms-1"
+                            style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', fontSize: '0.65rem' }}>
+                            {filteredDisputes.length}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* ── Status filter bar ── */}
