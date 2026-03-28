@@ -18,6 +18,7 @@ import { CartPage } from '../features/client/pages/CartPage';
 import { CheckoutPage } from '../features/client/pages/CheckoutPage';
 import { OrdersPage } from '../features/client/pages/OrdersPage';
 import { SuppliersPage } from '../features/client/pages/SuppliersPage';
+import { EngagedSuppliersPage } from '../features/client/pages/EngagedSuppliersPage';
 import { SupplierProfilePage } from '../features/client/pages/SupplierProfilePage';
 import { FavoritesPage } from '../features/client/pages/FavoritesPage';
 import { NotificationsPage as ClientNotifications } from '../features/client/pages/NotificationsPage';
@@ -59,6 +60,7 @@ export const AppRoutes = () => {
                         <Route path="checkout" element={<CheckoutPage />} />
                         <Route path="orders" element={<OrdersPage />} />
                         <Route path="suppliers" element={<SuppliersPage />} />
+                        <Route path="suppliers/engaged" element={<EngagedSuppliersPage />} />
                         <Route path="suppliers/:id" element={<SupplierProfilePage />} />
                         <Route path="favorites" element={<FavoritesPage />} />
                         <Route path="notifications" element={<ClientNotifications />} />

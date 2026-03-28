@@ -49,7 +49,14 @@ export const OrdersPage: React.FC = () => {
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [isDownloadingFactureId, setIsDownloadingFactureId] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const statusParam = searchParams.get('status');
+  const [statusFilter, setStatusFilter] = useState<string>(statusParam ?? 'ALL');
+
+  // Sync filter when URL param changes (e.g. navigated from dashboard)
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s) setStatusFilter(s);
+  }, [searchParams]);
 
   const toggleOrder = (id: number) => {
     setExpandedOrderId((prev) => (prev === id ? null : id));

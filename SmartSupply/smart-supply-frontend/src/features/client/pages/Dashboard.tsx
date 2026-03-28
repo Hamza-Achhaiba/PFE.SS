@@ -1,56 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Package, Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Truck, AlertTriangle, ShoppingBag, ArrowUpRight, ArrowDownRight, Package } from 'lucide-react';
 import { SoftCard } from '../../../components/ui/SoftCard';
-import { productsApi } from '../../../api/products.api';
+import { SoftModal } from '../../../components/ui/SoftModal';
 import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { notificationsApi } from '../../../api/notifications.api';
 import { analyticsApi, SpendingTimelinePoint } from '../../../api/analytics.api';
 import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { getOrderStatusLabel } from '../../../utils/orderStatus';
 import { formatNotificationMessage, getOrderIdFromMessage, getOrderRefFromMessage } from '../../../utils/notificationUtils';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [produits, setProduits] = useState<any[]>([]);
   const [achats, setAchats] = useState<Commande[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [expenseTimeline, setExpenseTimeline] = useState<SpendingTimelinePoint[]>([]);
+  const [showPurchasesModal, setShowPurchasesModal] = useState(false);
 
   useEffect(() => {
-    productsApi.getProduits().then(setProduits).catch(console.error);
     ordersApi.mesAchats().then(setAchats).catch(console.error);
     notificationsApi.getNotifications().then(setNotifications).catch(console.error);
     analyticsApi.getClientSpendingTimeline().then(setExpenseTimeline).catch(console.error);
   }, []);
 
-  // Stats computation
-  const totalProducts = produits?.length || 0;
-  const uniqueSuppliers = produits ? new Set(produits.map(p => p.fournisseurNom)).size : 0;
-  const lowStock = produits?.filter(p => p.alerteStock).length || 0;
-  const pendingOrders = achats?.filter(a => a.statut === 'EN_ATTENTE_VALIDATION').length || 0;
+  // ── Month helpers ──────────────────────────────────────────────
+  const now = new Date();
+  const thisMonthStart = startOfMonth(now);
+  const lastMonthStart = startOfMonth(subMonths(now, 1));
+  const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
+  const isThisMonth = (dateStr: string) => new Date(dateStr) >= thisMonthStart;
+  const isLastMonth = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d >= lastMonthStart && d <= lastMonthEnd;
+  };
+
+  const pctTrend = (current: number, previous: number): string | null => {
+    if (previous === 0) return current > 0 ? 'New this month' : null;
+    const pct = Math.round(((current - previous) / previous) * 100);
+    return `${pct >= 0 ? '+' : ''}${pct}% vs last month`;
+  };
+
+  // ── My Purchases ───────────────────────────────────────────────
+  const totalPurchases = achats.length;
+  const thisMonthPurchases = achats.filter(a => isThisMonth(a.dateCreation)).length;
+  const lastMonthPurchases = achats.filter(a => isLastMonth(a.dateCreation)).length;
+  const purchaseTrend = pctTrend(thisMonthPurchases, lastMonthPurchases);
+  const purchasesUp = thisMonthPurchases >= lastMonthPurchases;
+
+  // ── Engaged Suppliers ──────────────────────────────────────────
+  const allEngagedIds = new Set(achats.filter(a => a.supportSupplierId).map(a => a.supportSupplierId!));
+  const engagedSuppliersCount = allEngagedIds.size;
+  const thisMonthEngagedIds = new Set(
+    achats.filter(a => a.supportSupplierId && isThisMonth(a.dateCreation)).map(a => a.supportSupplierId!)
+  );
+  const lastMonthEngagedIds = new Set(
+    achats.filter(a => a.supportSupplierId && isLastMonth(a.dateCreation)).map(a => a.supportSupplierId!)
+  );
+  const supplierTrend = pctTrend(thisMonthEngagedIds.size, lastMonthEngagedIds.size);
+  const suppliersUp = thisMonthEngagedIds.size >= lastMonthEngagedIds.size;
+
+  // ── Pending Orders ─────────────────────────────────────────────
+  const pendingOrders = achats.filter(a => a.statut === 'EN_ATTENTE_VALIDATION').length;
+  const thisMonthPending = achats.filter(a => a.statut === 'EN_ATTENTE_VALIDATION' && isThisMonth(a.dateCreation)).length;
+  const lastMonthPending = achats.filter(a => a.statut === 'EN_ATTENTE_VALIDATION' && isLastMonth(a.dateCreation)).length;
+  const pendingTrend = pctTrend(thisMonthPending, lastMonthPending);
+  // Fewer pending = better, so "up" (green) means fewer pending this month
+  const pendingUp = thisMonthPending <= lastMonthPending;
+
+  // ── Recent orders ──────────────────────────────────────────────
   const recentOrders = [...achats]
     .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
     .slice(0, 5);
 
-  const StatCard = ({ title, value, icon, trend, up }: any) => (
-    <SoftCard className="h-100 d-flex flex-column justify-content-between p-3">
-      <div className="d-flex justify-content-between mb-2">
-        <div className="soft-badge rounded-circle p-2" style={{ background: 'var(--soft-bg)' }}>
-          {icon}
+  const sortedPurchases = [...achats].sort(
+    (a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime()
+  );
+
+  // ── Stat card (local component) ────────────────────────────────
+  const StatCard = ({
+    title, value, icon, trend, up, onClick,
+  }: {
+    title: string;
+    value: number | string;
+    icon: React.ReactNode;
+    trend: string | null;
+    up: boolean;
+    onClick?: () => void;
+  }) => (
+    <div
+      className="h-100"
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+    >
+      <SoftCard className="h-100 d-flex flex-column justify-content-between p-3">
+        <div className="d-flex justify-content-between mb-2">
+          <div className="soft-badge rounded-circle p-2" style={{ background: 'var(--soft-bg)' }}>
+            {icon}
+          </div>
+          {trend !== null && (
+            <div
+              className={`fw-bold d-flex align-items-center gap-1 ${up ? 'text-success' : 'text-danger'}`}
+              style={{ fontSize: '0.75rem' }}
+            >
+              {trend}&nbsp;{up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            </div>
+          )}
         </div>
-        <div className={`fw-bold d-flex align-items-center gap-1 ${up ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.85rem' }}>
-          {trend} {up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+        <div>
+          <div className="text-muted mb-1" style={{ fontSize: '0.875rem' }}>{title}</div>
+          <h3 className="fw-bold mb-0" style={{ color: 'var(--soft-text)' }}>{value}</h3>
         </div>
-      </div>
-      <div>
-        <div className="text-muted mb-1" style={{ fontSize: '0.875rem' }}>{title}</div>
-        <h3 className="fw-bold mb-0" style={{ color: 'var(--soft-text)' }}>{value}</h3>
-      </div>
-    </SoftCard>
+      </SoftCard>
+    </div>
   );
 
   return (
@@ -62,18 +126,37 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* ── 3 stat cards ── */}
       <div className="row g-4 mb-4">
-        <div className="col-md-6 col-lg-3">
-          <StatCard title="Total Products" value={totalProducts} icon={<Package size={20} color="var(--soft-primary)" />} trend="+5%" up={true} />
+        <div className="col-12 col-md-4">
+          <StatCard
+            title="My Purchases"
+            value={totalPurchases}
+            icon={<ShoppingBag size={20} color="var(--soft-primary)" />}
+            trend={purchaseTrend}
+            up={purchasesUp}
+            onClick={() => setShowPurchasesModal(true)}
+          />
         </div>
-        <div className="col-md-6 col-lg-3">
-          <StatCard title="Total Suppliers" value={uniqueSuppliers} icon={<Truck size={20} color="var(--soft-primary)" />} trend="+2%" up={true} />
+        <div className="col-12 col-md-4">
+          <StatCard
+            title="Engaged Suppliers"
+            value={engagedSuppliersCount}
+            icon={<Truck size={20} color="var(--soft-primary)" />}
+            trend={supplierTrend}
+            up={suppliersUp}
+            onClick={() => navigate('/client/suppliers/engaged')}
+          />
         </div>
-        <div className="col-md-6 col-lg-3">
-          <StatCard title="Low Stock" value={lowStock} icon={<AlertTriangle size={20} color="var(--warning)" />} trend="-3 !" up={false} />
-        </div>
-        <div className="col-md-6 col-lg-3">
-          <StatCard title="Pending Orders" value={pendingOrders} icon={<ShoppingBag size={20} color="var(--soft-primary)" />} trend="+1" up={true} />
+        <div className="col-12 col-md-4">
+          <StatCard
+            title="Pending Orders"
+            value={pendingOrders}
+            icon={<Package size={20} color="var(--soft-primary)" />}
+            trend={pendingTrend}
+            up={pendingUp}
+            onClick={() => navigate('/client/orders?status=EN_ATTENTE_VALIDATION')}
+          />
         </div>
       </div>
 
@@ -99,11 +182,7 @@ export const Dashboard: React.FC = () => {
                           tickLine={false}
                           tick={{ fill: 'var(--soft-text-muted)', fontSize: 11 }}
                           tickFormatter={(str) => {
-                            try {
-                              return format(parseISO(str), 'MMM dd');
-                            } catch (e) {
-                              return str;
-                            }
+                            try { return format(parseISO(str), 'MMM dd'); } catch { return str; }
                           }}
                           minTickGap={30}
                         />
@@ -120,17 +199,13 @@ export const Dashboard: React.FC = () => {
                             border: '1px solid var(--soft-border)',
                             boxShadow: 'var(--soft-shadow)',
                             color: 'var(--soft-text)',
-                            padding: '12px'
+                            padding: '12px',
                           }}
                           itemStyle={{ color: 'var(--soft-primary)', fontWeight: 'bold' }}
                           labelStyle={{ color: 'var(--soft-text-muted)', marginBottom: '4px' }}
                           formatter={(value: any) => [`${Number(value || 0).toFixed(2)} DH`, 'Spending']}
                           labelFormatter={(label) => {
-                            try {
-                              return format(parseISO(label), 'EEEE, MMM dd yyyy');
-                            } catch (e) {
-                              return label;
-                            }
+                            try { return format(parseISO(label), 'EEEE, MMM dd yyyy'); } catch { return label; }
                           }}
                         />
                         <Area
@@ -203,7 +278,7 @@ export const Dashboard: React.FC = () => {
               {notifications.slice(0, 5).map((notif: any, i) => {
                 const targetOrderId = notif.commandeId || getOrderIdFromMessage(notif.message);
                 const targetOrderRef = notif.commandeRef || getOrderRefFromMessage(notif.message);
-                
+
                 let linkTo = '#';
                 if (targetOrderId) {
                   linkTo = `/client/orders?orderId=${targetOrderId}`;
@@ -212,42 +287,42 @@ export const Dashboard: React.FC = () => {
                 }
 
                 return (
-                  <Link 
-                    key={notif.id || i} 
+                  <Link
+                    key={notif.id || i}
                     to={linkTo}
                     className="d-flex mb-4 position-relative text-decoration-none hover-opacity transition-all translate-hover"
                     style={{ cursor: linkTo !== '#' ? 'pointer' : 'default' }}
                   >
-                  <div className="me-3 position-relative z-1">
-                    <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: 'var(--soft-bg)', color: 'var(--soft-primary)', opacity: 0.9 }}>
-                      <AlertTriangle size={14} />
+                    <div className="me-3 position-relative z-1">
+                      <div className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '32px', height: '32px', background: 'var(--soft-bg)', color: 'var(--soft-primary)', opacity: 0.9 }}>
+                        <AlertTriangle size={14} />
+                      </div>
+                      {i !== Math.min(notifications.length, 5) - 1 && (
+                        <div className="position-absolute" style={{ width: '1px', height: '150%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
+                      )}
                     </div>
-                    {i !== Math.min(notifications.length, 5) - 1 && (
-                      <div className="position-absolute" style={{ width: '1px', height: '150%', background: 'var(--soft-bg)', left: '50%', transform: 'translateX(-50%)', top: '32px', zIndex: -1 }}></div>
-                    )}
-                  </div>
-                  <div>
-                    <h6 className="mb-1 fw-bold" style={{ fontSize: '0.9rem', color: 'var(--soft-primary)' }}>
-                      Notification
-                    </h6>
-                    <p className="mb-1 text-muted" style={{ fontSize: '0.8rem' }}>
-                      {formatNotificationMessage(notif.message)}
-                    </p>
-                    <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                      {format(new Date(notif.dateCreation), 'MMM dd, HH:mm')}
-                    </small>
-                  </div>
-                </Link>
-              );
-            })}
+                    <div>
+                      <h6 className="mb-1 fw-bold" style={{ fontSize: '0.9rem', color: 'var(--soft-primary)' }}>
+                        Notification
+                      </h6>
+                      <p className="mb-1 text-muted" style={{ fontSize: '0.8rem' }}>
+                        {formatNotificationMessage(notif.message)}
+                      </p>
+                      <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                        {format(new Date(notif.dateCreation), 'MMM dd, HH:mm')}
+                      </small>
+                    </div>
+                  </Link>
+                );
+              })}
               {(!notifications || notifications.length === 0) && (
                 <p className="text-muted text-center mt-5 mb-5">No notifications available.</p>
               )}
             </div>
             <div className="text-center mt-auto pt-3 border-top border-soft">
-              <button 
+              <button
                 onClick={() => navigate('/client/notifications')}
-                className="btn btn-link fw-bold text-decoration-none p-0" 
+                className="btn btn-link fw-bold text-decoration-none p-0"
                 style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}
               >
                 View More
@@ -256,6 +331,69 @@ export const Dashboard: React.FC = () => {
           </SoftCard>
         </div>
       </div>
+
+      {/* ── My Purchases modal ── */}
+      <SoftModal
+        isOpen={showPurchasesModal}
+        onClose={() => setShowPurchasesModal(false)}
+        title={`My Purchases (${totalPurchases})`}
+      >
+        {sortedPurchases.length === 0 ? (
+          <p className="text-muted text-center py-4">No purchases yet.</p>
+        ) : (
+          <div className="d-flex flex-column gap-3" style={{ maxHeight: '55vh', overflowY: 'auto', paddingRight: '4px' }}>
+            {sortedPurchases.map(order => (
+              <div
+                key={order.id}
+                className="rounded-4 p-3 border"
+                style={{
+                  background: 'var(--soft-bg)',
+                  borderColor: 'var(--soft-border)',
+                  cursor: 'pointer',
+                  transition: 'box-shadow 0.15s ease',
+                }}
+                onClick={() => {
+                  setShowPurchasesModal(false);
+                  navigate(`/client/orders?orderId=${order.id}`);
+                }}
+              >
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <div className="fw-bold" style={{ fontSize: '0.9rem', color: 'var(--soft-text)' }}>
+                      {order.reference || `#${order.id}`}
+                    </div>
+                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                      {format(new Date(order.dateCreation), 'MMM dd, yyyy')}
+                    </div>
+                  </div>
+                  <div className="text-end">
+                    <div className="fw-bold" style={{ color: 'var(--soft-primary)', fontSize: '0.9rem' }}>
+                      {order.montantTotal?.toFixed(2)} DH
+                    </div>
+                    <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                      {getOrderStatusLabel(order.statut)}
+                    </div>
+                  </div>
+                </div>
+                {order.lignes?.length > 0 && (
+                  <div className="text-muted text-truncate" style={{ fontSize: '0.78rem' }}>
+                    {order.lignes.map(l => `${l.produit?.nom} ×${l.quantite}`).join(', ')}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="text-center pt-3 mt-2 border-top" style={{ borderColor: 'var(--soft-border)' }}>
+          <button
+            className="btn btn-link fw-bold text-decoration-none p-0"
+            style={{ color: 'var(--soft-primary)', fontSize: '0.85rem' }}
+            onClick={() => { setShowPurchasesModal(false); navigate('/client/orders'); }}
+          >
+            View all orders →
+          </button>
+        </div>
+      </SoftModal>
     </div>
   );
 };
