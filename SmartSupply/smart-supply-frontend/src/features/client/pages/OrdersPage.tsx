@@ -21,6 +21,16 @@ const DISPUTE_CATEGORIES = [
   'Other',
 ];
 
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'All' },
+  { value: 'EN_ATTENTE_VALIDATION', label: 'Pending' },
+  { value: 'VALIDEE', label: 'Validated' },
+  { value: 'EN_PREPARATION', label: 'In Preparation' },
+  { value: 'EXPEDIEE', label: 'Shipped' },
+  { value: 'LIVREE', label: 'Delivered' },
+  { value: 'ANNULEE', label: 'Cancelled' },
+];
+
 export const OrdersPage: React.FC = () => {
   const [achats, setAchats] = useState<Commande[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,6 +49,7 @@ export const OrdersPage: React.FC = () => {
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [isDownloadingFactureId, setIsDownloadingFactureId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const toggleOrder = (id: number) => {
     setExpandedOrderId((prev) => (prev === id ? null : id));
@@ -225,9 +236,38 @@ export const OrdersPage: React.FC = () => {
     );
   }
 
+  const statusCounts = achats.reduce<Record<string, number>>((acc, o) => {
+    acc[o.statut] = (acc[o.statut] || 0) + 1;
+    return acc;
+  }, {});
+
+  const filteredAchats = statusFilter === 'ALL'
+    ? achats
+    : achats.filter((o) => o.statut === statusFilter);
+
   return (
     <div className="container-fluid p-0">
       <h4 className="fw-bold mb-4">My Orders</h4>
+
+      {/* ── Status filter bar ── */}
+      <div className="order-filter-bar mb-4">
+        {STATUS_FILTERS.map((f) => {
+          const count = f.value === 'ALL' ? achats.length : (statusCounts[f.value] || 0);
+          const isActive = statusFilter === f.value;
+          return (
+            <button
+              key={f.value}
+              className={`order-filter-pill ${isActive ? 'order-filter-pill--active' : ''}`}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+              <span className={`order-filter-count ${isActive ? 'order-filter-count--active' : ''}`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {escrowParam === 'held' && (
         <div className="mb-4 p-3 rounded-4 border bg-primary bg-opacity-10 border-primary-subtle">
@@ -243,8 +283,21 @@ export const OrdersPage: React.FC = () => {
         </div>
       )}
 
+      {filteredAchats.length === 0 && (
+        <div className="text-center py-5 text-muted">
+          <Package size={36} className="mb-3 opacity-40" />
+          <div className="fw-medium">No orders match this filter.</div>
+          <button
+            className="btn btn-link text-primary p-0 mt-2 small"
+            onClick={() => setStatusFilter('ALL')}
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+
       <div className="row g-4">
-        {achats.map((order) => {
+        {filteredAchats.map((order) => {
           const paymentState = order.paymentStatus || order.escrowStatus;
           const refundState = order.refundRequestStatus || 'NONE';
           const disputeAllowed = canRaiseDispute(order);
@@ -566,6 +619,62 @@ export const OrdersPage: React.FC = () => {
       </SoftModal>
 
       <style>{`
+        /* ── Order status filter bar ── */
+        .order-filter-bar {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.4rem;
+        }
+
+        .order-filter-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.35rem 0.85rem;
+          border-radius: 2rem;
+          border: 1px solid var(--soft-border, #e2e8f0);
+          background: var(--soft-bg, #fff);
+          color: var(--soft-text-muted, #6b7280);
+          font-size: 0.82rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+          white-space: nowrap;
+        }
+        .order-filter-pill:hover {
+          border-color: rgba(var(--bs-primary-rgb), 0.4);
+          color: var(--bs-primary);
+          background: rgba(var(--bs-primary-rgb), 0.05);
+        }
+        .order-filter-pill--active {
+          background: var(--bs-primary);
+          border-color: var(--bs-primary);
+          color: #fff;
+          box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.25);
+        }
+        .order-filter-pill--active:hover {
+          background: var(--bs-primary);
+          color: #fff;
+          border-color: var(--bs-primary);
+        }
+
+        .order-filter-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 1.25rem;
+          height: 1.25rem;
+          padding: 0 0.3rem;
+          border-radius: 2rem;
+          background: rgba(var(--bs-secondary-rgb), 0.12);
+          color: inherit;
+          font-size: 0.72rem;
+          font-weight: 600;
+        }
+        .order-filter-count--active {
+          background: rgba(255, 255, 255, 0.25);
+        }
+
         .support-action-card {
           background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.08), rgba(var(--bs-primary-rgb), 0.03));
           border: 1px solid rgba(var(--bs-primary-rgb), 0.12);
