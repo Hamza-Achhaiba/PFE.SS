@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
@@ -19,9 +20,12 @@ const getEffectiveStatus = (d: any): string =>
     d.refundRequestStatus || (d.disputeRaisedAt ? 'OPEN' : 'RESOLVED');
 
 export const AdminDisputesPage: React.FC = () => {
+    const location = useLocation();
     const [disputes, setDisputes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<DisputeStatusFilter>('ALL');
+    const [statusFilter, setStatusFilter] = useState<DisputeStatusFilter>(
+        (location.state as any)?.statusFilter ?? 'ALL'
+    );
     const [exportingCsv, setExportingCsv] = useState(false);
 
     useEffect(() => {

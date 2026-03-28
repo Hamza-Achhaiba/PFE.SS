@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
@@ -17,10 +18,13 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 ];
 
 export const AdminOrdersPage: React.FC = () => {
+    const location = useLocation();
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
-    const [statusFilter, setStatusFilter] = useState<string>('ALL');
+    const [statusFilter, setStatusFilter] = useState<string>(
+        (location.state as any)?.statusFilter ?? 'ALL'
+    );
     const [exportingCsv, setExportingCsv] = useState(false);
 
     useEffect(() => {

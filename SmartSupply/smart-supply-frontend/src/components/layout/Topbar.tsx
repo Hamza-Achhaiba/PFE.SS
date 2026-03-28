@@ -75,16 +75,18 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
             </div>
 
             <div className="d-flex align-items-center gap-4 ms-auto">
-                <div
-                    className="cursor-pointer position-relative soft-badge rounded-circle p-2"
-                    style={{ background: 'var(--soft-secondary)' }}
-                    onClick={handleNotificationsClick}
-                >
-                    <Bell size={20} color="var(--soft-text-muted)" />
-                    <span className="position-absolute translate-middle p-1 bg-danger border-0 rounded-circle" style={{ top: '5px', right: '-5px' }}>
-                        <span className="visually-hidden">New alerts</span>
-                    </span>
-                </div>
+                {role !== 'ADMIN' && (
+                    <div
+                        className="cursor-pointer position-relative soft-badge rounded-circle p-2"
+                        style={{ background: 'var(--soft-secondary)' }}
+                        onClick={handleNotificationsClick}
+                    >
+                        <Bell size={20} color="var(--soft-text-muted)" />
+                        <span className="position-absolute translate-middle p-1 bg-danger border-0 rounded-circle" style={{ top: '5px', right: '-5px' }}>
+                            <span className="visually-hidden">New alerts</span>
+                        </span>
+                    </div>
+                )}
 
                 <div className="d-flex align-items-center gap-2 position-relative" ref={dropdownRef}>
                     <div className="text-end d-none d-md-block cursor-pointer" onClick={() => setIsProfileOpen(!isProfileOpen)}>
