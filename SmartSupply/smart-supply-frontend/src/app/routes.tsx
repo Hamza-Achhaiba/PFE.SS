@@ -42,6 +42,7 @@ import { AdminOrdersPage } from '../features/admin/pages/AdminOrdersPage';
 import { AdminDisputesPage } from '../features/admin/pages/AdminDisputesPage';
 import { AdminProductsPage } from '../features/admin/pages/AdminProductsPage';
 import { AdminActivityLogsPage } from '../features/admin/pages/AdminActivityLogsPage';
+import { AdminNotificationsPage } from '../features/admin/pages/AdminNotificationsPage';
 
 export const AppRoutes = () => {
     return (
@@ -102,6 +103,7 @@ export const AppRoutes = () => {
                         <Route path="orders" element={<AdminOrdersPage />} />
                         <Route path="disputes" element={<AdminDisputesPage />} />
                         <Route path="activity-logs" element={<AdminActivityLogsPage />} />
+                        <Route path="notifications" element={<AdminNotificationsPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                         <Route path="privacy" element={<PrivacyPolicyPage />} />
                     </Route>

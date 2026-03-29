@@ -49,6 +49,7 @@ export const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         { to: '/admin/orders', icon: <FileText size={20} />, label: 'Global Orders' },
         { to: '/admin/disputes', icon: <AlertCircle size={20} />, label: 'Disputes & Refunds' },
         { to: '/admin/activity-logs', icon: <ClipboardList size={20} />, label: 'Activity Logs' },
+        { to: '/admin/notifications', icon: <Bell size={20} />, label: 'Notifications' },
         { to: '/admin/settings', icon: <Settings size={20} />, label: 'Settings' },
         { to: '/admin/privacy', icon: <ShieldCheck size={20} />, label: 'Privacy Policy' },
     ];
