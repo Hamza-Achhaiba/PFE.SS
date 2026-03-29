@@ -95,23 +95,52 @@ export const Dashboard: React.FC = () => {
       onClick={onClick}
       style={onClick ? { cursor: 'pointer' } : undefined}
     >
-      <SoftCard className="h-100 d-flex flex-column justify-content-between p-3">
-        <div className="d-flex justify-content-between mb-2">
-          <div className="soft-badge rounded-circle p-2" style={{ background: 'var(--soft-bg)' }}>
-            {icon}
+      <SoftCard
+        className="h-100"
+        style={{
+          padding: '1.25rem 1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+          borderTop: '3px solid var(--soft-primary)',
+        }}
+      >
+        {/* Top row: icon + trend */}
+        <div className="d-flex justify-content-between align-items-center">
+          <div style={{
+            background: 'linear-gradient(135deg, var(--soft-primary) 0%, #879df5 100%)',
+            borderRadius: '14px',
+            width: '44px',
+            height: '44px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(91,115,232,0.3)',
+          }}>
+            {React.cloneElement(icon as React.ReactElement, { size: 20, color: '#fff' })}
           </div>
           {trend !== null && (
             <div
-              className={`fw-bold d-flex align-items-center gap-1 ${up ? 'text-success' : 'text-danger'}`}
-              style={{ fontSize: '0.75rem' }}
+              className="d-flex align-items-center gap-1 fw-semibold"
+              style={{
+                fontSize: '0.75rem',
+                padding: '3px 10px',
+                borderRadius: '50px',
+                background: up ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                color: up ? 'var(--success)' : 'var(--danger)',
+              }}
             >
-              {trend}&nbsp;{up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+              {up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+              {trend}
             </div>
           )}
         </div>
+        {/* Bottom row: label + value */}
         <div>
-          <div className="text-muted mb-1" style={{ fontSize: '0.875rem' }}>{title}</div>
-          <h3 className="fw-bold mb-0" style={{ color: 'var(--soft-text)' }}>{value}</h3>
+          <div style={{ fontSize: '0.8rem', color: 'var(--soft-text-muted)', marginBottom: '4px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{title}</div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--soft-text)', lineHeight: 1.1 }}>{value}</div>
         </div>
       </SoftCard>
     </div>

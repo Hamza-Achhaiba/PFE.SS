@@ -64,30 +64,55 @@ export const AdminDashboard: React.FC = () => {
             .finally(() => setChartsLoading(false));
     }, []);
 
-    const StatCard = ({ title, value, icon, color, onClick }: any) => (
-        <div
-            className="h-100"
-            onClick={onClick}
-            style={onClick ? { cursor: 'pointer' } : undefined}
-            onMouseEnter={onClick ? (e) => { const card = (e.currentTarget as HTMLElement).querySelector('.soft-card') as HTMLElement | null; if (card) { card.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'; card.style.transform = 'translateY(-2px)'; } } : undefined}
-            onMouseLeave={onClick ? (e) => { const card = (e.currentTarget as HTMLElement).querySelector('.soft-card') as HTMLElement | null; if (card) { card.style.boxShadow = ''; card.style.transform = ''; } } : undefined}
-        >
-            <SoftCard
-                className="h-100 d-flex flex-column justify-content-between p-3"
-                style={onClick ? { transition: 'box-shadow 0.15s ease, transform 0.15s ease' } : undefined}
+    const StatCard = ({ title, value, icon, color, onClick }: any) => {
+        const isAccent = !!color && color !== 'var(--soft-text)';
+        const accentColor = color || 'var(--soft-primary)';
+        const iconBg = isAccent
+            ? `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}bb 100%)`
+            : 'linear-gradient(135deg, var(--soft-primary) 0%, #879df5 100%)';
+        const iconShadowColor = isAccent ? `${accentColor}44` : 'rgba(91,115,232,0.3)';
+        const borderColor = isAccent ? accentColor : 'var(--soft-primary)';
+
+        return (
+            <div
+                className="h-100"
+                onClick={onClick}
+                style={onClick ? { cursor: 'pointer' } : undefined}
             >
-                <div className="d-flex justify-content-between mb-2">
-                    <div className="soft-badge rounded-circle p-2" style={{ background: 'var(--soft-bg)' }}>
-                        {icon}
+                <SoftCard
+                    className="h-100"
+                    style={{
+                        padding: '1.25rem 1.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                        borderTop: `3px solid ${borderColor}`,
+                    }}
+                >
+                    {/* Icon */}
+                    <div style={{
+                        background: iconBg,
+                        borderRadius: '14px',
+                        width: '44px',
+                        height: '44px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        boxShadow: `0 4px 12px ${iconShadowColor}`,
+                    }}>
+                        {React.cloneElement(icon as React.ReactElement, { size: 20, color: '#fff' })}
                     </div>
-                </div>
-                <div>
-                    <div className="text-muted mb-1" style={{ fontSize: '0.875rem' }}>{title}</div>
-                    <h3 className="fw-bold mb-0" style={{ color: color || 'var(--soft-text)' }}>{value ?? '-'}</h3>
-                </div>
-            </SoftCard>
-        </div>
-    );
+                    {/* Label + value */}
+                    <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--soft-text-muted)', marginBottom: '4px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{title}</div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: 700, color: isAccent ? accentColor : 'var(--soft-text)', lineHeight: 1.1 }}>{value ?? '-'}</div>
+                    </div>
+                </SoftCard>
+            </div>
+        );
+    };
 
     if (loading) {
         return <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}><div className="spinner-border text-primary" role="status"></div></div>;
