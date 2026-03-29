@@ -165,6 +165,17 @@ public class CommandeController {
         return ResponseEntity.ok(resp);
     }
 
+    @PatchMapping("/{id}/confirm-reception")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<CommandeResponse> confirmReception(
+            @PathVariable("id") Long id,
+            Principal principal) {
+        CommandeResponse resp = commandeService.confirmReception(id, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "RECEIPT_CONFIRMED", "ORDER",
+                String.valueOf(id), resp.getReference(), "Client confirmed receipt, escrow released");
+        return ResponseEntity.ok(resp);
+    }
+
     @PatchMapping("/{id}/refund-request")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<CommandeResponse> openRefundRequest(

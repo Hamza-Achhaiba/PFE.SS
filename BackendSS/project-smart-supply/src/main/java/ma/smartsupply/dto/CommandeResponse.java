@@ -46,4 +46,6 @@ public class CommandeResponse {
     private Double supplierNetAmount;
     private String facturePath;
     private String invoicePath;
+    private LocalDateTime clientConfirmedAt;
+    private LocalDateTime autoReleaseEligibleAt;
 }

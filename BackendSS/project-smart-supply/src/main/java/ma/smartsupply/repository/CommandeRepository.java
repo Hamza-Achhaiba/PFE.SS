@@ -1,8 +1,11 @@
 package ma.smartsupply.repository;
 
 import ma.smartsupply.model.Commande;
+import ma.smartsupply.enums.EscrowStatus;
 import ma.smartsupply.enums.StatutCommande;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -34,4 +37,11 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     long countByDisputeRaisedAtIsNotNull();
     List<Commande> findByRefundRequestStatusIsNotNullOrDisputeRaisedAtIsNotNullOrderByDateCreationDesc();
     boolean existsByClientId(Long clientId);
+
+    @Query("SELECT c FROM Commande c WHERE c.escrowStatus = 'HELD_IN_ESCROW' " +
+           "AND c.autoReleaseEligibleAt IS NOT NULL " +
+           "AND c.autoReleaseEligibleAt <= :now " +
+           "AND c.clientConfirmedAt IS NULL " +
+           "AND c.statut <> 'ANNULEE'")
+    List<Commande> findEscrowAutoReleaseEligible(@Param("now") LocalDateTime now);
 }

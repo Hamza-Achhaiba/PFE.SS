@@ -49,6 +49,7 @@ export const OrdersPage: React.FC = () => {
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [isDownloadingFactureId, setIsDownloadingFactureId] = useState<number | null>(null);
+  const [isConfirmingReceptionId, setIsConfirmingReceptionId] = useState<number | null>(null);
   const statusParam = searchParams.get('status');
   const [statusFilter, setStatusFilter] = useState<string>(statusParam ?? 'ALL');
 
@@ -130,6 +131,26 @@ export const OrdersPage: React.FC = () => {
       toast.error('Failed to download invoice. Please try again.');
     } finally {
       setIsDownloadingFactureId(null);
+    }
+  };
+
+  const canConfirmReception = (order: Commande) => {
+    return order.statut === 'LIVREE'
+      && order.paymentStatus === 'HELD_IN_ESCROW'
+      && !order.clientConfirmedAt;
+  };
+
+  const handleConfirmReception = async (order: Commande) => {
+    if (!window.confirm('Confirm that you have received the products? This will release the payment to the supplier.')) return;
+    setIsConfirmingReceptionId(order.id);
+    try {
+      const updatedOrder = await ordersApi.confirmReception(order.id);
+      replaceOrder(updatedOrder);
+      toast.success('Receipt confirmed. Payment has been released to the supplier.');
+    } catch (e: any) {
+      toast.error(e.response?.data || 'Failed to confirm receipt.');
+    } finally {
+      setIsConfirmingReceptionId(null);
     }
   };
 
@@ -469,6 +490,27 @@ export const OrdersPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {canConfirmReception(order) && (
+                          <div className="mt-4 pt-3 border-top">
+                            <div className="p-3 rounded-4 border bg-success bg-opacity-10 border-success-subtle mb-3">
+                              <div className="d-flex align-items-start gap-2">
+                                <ShieldCheck size={16} className="text-success mt-1 flex-shrink-0" />
+                                <div className="text-muted small">
+                                  Payment is held in escrow until you confirm receipt. {order.autoReleaseEligibleAt && `Auto-release scheduled for ${format(new Date(order.autoReleaseEligibleAt), 'PPP')}.`}
+                                </div>
+                              </div>
+                            </div>
+                            <SoftButton
+                              className="btn-success text-white border-0 w-100 fw-medium"
+                              onClick={() => handleConfirmReception(order)}
+                              disabled={isConfirmingReceptionId === order.id}
+                            >
+                              <CheckCircle size={16} className="me-2" />
+                              {isConfirmingReceptionId === order.id ? 'Confirming...' : 'Confirm Receipt'}
+                            </SoftButton>
+                          </div>
+                        )}
 
                         {order.statut === 'EN_ATTENTE_VALIDATION' && (
                           <div className="mt-4 pt-3 border-top">

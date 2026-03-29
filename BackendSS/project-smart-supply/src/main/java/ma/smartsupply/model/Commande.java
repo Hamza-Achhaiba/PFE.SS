@@ -75,6 +75,10 @@ public class Commande {
     private Double platformFee;
     private Double supplierNetAmount;
 
+    // Client receipt confirmation & auto-release
+    private LocalDateTime clientConfirmedAt;
+    private LocalDateTime autoReleaseEligibleAt;
+
     // Generated Invoice
     private String facturePath;
     private String invoicePath;

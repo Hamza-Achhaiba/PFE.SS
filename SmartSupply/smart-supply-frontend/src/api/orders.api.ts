@@ -19,6 +19,8 @@ export const ordersApi = {
         apiClient.patch(`/api/commandes/${id}/escrow/dispute`, request).then(res => res.data),
     updateTracking: (id: number, request: { trackingReference: string, dateLivraisonEstimee: string }) =>
         apiClient.patch(`/api/commandes/${id}/tracking`, request).then(res => res.data),
-    downloadFacture: (id: number) => 
+    confirmReception: (id: number) =>
+        apiClient.patch(`/api/commandes/${id}/confirm-reception`).then(res => res.data),
+    downloadFacture: (id: number) =>
         apiClient.get(`/api/commandes/${id}/facture`, { responseType: 'blob' }).then(res => res.data),
 };

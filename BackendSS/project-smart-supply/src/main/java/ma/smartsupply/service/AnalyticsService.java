@@ -47,10 +47,10 @@ public class AnalyticsService {
         double caTotal = 0;
         long totalCommandes = ventesFournisseur.size();
 
-        // Calculate revenue only for VALIDEE/EXPEDIEE/LIVREE orders, summing only the
-        // supplier's products
+        // Calculate revenue only for orders with RELEASED escrow (client confirmed or auto-released)
         for (Commande commande : ventesFournisseur) {
-            if (commande.getStatut() != StatutCommande.ANNULEE) {
+            if (commande.getStatut() != StatutCommande.ANNULEE
+                    && commande.getPaymentStatus() == PaymentStatus.RELEASED) {
                 double sousTotalFournisseur = commande.getLignes().stream()
                         .filter(l -> l.getProduit().getFournisseur().getEmail().equals(emailFournisseur))
                         .mapToDouble(l -> l.getSousTotal())

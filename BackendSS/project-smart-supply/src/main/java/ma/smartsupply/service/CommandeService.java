@@ -416,6 +416,8 @@ public class CommandeService {
         dto.setSupplierNetAmount(commande.getSupplierNetAmount());
         dto.setFacturePath(commande.getFacturePath());
         dto.setInvoicePath(commande.getInvoicePath() != null ? commande.getInvoicePath() : commande.getFacturePath());
+        dto.setClientConfirmedAt(commande.getClientConfirmedAt());
+        dto.setAutoReleaseEligibleAt(commande.getAutoReleaseEligibleAt());
 
         List<Fournisseur> suppliers = commande.getLignes().stream()
                 .map(ligne -> ligne.getProduit() != null ? ligne.getProduit().getFournisseur() : null)
@@ -765,14 +767,95 @@ public class CommandeService {
         commande.setRefundedAt(null);
     }
 
+    private static final int ESCROW_AUTO_RELEASE_DAYS = 7;
+
     private void applyEscrowReleaseIfEligible(Commande commande, LocalDateTime now) {
         if (commande.getEscrowStatus() != EscrowStatus.HELD_IN_ESCROW) {
             return;
         }
 
+        // Do NOT release immediately on delivery — schedule auto-release instead.
+        // Funds are only released when the client confirms receipt or the auto-release delay expires.
+        commande.setAutoReleaseEligibleAt(now.plusDays(ESCROW_AUTO_RELEASE_DAYS));
+    }
+
+    private void releaseEscrow(Commande commande, LocalDateTime now) {
         commande.setEscrowStatus(EscrowStatus.RELEASED);
         commande.setPaymentStatus(PaymentStatus.RELEASED);
         commande.setEscrowReleasedAt(now);
+    }
+
+    @Transactional
+    public CommandeResponse confirmReception(Long commandeId, String emailClient) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        if (commande.getClient() == null || !commande.getClient().getEmail().equals(emailClient)) {
+            throw new RuntimeException("Access denied: you can only confirm receipt for your own orders.");
+        }
+
+        if (commande.getStatut() != StatutCommande.LIVREE) {
+            throw new RuntimeException("Receipt can only be confirmed for delivered orders.");
+        }
+
+        if (commande.getClientConfirmedAt() != null) {
+            throw new RuntimeException("Receipt has already been confirmed for this order.");
+        }
+
+        if (commande.getEscrowStatus() != EscrowStatus.HELD_IN_ESCROW) {
+            throw new RuntimeException("Escrow is not in a held state for this order.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        commande.setClientConfirmedAt(now);
+        releaseEscrow(commande, now);
+
+        Commande saved = commandeRepository.save(commande);
+
+        // Notify suppliers that funds have been released
+        commande.getLignes().stream()
+                .map(l -> l.getProduit().getFournisseur())
+                .distinct()
+                .forEach(supplier -> notificationService.creer(
+                        supplier,
+                        "Payment released for order " + commande.getReference() + ". The client has confirmed receipt.",
+                        TypeNotification.VALIDATION_COMMANDE,
+                        commande.getId(),
+                        commande.getReference()));
+
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public int autoReleaseEligibleEscrows() {
+        LocalDateTime now = LocalDateTime.now();
+        List<Commande> eligible = commandeRepository.findEscrowAutoReleaseEligible(now);
+
+        int released = 0;
+        for (Commande commande : eligible) {
+            // Skip if blocking conditions exist
+            if (commande.getEscrowStatus() == EscrowStatus.DISPUTED) continue;
+            if (commande.getRefundRequestStatus() == RefundRequestStatus.OPEN) continue;
+            if (commande.getStatut() == StatutCommande.ANNULEE) continue;
+            if (commande.getDisputeRaisedAt() != null) continue;
+
+            releaseEscrow(commande, now);
+            commandeRepository.save(commande);
+
+            // Notify suppliers
+            commande.getLignes().stream()
+                    .map(l -> l.getProduit().getFournisseur())
+                    .distinct()
+                    .forEach(supplier -> notificationService.creer(
+                            supplier,
+                            "Payment auto-released for order " + commande.getReference() + " after the confirmation period expired.",
+                            TypeNotification.VALIDATION_COMMANDE,
+                            commande.getId(),
+                            commande.getReference()));
+
+            released++;
+        }
+        return released;
     }
 
     private void applyRefundIfNeeded(Commande commande, LocalDateTime now) {

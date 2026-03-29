@@ -87,6 +87,8 @@ export interface Commande {
     supportSupplierImage?: string;
     multipleSuppliersInOrder?: boolean;
     invoicePath?: string;
+    clientConfirmedAt?: string;
+    autoReleaseEligibleAt?: string;
     statut: 'EN_ATTENTE_VALIDATION' | 'VALIDEE' | 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE' | 'ANNULEE';
     client: {
         id: number;

@@ -386,7 +386,8 @@ export const SalesOrdersPage: React.FC = () => {
                               <div className="fw-semibold small">Escrow State</div>
                               <div className="text-muted small">
                                 {order.paymentStatus === 'RELEASED' && 'Funds have been released to the supplier.'}
-                                {order.paymentStatus === 'HELD_IN_ESCROW' && 'Funds are still held in escrow pending delivery confirmation.'}
+                                {order.paymentStatus === 'HELD_IN_ESCROW' && order.statut === 'LIVREE' && 'Awaiting client confirmation of receipt before funds are released.'}
+                                {order.paymentStatus === 'HELD_IN_ESCROW' && order.statut !== 'LIVREE' && 'Funds are held in escrow until the client confirms receipt.'}
                                 {order.paymentStatus === 'REFUNDED' && 'Funds were refunded and will not be released.'}
                                 {order.paymentStatus === 'DISPUTED' && 'Escrow is blocked because the order is in dispute.'}
                                 {!order.paymentStatus && 'No payment state recorded yet.'}
@@ -394,6 +395,15 @@ export const SalesOrdersPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {/* Auto-release info for delivered orders awaiting confirmation */}
+                        {order.paymentStatus === 'HELD_IN_ESCROW' && order.statut === 'LIVREE' && order.autoReleaseEligibleAt && (
+                          <div className="bg-body-tertiary rounded p-3 mb-3">
+                            <div className="text-muted small">
+                              Auto-release scheduled for {format(new Date(order.autoReleaseEligibleAt), 'PPP')} if no issue is reported.
+                            </div>
+                          </div>
+                        )}
 
                         {/* Refund / dispute info */}
                         {((order.refundRequestStatus && order.refundRequestStatus !== 'NONE') || order.disputeReason) && (
