@@ -8,7 +8,7 @@ import { SoftBadge } from '../../../components/ui/SoftBadge';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftModal } from '../../../components/ui/SoftModal';
 import { SoftInput } from '../../../components/ui/SoftInput';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Search } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export const CatalogPage: React.FC = () => {
@@ -17,9 +17,10 @@ export const CatalogPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-   const [searchParams] = useSearchParams();
-   const categoryFilter = searchParams.get('category');
-   const supplierFilter = searchParams.get('supplier');
+  const [productSearch, setProductSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const categoryFilter = searchParams.get('category');
+  const supplierFilter = searchParams.get('supplier');
 
   useEffect(() => {
     productsApi.getProduits()
@@ -27,6 +28,9 @@ export const CatalogPage: React.FC = () => {
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, []);
+
+  const normalize = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
   const resolveImage = (url: string) => {
     if (!url) return null;
@@ -58,29 +62,44 @@ export const CatalogPage: React.FC = () => {
 
   if (isLoading) return <SoftLoader />;
 
+  const term = normalize(productSearch);
+  const displayedProducts = (produits ?? []).filter(p =>
+    (!categoryFilter || p.categorieNom === categoryFilter) &&
+    (!supplierFilter || p.fournisseurNom === supplierFilter) &&
+    (productSearch.trim() === '' || normalize(p.nom ?? '').includes(term))
+  );
+
   return (
     <div className="container-fluid p-0">
-       <div className="d-flex justify-content-between align-items-center mb-4">
-         <h4 className="fw-bold mb-0">
-           {categoryFilter ? `Catalog: ${categoryFilter}` : 
-            supplierFilter ? `Products from ${supplierFilter}` : 
-            'Product Catalog'}
-         </h4>
-       </div>
-       <div className="row g-4">
-         {produits?.filter(p => 
-           (!categoryFilter || p.categorieNom === categoryFilter) &&
-           (!supplierFilter || p.fournisseurNom === supplierFilter)
-         ).map(p => (
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <h4 className="fw-bold mb-0">
+          {categoryFilter ? `Catalog: ${categoryFilter}` :
+           supplierFilter ? `Products from ${supplierFilter}` :
+           'Product Catalog'}
+        </h4>
+        <div className="position-relative" style={{ maxWidth: '300px', width: '100%' }}>
+          <Search className="position-absolute top-50 translate-middle-y text-muted" size={18} style={{ left: '12px' }} />
+          <input
+            type="text"
+            className="soft-input w-100 ps-5"
+            placeholder="Search products..."
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="row g-4">
+        {displayedProducts.map(p => (
           <div className="col-md-4 col-lg-3" key={p.id}>
             <SoftCard className="h-100 d-flex flex-column p-0 overflow-hidden">
               <div style={{ height: '180px', overflow: 'hidden', position: 'relative' }}>
                 {p.image ? (
-                    <img
-                      src={resolveImage(p.image) || 'https://via.placeholder.com/400x300?text=Product'}
-                      alt={p.nom}
-                      className="w-100 h-100 object-fit-cover"
-                    />
+                  <img
+                    src={resolveImage(p.image) || 'https://via.placeholder.com/400x300?text=Product'}
+                    alt={p.nom}
+                    className="w-100 h-100 object-fit-cover"
+                  />
                 ) : (
                   <div className="w-100 h-100 bg-light d-flex align-items-center justify-content-center text-muted">
                     No Image
@@ -103,7 +122,7 @@ export const CatalogPage: React.FC = () => {
                 )}
                 <p className="text-muted small flex-grow-1">{p.description}</p>
                 {p.fournisseurNom && (
-                  <Link 
+                  <Link
                     to={`/client/suppliers/${p.fournisseurId}`}
                     className="text-muted mb-3 d-inline-flex align-items-center text-decoration-none hover-primary small"
                   >
@@ -123,9 +142,9 @@ export const CatalogPage: React.FC = () => {
             </SoftCard>
           </div>
         ))}
-        {(!produits || produits.length === 0) && (
+        {displayedProducts.length === 0 && (
           <div className="col-12 text-center text-muted p-5">
-            No products available.
+            {productSearch.trim() ? 'No products match your search.' : 'No products available.'}
           </div>
         )}
       </div>
