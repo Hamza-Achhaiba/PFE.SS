@@ -14,6 +14,7 @@ import { toast } from 'react-toastify';
 import { adminApi } from '../../../api/admin.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftModal } from '../../../components/ui/SoftModal';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 type ClientStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
 
@@ -349,18 +350,17 @@ export const AdminClientsPage: React.FC = () => {
                 </div>
             </SoftCard>
 
-            <SoftModal isOpen={!!clientToDelete} onClose={() => !isDeleting && setClientToDelete(null)} title="Remove Client Account">
-                <div className="py-2">
-                    <p className="mb-2">Are you sure you want to remove this client? This action cannot be undone.</p>
-                    <p className="text-muted small">{clientToDelete?.nom} ({clientToDelete?.nomMagasin || 'No Store Name'})</p>
-                    <div className="d-flex justify-content-end gap-2 mt-4">
-                        <button className="btn btn-sm px-3 rounded-pill border-0 bg-light" onClick={() => setClientToDelete(null)} disabled={isDeleting}>Cancel</button>
-                        <button className="btn btn-sm px-3 rounded-pill border-0" onClick={handleDeleteClient} disabled={isDeleting} style={{ background: 'rgba(220, 53, 69, 0.14)', color: '#dc3545' }}>
-                            {isDeleting ? 'Removing...' : 'Remove Client'}
-                        </button>
-                    </div>
-                </div>
-            </SoftModal>
+            <ConfirmDialog
+                isOpen={!!clientToDelete}
+                onClose={() => setClientToDelete(null)}
+                onConfirm={handleDeleteClient}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this client? This action cannot be undone."
+                entityName={clientToDelete ? `${clientToDelete.nom} (${clientToDelete.nomMagasin || 'No Store Name'})` : undefined}
+                confirmLabel="Delete"
+                isLoading={isDeleting}
+                loadingLabel="Deleting..."
+            />
 
              <SoftModal isOpen={!!selectedClient} onClose={() => setSelectedClient(null)} title="Client Details">
                 {selectedClient && (

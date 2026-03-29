@@ -5,6 +5,7 @@ import { messagesApi, Conversation, Message } from '../../../api/messages.api';
 import { AuthStore } from '../../auth/auth.store';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 export const MessagesPage: React.FC = () => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -18,6 +19,7 @@ export const MessagesPage: React.FC = () => {
     const [showMobileChat, setShowMobileChat] = useState(false);
     const [openRowMenuId, setOpenRowMenuId] = useState<number | null>(null);
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+    const [chatToDelete, setChatToDelete] = useState<number | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -214,23 +216,28 @@ export const MessagesPage: React.FC = () => {
         }
     };
 
-    const handleDeleteChat = async (convId: number) => {
-        if (!window.confirm('Remove this conversation from your list? You can reopen it later from the supplier profile.')) return;
+    const confirmDeleteChat = (convId: number) => {
+        setChatToDelete(convId);
+        setOpenRowMenuId(null);
+        setIsHeaderMenuOpen(false);
+    };
 
+    const handleDeleteChat = async () => {
+        if (chatToDelete === null) return;
         try {
-            await messagesApi.deleteConversation(convId);
-            setConversations(prev => prev.filter(c => c.id !== convId));
-            if (selectedConv?.id === convId) {
+            await messagesApi.deleteConversation(chatToDelete);
+            setConversations(prev => prev.filter(c => c.id !== chatToDelete));
+            if (selectedConv?.id === chatToDelete) {
                 setSelectedConv(null);
                 setShowMobileChat(false);
             }
-            setOpenRowMenuId(null);
-            setIsHeaderMenuOpen(false);
             toast.success('Conversation deleted');
         } catch (error: any) {
             console.error('Delete error:', error);
             const errMsg = error.response?.data?.message || 'Error deleting conversation';
             toast.error(errMsg);
+        } finally {
+            setChatToDelete(null);
         }
     };
 
@@ -359,7 +366,7 @@ export const MessagesPage: React.FC = () => {
                                                         </button>
                                                         <button
                                                             className="w-100 px-3 py-2 text-start btn btn-link text-danger text-decoration-none dropdown-item d-flex align-items-center gap-2"
-                                                            onClick={() => handleDeleteChat(conv.id)}
+                                                            onClick={() => confirmDeleteChat(conv.id)}
                                                         >
                                                             <Trash2 size={14} />
                                                             <span style={{ fontSize: '0.85rem' }}>Delete</span>
@@ -447,7 +454,7 @@ export const MessagesPage: React.FC = () => {
                                             </button>
                                             <button
                                                 className="w-100 px-3 py-2 text-start btn btn-link text-danger text-decoration-none dropdown-item d-flex align-items-center gap-2 whitespace-nowrap"
-                                                onClick={() => handleDeleteChat(selectedConv.id)}
+                                                onClick={() => confirmDeleteChat(selectedConv.id)}
                                             >
                                                 <Trash2 size={18} />
                                                 <span>Delete chat</span>
@@ -591,6 +598,15 @@ export const MessagesPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={chatToDelete !== null}
+                onClose={() => setChatToDelete(null)}
+                onConfirm={handleDeleteChat}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this conversation? This action cannot be undone."
+                confirmLabel="Delete"
+            />
 
             <style>{`
                 .messages-container {

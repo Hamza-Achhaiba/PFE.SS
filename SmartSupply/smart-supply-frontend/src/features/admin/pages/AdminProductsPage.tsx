@@ -11,7 +11,7 @@ import {
 import { toast } from 'react-toastify';
 import { adminApi } from '../../../api/admin.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
-import { SoftModal } from '../../../components/ui/SoftModal';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 type ProductApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -414,48 +414,17 @@ export const AdminProductsPage: React.FC = () => {
                 </div>
             </SoftCard>
 
-            {/* Delete confirmation modal */}
-            <SoftModal
+            <ConfirmDialog
                 isOpen={!!productToDelete}
-                onClose={() => { if (!isDeleting) setProductToDelete(null); }}
-                title="Remove Product"
-            >
-                <div className="py-2">
-                    <p className="text-body mb-2">
-                        Are you sure you want to remove this product? This action cannot be undone.
-                    </p>
-                    <p className="text-muted small mb-0">
-                        {productToDelete?.nom}
-                    </p>
-                    <div className="d-flex justify-content-end gap-2 mt-4">
-                        <button
-                            type="button"
-                            className="btn btn-sm px-3 rounded-pill fw-medium"
-                            onClick={() => setProductToDelete(null)}
-                            disabled={isDeleting}
-                            style={{
-                                border: '1px solid rgba(15, 23, 42, 0.08)',
-                                background: 'rgba(148, 163, 184, 0.10)',
-                                color: 'var(--soft-text, #0f172a)'
-                            }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-sm px-3 rounded-pill fw-medium border-0"
-                            onClick={handleDeleteProduct}
-                            disabled={isDeleting}
-                            style={{
-                                background: 'rgba(220, 53, 69, 0.14)',
-                                color: '#dc3545'
-                            }}
-                        >
-                            {isDeleting ? 'Removing...' : 'Remove Product'}
-                        </button>
-                    </div>
-                </div>
-            </SoftModal>
+                onClose={() => setProductToDelete(null)}
+                onConfirm={handleDeleteProduct}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this product? This action cannot be undone."
+                entityName={productToDelete?.nom}
+                confirmLabel="Delete"
+                isLoading={isDeleting}
+                loadingLabel="Deleting..."
+            />
         </div>
     );
 };

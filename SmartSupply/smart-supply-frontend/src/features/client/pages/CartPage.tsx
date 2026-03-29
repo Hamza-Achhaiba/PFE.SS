@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { PanierResponse } from '../../../api/types';
 import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNavigate } from 'react-router-dom';
 
 const resolveImage = (url: string) => {
@@ -20,6 +21,8 @@ const resolveImage = (url: string) => {
 export const CartPage: React.FC = () => {
   const [panier, setPanier] = useState<PanierResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [itemToRemove, setItemToRemove] = useState<{ produitId: number; nom: string } | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const navigate = useNavigate();
 
   const fetchPanier = () => {
@@ -38,10 +41,10 @@ export const CartPage: React.FC = () => {
     navigate('/client/checkout');
   };
 
-  const handleUpdateQuantity = async (produitId: number, currentQty: number, change: number) => {
+  const handleUpdateQuantity = async (produitId: number, currentQty: number, change: number, nomProduit?: string) => {
     const newQty = currentQty + change;
     if (newQty <= 0) {
-      handleRemoveItem(produitId);
+      setItemToRemove({ produitId, nom: nomProduit || 'Unknown' });
       return;
     }
 
@@ -53,24 +56,28 @@ export const CartPage: React.FC = () => {
     }
   };
 
-  const handleRemoveItem = async (produitId: number) => {
+  const handleRemoveItem = async () => {
+    if (!itemToRemove) return;
     try {
-      const updatedPanier = await cartApi.supprimerItem(produitId);
+      const updatedPanier = await cartApi.supprimerItem(itemToRemove.produitId);
       setPanier(updatedPanier);
       toast.success('Item removed from cart');
     } catch (error) {
       toast.error('Failed to remove item');
+    } finally {
+      setItemToRemove(null);
     }
   };
 
   const handleClearCart = async () => {
-    if (!window.confirm('Are you sure you want to clear your entire cart?')) return;
     try {
       const updatedPanier = await cartApi.viderPanier();
       setPanier(updatedPanier);
       toast.success('Cart cleared successfully');
     } catch (error) {
       toast.error('Failed to clear cart');
+    } finally {
+      setShowClearConfirm(false);
     }
   };
 
@@ -97,7 +104,7 @@ export const CartPage: React.FC = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4 className="fw-bold mb-0">Shopping Cart</h4>
         {items.length > 0 && (
-          <SoftButton className="text-danger border-0 bg-transparent shadow-none" onClick={handleClearCart}>
+          <SoftButton className="text-danger border-0 bg-transparent shadow-none" onClick={() => setShowClearConfirm(true)}>
             <Trash2 size={16} className="me-2" />
             Clear Cart
           </SoftButton>
@@ -138,7 +145,7 @@ export const CartPage: React.FC = () => {
                               toast.warning(`Minimum order quantity is ${minQ}`);
                               return;
                             }
-                            handleUpdateQuantity(item.produitId, item.quantite, -1);
+                            handleUpdateQuantity(item.produitId, item.quantite, -1, item.nomProduit);
                           }}
                         >
                           <Minus size={14} />
@@ -158,7 +165,7 @@ export const CartPage: React.FC = () => {
                     <td>
                       <button
                         className="btn btn-sm text-danger p-1"
-                        onClick={() => handleRemoveItem(item.produitId)}
+                        onClick={() => setItemToRemove({ produitId: item.produitId, nom: item.nomProduit || 'Unknown' })}
                         title="Remove item"
                       >
                         <Trash2 size={16} />
@@ -196,6 +203,25 @@ export const CartPage: React.FC = () => {
           </SoftCard>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={!!itemToRemove}
+        onClose={() => setItemToRemove(null)}
+        onConfirm={handleRemoveItem}
+        title="Confirm Removal"
+        message="Are you sure you want to remove this item from your cart? This action cannot be undone."
+        entityName={itemToRemove?.nom}
+        confirmLabel="Remove"
+      />
+
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={handleClearCart}
+        title="Confirm Removal"
+        message="Are you sure you want to clear your entire cart? This action cannot be undone."
+        confirmLabel="Remove"
+      />
     </div>
   );
 };

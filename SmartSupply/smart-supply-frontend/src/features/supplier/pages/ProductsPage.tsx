@@ -9,6 +9,7 @@ import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftInput } from '../../../components/ui/SoftInput';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftModal } from '../../../components/ui/SoftModal';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { SoftTable } from '../../../components/ui/SoftTable';
 import { CategoryService } from '../../categories/category.service';
 import { Category } from '../../categories/category.types';
@@ -611,31 +612,17 @@ export const ProductsPage: React.FC = () => {
         </form>
       </SoftModal>
 
-      <SoftModal
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Delete Product"
-      >
-        <div className="py-3">
-          <p>Are you sure you want to delete <strong>{selectedProductAction?.nom}</strong>? This action cannot be undone.</p>
-          {!supplierCanManageProducts && (
-            <p className="text-warning small mt-3 mb-0">{supplierRestrictionMessage}</p>
-          )}
-          <div className="d-flex justify-content-end gap-2 mt-4">
-            <SoftButton variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
-              Cancel
-            </SoftButton>
-            <SoftButton
-              onClick={handleDeleteProduct}
-              isLoading={isSubmitting}
-              disabled={!supplierCanManageProducts}
-              style={{ backgroundColor: '#dc3545', color: 'white', border: 'none' }}
-            >
-              Confirm Delete
-            </SoftButton>
-          </div>
-        </div>
-      </SoftModal>
+        onConfirm={handleDeleteProduct}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this product? This action cannot be undone."
+        entityName={selectedProductAction?.nom}
+        confirmLabel="Delete"
+        isLoading={isSubmitting}
+        loadingLabel="Deleting..."
+      />
     </div>
   );
 };

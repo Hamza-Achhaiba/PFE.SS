@@ -5,6 +5,7 @@ import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { Truck, Heart, UserX } from 'lucide-react';
 import { User } from '../../../api/types';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 const resolveImage = (url: string | undefined) => {
     if (!url) return '';
@@ -16,6 +17,7 @@ const resolveImage = (url: string | undefined) => {
 export const FavoritesPage: React.FC = () => {
     const [favorites, setFavorites] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [supplierToRemove, setSupplierToRemove] = useState<User | null>(null);
 
     useEffect(() => {
         loadFavorites();
@@ -33,12 +35,15 @@ export const FavoritesPage: React.FC = () => {
         }
     };
 
-    const handleRemoveFavorite = async (supplierId: number) => {
+    const handleRemoveFavorite = async () => {
+        if (!supplierToRemove?.id) return;
         try {
-            await favorisApi.removeFavorite(supplierId);
-            setFavorites(prev => prev.filter(f => f.id !== supplierId));
+            await favorisApi.removeFavorite(supplierToRemove.id);
+            setFavorites(prev => prev.filter(f => f.id !== supplierToRemove.id));
         } catch (error) {
             console.error('Failed to remove favorite', error);
+        } finally {
+            setSupplierToRemove(null);
         }
     };
 
@@ -57,9 +62,9 @@ export const FavoritesPage: React.FC = () => {
                         <div className="col-md-6 col-lg-4" key={fournisseur.id}>
                             <SoftCard className="h-100 d-flex flex-column align-items-center text-center p-4 position-relative">
                                 <button
-                                    onClick={() => handleRemoveFavorite(fournisseur.id!)}
+                                    onClick={() => setSupplierToRemove(fournisseur)}
                                     className="btn btn-link position-absolute top-0 end-0 m-2 text-danger p-2 hover-scale"
-                                    title="Retirer des favoris"
+                                    title="Remove from favorites"
                                 >
                                     <Heart size={20} fill="currentColor" />
                                 </button>
@@ -119,6 +124,16 @@ export const FavoritesPage: React.FC = () => {
                     )}
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={!!supplierToRemove}
+                onClose={() => setSupplierToRemove(null)}
+                onConfirm={handleRemoveFavorite}
+                title="Confirm Removal"
+                message="Are you sure you want to remove this supplier from your favorites? This action cannot be undone."
+                entityName={supplierToRemove?.nomEntreprise || supplierToRemove?.nom}
+                confirmLabel="Remove"
+            />
         </div>
     );
 };

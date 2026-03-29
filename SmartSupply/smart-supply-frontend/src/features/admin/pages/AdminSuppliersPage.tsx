@@ -13,6 +13,7 @@ import { toast } from 'react-toastify';
 import { adminApi } from '../../../api/admin.api';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftModal } from '../../../components/ui/SoftModal';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 type SupplierStatus = 'PENDING_APPROVAL' | 'VERIFIED' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
 
@@ -406,51 +407,17 @@ export const AdminSuppliersPage: React.FC = () => {
                 </div>
             </SoftCard>
 
-            <SoftModal
+            <ConfirmDialog
                 isOpen={!!supplierToDelete}
-                onClose={() => {
-                    if (!isDeleting) {
-                        setSupplierToDelete(null);
-                    }
-                }}
-                title="Delete Supplier"
-            >
-                <div className="py-2">
-                    <p className="text-body mb-2">
-                        Are you sure you want to delete this supplier? This action cannot be undone.
-                    </p>
-                    <p className="text-muted small mb-0">
-                        {supplierToDelete?.nomEntreprise || supplierToDelete?.nom}
-                    </p>
-                    <div className="d-flex justify-content-end gap-2 mt-4">
-                        <button
-                            type="button"
-                            className="btn btn-sm px-3 rounded-pill fw-medium"
-                            onClick={() => setSupplierToDelete(null)}
-                            disabled={isDeleting}
-                            style={{
-                                border: '1px solid rgba(15, 23, 42, 0.08)',
-                                background: 'rgba(148, 163, 184, 0.10)',
-                                color: 'var(--soft-text, #0f172a)'
-                            }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-sm px-3 rounded-pill fw-medium border-0"
-                            onClick={handleDeleteSupplier}
-                            disabled={isDeleting}
-                            style={{
-                                background: 'rgba(220, 53, 69, 0.14)',
-                                color: '#dc3545'
-                            }}
-                        >
-                            {isDeleting ? 'Deleting...' : 'Delete Supplier'}
-                        </button>
-                    </div>
-                </div>
-            </SoftModal>
+                onClose={() => setSupplierToDelete(null)}
+                onConfirm={handleDeleteSupplier}
+                title="Confirm Deletion"
+                message="Are you sure you want to delete this supplier? This action cannot be undone."
+                entityName={supplierToDelete?.nomEntreprise || supplierToDelete?.nom}
+                confirmLabel="Delete"
+                isLoading={isDeleting}
+                loadingLabel="Deleting..."
+            />
 
             <SoftModal
                 isOpen={!!selectedSupplier}
