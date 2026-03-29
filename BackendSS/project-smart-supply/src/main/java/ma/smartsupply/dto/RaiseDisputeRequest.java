@@ -6,4 +6,5 @@ import lombok.Data;
 public class RaiseDisputeRequest {
     private String category;
     private String reason;
+    private String imagePath;
 }

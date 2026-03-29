@@ -15,8 +15,17 @@ export const ordersApi = {
         apiClient.put(`/api/commandes/${id}/annuler`).then(res => res.data),
     openRefundRequest: (id: number) =>
         apiClient.patch(`/api/commandes/${id}/refund-request`).then(res => res.data),
-    markDisputed: (id: number, request: { category?: string; reason: string }) =>
+    markDisputed: (id: number, request: { category?: string; reason: string; imagePath?: string }) =>
         apiClient.patch(`/api/commandes/${id}/escrow/dispute`, request).then(res => res.data),
+    submitDisputeResponse: (id: number, request: { message: string; imagePath?: string }) =>
+        apiClient.patch(`/api/commandes/${id}/dispute-response`, request).then(res => res.data),
+    uploadDisputeImage: (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiClient.post<{ url: string }>('/api/commandes/upload-dispute-image', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }).then(res => res.data);
+    },
     updateTracking: (id: number, request: { trackingReference: string, dateLivraisonEstimee: string }) =>
         apiClient.patch(`/api/commandes/${id}/tracking`, request).then(res => res.data),
     confirmReception: (id: number) =>

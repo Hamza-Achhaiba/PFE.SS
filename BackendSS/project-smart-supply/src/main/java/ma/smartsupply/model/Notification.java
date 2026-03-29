@@ -21,6 +21,7 @@ public class Notification {
     private LocalDateTime dateEnvoi;
 
     @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "VARCHAR(50)")
     private TypeNotification type;
 
     @Builder.Default

@@ -42,6 +42,9 @@ export const NotificationsPage: React.FC = () => {
 
   // Determine icon and color based on content heuristics
   const getNotifMeta = (msg: string) => {
+    if (msg.toLowerCase().includes('dispute')) {
+      return { icon: <AlertTriangle size={18} />, color: 'var(--warning)' };
+    }
     if (msg.toLowerCase().includes('stock') || msg.toLowerCase().includes('alert')) {
       return { icon: <AlertTriangle size={18} />, color: 'var(--warning)' };
     }

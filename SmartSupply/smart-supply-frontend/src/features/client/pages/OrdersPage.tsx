@@ -9,7 +9,7 @@ import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { SoftModal } from '../../../components/ui/SoftModal';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle, ChevronDown, Download, FileText, MessageSquare, Package, ShieldCheck, Truck, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, Download, FileText, ImagePlus, MessageSquare, Package, ShieldCheck, Truck, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel } from '../../../utils/orderStatus';
 
@@ -39,6 +39,8 @@ export const OrdersPage: React.FC = () => {
   const [disputeOrder, setDisputeOrder] = useState<Commande | null>(null);
   const [disputeCategory, setDisputeCategory] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
+  const [disputeImage, setDisputeImage] = useState<File | null>(null);
+  const [disputeImagePreview, setDisputeImagePreview] = useState<string | null>(null);
   const [disputeError, setDisputeError] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -222,7 +224,19 @@ export const OrdersPage: React.FC = () => {
     setDisputeOrder(null);
     setDisputeCategory('');
     setDisputeReason('');
+    setDisputeImage(null);
+    setDisputeImagePreview(null);
     setDisputeError('');
+  };
+
+  const handleDisputeImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setDisputeImage(file);
+    if (file) {
+      setDisputeImagePreview(URL.createObjectURL(file));
+    } else {
+      setDisputeImagePreview(null);
+    }
   };
 
   const submitDispute = async () => {
@@ -236,15 +250,21 @@ export const OrdersPage: React.FC = () => {
 
     setIsSubmittingDispute(true);
     try {
+      let imagePath: string | undefined;
+      if (disputeImage) {
+        const uploadResult = await ordersApi.uploadDisputeImage(disputeImage);
+        imagePath = uploadResult.url;
+      }
       const updatedOrder = await ordersApi.markDisputed(disputeOrder.id, {
         category: disputeCategory || undefined,
         reason: trimmedReason,
+        imagePath,
       });
       replaceOrder(updatedOrder);
       closeDisputeModal();
       toast.success('Dispute submitted. Escrow is now blocked pending resolution.');
     } catch (e: any) {
-      setDisputeError(e.response?.data?.message || 'Failed to submit dispute.');
+      setDisputeError(e.response?.data?.message || e.response?.data || 'Failed to submit dispute.');
     } finally {
       setIsSubmittingDispute(false);
     }
@@ -647,6 +667,36 @@ export const OrdersPage: React.FC = () => {
             {disputeError && <div className="invalid-feedback d-block">{disputeError}</div>}
           </div>
 
+          <div className="mb-3">
+            <label className="form-label small fw-semibold text-muted mb-2">Supporting Documentation (Optional)</label>
+            <div className="dispute-upload-area">
+              <input
+                type="file"
+                accept="image/*"
+                id="dispute-image-upload"
+                className="d-none"
+                onChange={handleDisputeImageChange}
+              />
+              <label htmlFor="dispute-image-upload" className="dispute-upload-label">
+                <ImagePlus size={20} className="me-2 text-muted" />
+                <span className="text-muted small">{disputeImage ? disputeImage.name : 'Click to attach an image as proof'}</span>
+              </label>
+              {disputeImagePreview && (
+                <div className="mt-2 position-relative d-inline-block">
+                  <img src={disputeImagePreview} alt="Preview" className="dispute-image-preview" />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light position-absolute top-0 end-0 rounded-circle shadow-sm"
+                    style={{ transform: 'translate(30%, -30%)' }}
+                    onClick={() => { setDisputeImage(null); setDisputeImagePreview(null); }}
+                  >
+                    <XCircle size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="d-flex flex-column-reverse flex-sm-row justify-content-end gap-2 mt-4">
             <button
               type="button"
@@ -754,6 +804,30 @@ export const OrdersPage: React.FC = () => {
 
         .dispute-modal-body {
           width: min(100%, 540px);
+        }
+
+        .dispute-upload-area {
+          border: 1.5px dashed var(--soft-border, #e2e8f0);
+          border-radius: 1rem;
+          padding: 0.75rem 1rem;
+          background: var(--soft-bg);
+          transition: border-color 0.15s ease;
+        }
+        .dispute-upload-area:hover {
+          border-color: rgba(var(--bs-primary-rgb), 0.4);
+        }
+        .dispute-upload-label {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          margin: 0;
+        }
+        .dispute-image-preview {
+          max-width: 180px;
+          max-height: 120px;
+          border-radius: 0.75rem;
+          object-fit: cover;
+          border: 1px solid var(--soft-border);
         }
 
         .dispute-select,

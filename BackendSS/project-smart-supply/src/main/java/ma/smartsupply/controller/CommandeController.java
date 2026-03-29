@@ -5,6 +5,7 @@ import ma.smartsupply.dto.ClientEngagementDTO;
 import ma.smartsupply.dto.CommandeRequest;
 import ma.smartsupply.dto.CommandeResponse;
 import ma.smartsupply.dto.RaiseDisputeRequest;
+import ma.smartsupply.dto.SupplierDisputeResponseRequest;
 import ma.smartsupply.dto.UpdateStatutRequest;
 import ma.smartsupply.dto.UpdateTrackingRequest;
 import ma.smartsupply.enums.StatutCommande;
@@ -15,9 +16,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/commandes")
@@ -190,5 +199,46 @@ public class CommandeController {
     @GetMapping("/{id}/facture")
     public ResponseEntity<?> telechargerFacture(@PathVariable("id") Long id) {
         return commandeService.telechargerFacture(id);
+    }
+
+    @PatchMapping("/{id}/dispute-response")
+    @PreAuthorize("hasAnyRole('FOURNISSEUR', 'ADMIN')")
+    public ResponseEntity<CommandeResponse> submitDisputeResponse(
+            @PathVariable("id") Long id,
+            @RequestBody SupplierDisputeResponseRequest request,
+            Principal principal) {
+        CommandeResponse resp = commandeService.submitSupplierDisputeResponse(id, request, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "DISPUTE_RESPONSE", "ORDER",
+                String.valueOf(id), resp.getReference(),
+                "Supplier responded to dispute");
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/upload-dispute-image")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> uploadDisputeImage(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File is empty."));
+            }
+            Path uploadPath = Paths.get("uploads/disputes");
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            String originalFileName = file.getOriginalFilename();
+            String extension = originalFileName != null && originalFileName.contains(".")
+                    ? originalFileName.substring(originalFileName.lastIndexOf("."))
+                    : ".jpg";
+            String fileName = UUID.randomUUID().toString() + extension;
+            Path filePath = uploadPath.resolve(fileName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/uploads/disputes/")
+                    .path(fileName)
+                    .toUriString();
+            return ResponseEntity.ok(Map.of("url", fileDownloadUri));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to upload image"));
+        }
     }
 }

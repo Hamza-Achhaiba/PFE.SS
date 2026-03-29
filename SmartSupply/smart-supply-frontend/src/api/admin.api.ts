@@ -14,10 +14,10 @@ export const adminApi = {
         apiClient.patch(`/api/admin/clients/${id}/status`, null, { params: { status } }).then(res => res.data),
     deleteClient: (id: number) =>
         apiClient.delete(`/api/admin/clients/${id}`).then(res => res.data),
-    resolveDispute: (id: number) =>
-        apiClient.patch(`/api/admin/commandes/${id}/resolve-dispute`).then(res => res.data),
-    refundDecision: (id: number, decision: string) =>
-        apiClient.patch(`/api/admin/commandes/${id}/refund-decision`, null, { params: { decision } }).then(res => res.data),
+    resolveDispute: (id: number, reason: string) =>
+        apiClient.patch(`/api/admin/commandes/${id}/resolve-dispute`, null, { params: { reason } }).then(res => res.data),
+    refundDecision: (id: number, decision: string, reason: string) =>
+        apiClient.patch(`/api/admin/commandes/${id}/refund-decision`, null, { params: { decision, reason } }).then(res => res.data),
 
     // Product management
     getProducts: () => apiClient.get('/api/admin/produits').then(res => res.data),

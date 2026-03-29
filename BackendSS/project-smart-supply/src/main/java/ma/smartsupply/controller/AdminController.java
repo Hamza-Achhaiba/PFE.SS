@@ -20,7 +20,10 @@ import ma.smartsupply.repository.LignePanierRepository;
 import ma.smartsupply.repository.PanierRepository;
 import ma.smartsupply.repository.ProduitRepository;
 import ma.smartsupply.repository.UtilisateurRepository;
+import ma.smartsupply.enums.Role;
+import ma.smartsupply.enums.TypeNotification;
 import ma.smartsupply.service.ActivityLogService;
+import ma.smartsupply.service.NotificationService;
 import ma.smartsupply.service.ProduitService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -56,6 +59,7 @@ public class AdminController {
     private final ProduitService produitService;
     private final ActivityLogService activityLogService;
     private final UtilisateurRepository utilisateurRepository;
+    private final NotificationService notificationService;
 
     private Utilisateur getCurrentAdmin(Principal principal) {
         return utilisateurRepository.findByEmail(principal.getName()).orElse(null);
@@ -265,9 +269,23 @@ public class AdminController {
     }
 
     @PatchMapping("/commandes/{id}/resolve-dispute")
-    public ResponseEntity<Commande> resolveDispute(@PathVariable("id") Long id, Principal principal) {
+    public ResponseEntity<?> resolveDispute(@PathVariable("id") Long id,
+            @RequestParam(value = "reason", required = false) String reason, Principal principal) {
         Commande commande = commandeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Commande non trouvée"));
+
+        // Gating: both client dispute and supplier response must exist
+        if (commande.getDisputeRaisedAt() != null && commande.getSupplierRespondedAt() == null) {
+            return ResponseEntity.badRequest().body("Cannot resolve dispute: supplier has not yet responded. Both sides must submit before admin can decide.");
+        }
+
+        String trimmedReason = reason != null ? reason.trim() : "";
+        if (trimmedReason.isEmpty()) {
+            return ResponseEntity.badRequest().body("Decision reason is required.");
+        }
+
+        commande.setAdminDecisionReason(trimmedReason);
+        commande.setAdminDecisionAt(java.time.LocalDateTime.now());
         commande.setDisputeRaisedAt(null);
         commande.setDisputeReason("RESOLVED by Admin. "
                 + (commande.getDisputeReason() != null ? "Past reason: " + commande.getDisputeReason() : ""));
@@ -277,14 +295,44 @@ public class AdminController {
         activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
                 "RESOLVED_DISPUTE", "ORDER", String.valueOf(id), commande.getReference(), "Dispute resolved for order");
 
+        // Notify client
+        if (commande.getClient() != null) {
+            notificationService.creer(commande.getClient(),
+                    "Dispute resolved: Your dispute on order " + commande.getReference() + " has been resolved by admin. Reason: " + trimmedReason,
+                    TypeNotification.DISPUTE, commande.getId(), commande.getReference());
+        }
+        // Notify supplier(s)
+        commande.getLignes().stream()
+                .map(l -> l.getProduit() != null ? l.getProduit().getFournisseur() : null)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .forEach(supplier -> notificationService.creer(supplier,
+                        "Dispute resolved: The dispute on order " + commande.getReference() + " has been resolved by admin. Reason: " + trimmedReason,
+                        TypeNotification.DISPUTE, commande.getId(), commande.getReference()));
+
         return ResponseEntity.ok(saved);
     }
 
     @PatchMapping("/commandes/{id}/refund-decision")
-    public ResponseEntity<Commande> refundDecision(@PathVariable("id") Long id,
-            @RequestParam("decision") ma.smartsupply.enums.RefundRequestStatus decision, Principal principal) {
+    public ResponseEntity<?> refundDecision(@PathVariable("id") Long id,
+            @RequestParam("decision") ma.smartsupply.enums.RefundRequestStatus decision,
+            @RequestParam(value = "reason", required = false) String reason,
+            Principal principal) {
         Commande commande = commandeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Commande non trouvée"));
+
+        // Gating: if dispute exists, supplier must have responded before admin can decide
+        if (commande.getDisputeRaisedAt() != null && commande.getSupplierRespondedAt() == null) {
+            return ResponseEntity.badRequest().body("Cannot make refund decision: supplier has not yet responded to the dispute. Both sides must submit before admin can decide.");
+        }
+
+        String trimmedReason = reason != null ? reason.trim() : "";
+        if (trimmedReason.isEmpty()) {
+            return ResponseEntity.badRequest().body("Decision reason is required.");
+        }
+
+        commande.setAdminDecisionReason(trimmedReason);
+        commande.setAdminDecisionAt(java.time.LocalDateTime.now());
         commande.setRefundRequestStatus(decision);
         if (decision == ma.smartsupply.enums.RefundRequestStatus.RESOLVED) {
             commande.setRefundedAt(java.time.LocalDateTime.now());
@@ -296,6 +344,22 @@ public class AdminController {
         activityLogService.log(admin != null ? admin.getId() : null, admin != null ? admin.getNom() : "Admin", "ADMIN",
                 "REFUND_DECISION", "ORDER", String.valueOf(id), commande.getReference(),
                 "Refund decision: " + decision);
+
+        String decisionLabel = decision == ma.smartsupply.enums.RefundRequestStatus.RESOLVED ? "approved" : "rejected";
+        // Notify client
+        if (commande.getClient() != null) {
+            notificationService.creer(commande.getClient(),
+                    "Refund " + decisionLabel + ": Your refund request for order " + commande.getReference() + " has been " + decisionLabel + ". Reason: " + trimmedReason,
+                    TypeNotification.DISPUTE, commande.getId(), commande.getReference());
+        }
+        // Notify supplier(s)
+        commande.getLignes().stream()
+                .map(l -> l.getProduit() != null ? l.getProduit().getFournisseur() : null)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .forEach(supplier -> notificationService.creer(supplier,
+                        "Refund " + decisionLabel + ": The refund request for order " + commande.getReference() + " has been " + decisionLabel + ". Reason: " + trimmedReason,
+                        TypeNotification.DISPUTE, commande.getId(), commande.getReference()));
 
         return ResponseEntity.ok(saved);
     }

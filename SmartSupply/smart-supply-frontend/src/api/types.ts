@@ -81,6 +81,10 @@ export interface Commande {
     disputeCategory?: string;
     disputeReason?: string;
     disputeRaisedAt?: string;
+    disputeImagePath?: string;
+    supplierResponseMessage?: string;
+    supplierResponseImagePath?: string;
+    supplierRespondedAt?: string;
     supportSupplierId?: number;
     supportSupplierName?: string;
     supportSupplierCompany?: string;

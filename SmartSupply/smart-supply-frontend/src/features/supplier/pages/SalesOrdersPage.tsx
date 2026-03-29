@@ -6,7 +6,7 @@ import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { format } from 'date-fns';
-import { FileText, Package, Truck, Calendar, Save, User, ChevronDown, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, FileText, ImagePlus, Package, Truck, Calendar, Save, User, ChevronDown, ShieldCheck, X, XCircle } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { toast } from 'react-toastify';
 import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel, ORDERED_STATUS_FLOW } from '../../../utils/orderStatus';
@@ -33,6 +33,14 @@ export const SalesOrdersPage: React.FC = () => {
   const [highlightedOrderId, setHighlightedOrderId] = useState<number | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  // Dispute response state
+  const [disputeResponseOrderId, setDisputeResponseOrderId] = useState<number | null>(null);
+  const [disputeResponseMessage, setDisputeResponseMessage] = useState('');
+  const [disputeResponseImage, setDisputeResponseImage] = useState<File | null>(null);
+  const [disputeResponseImagePreview, setDisputeResponseImagePreview] = useState<string | null>(null);
+  const [disputeResponseError, setDisputeResponseError] = useState('');
+  const [isSubmittingDisputeResponse, setIsSubmittingDisputeResponse] = useState(false);
 
   // States for tracking update inputs per order
   const [trackingData, setTrackingData] = useState<Record<number, { ref: string; date: string }>>({});
@@ -133,6 +141,48 @@ export const SalesOrdersPage: React.FC = () => {
       fetchVentes();
     } catch (e: any) {
       toast.error(e.response?.data?.message || 'Failed to update tracking info');
+    }
+  };
+
+  const openDisputeResponseForm = (orderId: number) => {
+    setDisputeResponseOrderId(orderId);
+    setDisputeResponseMessage('');
+    setDisputeResponseImage(null);
+    setDisputeResponseImagePreview(null);
+    setDisputeResponseError('');
+  };
+
+  const handleDisputeResponseImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setDisputeResponseImage(file);
+    if (file) {
+      setDisputeResponseImagePreview(URL.createObjectURL(file));
+    } else {
+      setDisputeResponseImagePreview(null);
+    }
+  };
+
+  const submitDisputeResponse = async (orderId: number) => {
+    const msg = disputeResponseMessage.trim();
+    if (!msg) {
+      setDisputeResponseError('Please provide a response message.');
+      return;
+    }
+    setIsSubmittingDisputeResponse(true);
+    try {
+      let imagePath: string | undefined;
+      if (disputeResponseImage) {
+        const uploadResult = await ordersApi.uploadDisputeImage(disputeResponseImage);
+        imagePath = uploadResult.url;
+      }
+      const updated = await ordersApi.submitDisputeResponse(orderId, { message: msg, imagePath });
+      setVentes(prev => prev.map(o => o.id === updated.id ? updated : o));
+      setDisputeResponseOrderId(null);
+      toast.success('Dispute response submitted successfully.');
+    } catch (e: any) {
+      setDisputeResponseError(e.response?.data?.message || e.response?.data || 'Failed to submit response.');
+    } finally {
+      setIsSubmittingDisputeResponse(false);
     }
   };
 
@@ -420,6 +470,75 @@ export const SalesOrdersPage: React.FC = () => {
                             )}
                             {order.disputeReason && (
                               <div className="text-muted small mt-1">Dispute reason: {order.disputeReason}</div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Dispute response section */}
+                        {order.disputeRaisedAt && (
+                          <div className="rounded-4 border p-3 mb-3" style={{ background: 'rgba(var(--bs-warning-rgb), 0.06)', borderColor: 'rgba(var(--bs-warning-rgb), 0.2)' }}>
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              <AlertTriangle size={16} className="text-warning" />
+                              <span className="fw-semibold small">Dispute Raised by Client</span>
+                            </div>
+                            {order.disputeCategory && (
+                              <div className="text-muted small mb-1">Category: {order.disputeCategory}</div>
+                            )}
+                            {order.disputeReason && (
+                              <div className="text-muted small mb-2">Reason: {order.disputeReason}</div>
+                            )}
+                            {order.disputeImagePath && (
+                              <div className="mb-2">
+                                <img src={order.disputeImagePath} alt="Client evidence" className="rounded-3" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                              </div>
+                            )}
+
+                            {order.supplierRespondedAt ? (
+                              <div className="mt-2 p-2 rounded-3 bg-body-tertiary">
+                                <div className="fw-semibold small text-success mb-1">Your response submitted</div>
+                                <div className="text-muted small">{order.supplierResponseMessage}</div>
+                                {order.supplierResponseImagePath && (
+                                  <img src={order.supplierResponseImagePath} alt="Your evidence" className="rounded-3 mt-2" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                )}
+                              </div>
+                            ) : disputeResponseOrderId === order.id ? (
+                              <div className="mt-2">
+                                <textarea
+                                  className={`form-control shadow-none mb-2 ${disputeResponseError ? 'is-invalid' : ''}`}
+                                  rows={3}
+                                  placeholder="Provide your response to this dispute..."
+                                  value={disputeResponseMessage}
+                                  onChange={(e) => { setDisputeResponseMessage(e.target.value); setDisputeResponseError(''); }}
+                                  style={{ borderRadius: '0.75rem' }}
+                                />
+                                {disputeResponseError && <div className="invalid-feedback d-block mb-2">{disputeResponseError}</div>}
+                                <div className="mb-2">
+                                  <input type="file" accept="image/*" id={`dispute-resp-img-${order.id}`} className="d-none" onChange={handleDisputeResponseImageChange} />
+                                  <label htmlFor={`dispute-resp-img-${order.id}`} className="d-flex align-items-center gap-2 text-muted small" style={{ cursor: 'pointer' }}>
+                                    <ImagePlus size={16} />
+                                    {disputeResponseImage ? disputeResponseImage.name : 'Attach supporting image (optional)'}
+                                  </label>
+                                  {disputeResponseImagePreview && (
+                                    <div className="mt-1 position-relative d-inline-block">
+                                      <img src={disputeResponseImagePreview} alt="Preview" className="rounded-3" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                      <button type="button" className="btn btn-sm btn-light position-absolute top-0 end-0 rounded-circle shadow-sm" style={{ transform: 'translate(30%, -30%)' }} onClick={() => { setDisputeResponseImage(null); setDisputeResponseImagePreview(null); }}>
+                                        <XCircle size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="d-flex gap-2">
+                                  <SoftButton variant="primary" className="flex-grow-1" onClick={() => submitDisputeResponse(order.id)} disabled={isSubmittingDisputeResponse}>
+                                    {isSubmittingDisputeResponse ? 'Submitting...' : 'Submit Response'}
+                                  </SoftButton>
+                                  <button className="btn btn-light border rounded-3 px-3" onClick={() => setDisputeResponseOrderId(null)} disabled={isSubmittingDisputeResponse}>Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <SoftButton variant="outline" className="w-100 mt-2" onClick={() => openDisputeResponseForm(order.id)}>
+                                <AlertTriangle size={14} className="me-2" />
+                                Respond to this Dispute
+                              </SoftButton>
                             )}
                           </div>
                         )}

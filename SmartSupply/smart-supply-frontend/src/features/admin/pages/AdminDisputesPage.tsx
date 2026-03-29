@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { SoftCard } from '../../../components/ui/SoftCard';
+import { SoftModal } from '../../../components/ui/SoftModal';
 import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
-import { Download } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Download, Eye, FileText, Image, Lock, MessageSquare, XCircle } from 'lucide-react';
 
 type DisputeStatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'REJECTED';
 
@@ -21,38 +22,88 @@ const getEffectiveStatus = (d: any): string =>
 
 export const AdminDisputesPage: React.FC = () => {
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const [disputes, setDisputes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<DisputeStatusFilter>(
         (location.state as any)?.statusFilter ?? 'ALL'
     );
     const [exportingCsv, setExportingCsv] = useState(false);
+    const [detailDispute, setDetailDispute] = useState<any | null>(null);
+    const [decisionReason, setDecisionReason] = useState('');
+    const [decisionReasonError, setDecisionReasonError] = useState('');
+    const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
 
     useEffect(() => {
         adminApi.getDisputes()
-            .then(setDisputes)
+            .then(data => {
+                setDisputes(data);
+                // Auto-open detail if navigated from notification with orderId
+                const orderId = searchParams.get('orderId');
+                if (orderId) {
+                    const target = data.find((d: any) => d.id === parseInt(orderId, 10));
+                    if (target) setDetailDispute(target);
+                }
+            })
             .catch(console.error)
             .finally(() => setLoading(false));
     }, []);
 
+    const refreshDisputes = () => adminApi.getDisputes().then(data => {
+        setDisputes(data);
+        if (detailDispute) {
+            const updated = data.find((d: any) => d.id === detailDispute.id);
+            if (updated) setDetailDispute(updated);
+        }
+    }).catch(console.error);
+
+    const validateAndGetReason = (): string | null => {
+        const trimmed = decisionReason.trim();
+        if (!trimmed) {
+            setDecisionReasonError('Please provide a reason for your decision.');
+            return null;
+        }
+        setDecisionReasonError('');
+        return trimmed;
+    };
+
     const handleResolveDispute = async (id: number) => {
+        const reason = validateAndGetReason();
+        if (!reason) return;
+        setIsSubmittingDecision(true);
         try {
-            await adminApi.resolveDispute(id);
+            await adminApi.resolveDispute(id, reason);
             toast.success('Dispute marked as resolved');
-            adminApi.getDisputes().then(setDisputes).catch(console.error);
-        } catch (error) {
-            toast.error('Failed to resolve dispute');
+            setDecisionReason('');
+            refreshDisputes();
+        } catch (error: any) {
+            const msg = error.response?.data || 'Failed to resolve dispute';
+            toast.error(typeof msg === 'string' ? msg : 'Failed to resolve dispute');
+        } finally {
+            setIsSubmittingDecision(false);
         }
     };
 
     const handleRefundDecision = async (id: number, decision: string) => {
+        const reason = validateAndGetReason();
+        if (!reason) return;
+        setIsSubmittingDecision(true);
         try {
-            await adminApi.refundDecision(id, decision);
+            await adminApi.refundDecision(id, decision, reason);
             toast.success(`Refund securely marked as ${decision.toLowerCase()}`);
-            adminApi.getDisputes().then(setDisputes).catch(console.error);
-        } catch (error) {
-            toast.error('Failed to process refund decision');
+            setDecisionReason('');
+            refreshDisputes();
+        } catch (error: any) {
+            const msg = error.response?.data || 'Failed to process refund decision';
+            toast.error(typeof msg === 'string' ? msg : 'Failed to process refund decision');
+        } finally {
+            setIsSubmittingDecision(false);
         }
+    };
+
+    const canAdminDecide = (d: any): boolean => {
+        if (d.disputeRaisedAt && !d.supplierRespondedAt) return false;
+        return true;
     };
 
     const statusCounts = disputes.reduce<Record<string, number>>((acc, d) => {
@@ -204,6 +255,7 @@ export const AdminDisputesPage: React.FC = () => {
                             {filteredDisputes.map(d => {
                                 const isRefund = !!d.refundRequestStatus;
                                 const isDispute = !!d.disputeRaisedAt;
+                                const gated = !canAdminDecide(d);
 
                                 return (
                                 <tr key={d.id}>
@@ -230,26 +282,18 @@ export const AdminDisputesPage: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="text-end">
-                                        {isDispute && d.disputeRaisedAt && (
-                                            <button className="btn btn-sm px-3 rounded-pill fw-medium border-0 text-primary bg-primary bg-opacity-10 me-2 mt-1" onClick={() => handleResolveDispute(d.id)}>
-                                                Mark Resolved
-                                            </button>
-                                        )}
-                                        {isRefund && d.refundRequestStatus !== 'RESOLVED' && d.refundRequestStatus !== 'REJECTED' && (
-                                            <>
-                                                <button className="btn btn-sm px-3 rounded-pill fw-medium border-0 text-success bg-success bg-opacity-10 me-2 mt-1" onClick={() => handleRefundDecision(d.id, 'RESOLVED')}>Approve</button>
-                                                <button className="btn btn-sm px-3 rounded-pill fw-medium border-0 text-danger bg-danger bg-opacity-10 mt-1" onClick={() => handleRefundDecision(d.id, 'REJECTED')}>Reject</button>
-                                            </>
-                                        )}
+                                        <button className="btn btn-sm px-3 rounded-pill fw-medium border-0 text-secondary bg-secondary bg-opacity-10 me-2 mt-1" onClick={() => { setDetailDispute(d); setDecisionReason(''); setDecisionReasonError(''); }}>
+                                            <Eye size={13} className="me-1" />View
+                                        </button>
                                     </td>
                                 </tr>
                             )})}
                             {loading && (
-                                <tr><td colSpan={6} className="text-center py-4"><div className="spinner-border spinner-border-sm text-primary"></div></td></tr>
+                                <tr><td colSpan={7} className="text-center py-4"><div className="spinner-border spinner-border-sm text-primary"></div></td></tr>
                             )}
                             {!loading && filteredDisputes.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="text-center text-muted py-4">
+                                    <td colSpan={7} className="text-center text-muted py-4">
                                         {statusFilter === 'ALL' ? 'No disputes or refund requests found.' : (
                                             <>
                                                 No items with this status.{' '}
@@ -265,6 +309,180 @@ export const AdminDisputesPage: React.FC = () => {
                     </table>
                 </div>
             </SoftCard>
+
+            {/* ── Dispute Detail Modal ── */}
+            <SoftModal isOpen={Boolean(detailDispute)} onClose={() => setDetailDispute(null)} title="Dispute Details">
+                {detailDispute && (() => {
+                    const d = detailDispute;
+                    const isDispute = !!d.disputeRaisedAt;
+                    const isRefund = !!d.refundRequestStatus;
+                    const gated = !canAdminDecide(d);
+                    return (
+                        <div style={{ width: 'min(100%, 640px)' }}>
+                            {/* Summary */}
+                            <div className="d-flex align-items-center justify-content-between mb-3">
+                                <div>
+                                    <div className="fw-bold text-body">{d.reference || `#${d.id}`}</div>
+                                    <div className="text-muted small">Client: {d.client?.nom || 'Unknown'} &middot; Total: {d.montantTotal?.toFixed(2)} DH</div>
+                                </div>
+                                <div className="d-flex gap-1">
+                                    {isRefund && <span className="badge bg-danger bg-opacity-10 text-danger">Refund</span>}
+                                    {isDispute && <span className="badge bg-warning bg-opacity-10 text-warning">Dispute</span>}
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="d-flex align-items-center gap-2 mb-4">
+                                <span className="text-muted small fw-semibold">Status:</span>
+                                <div className={`badge ${d.refundRequestStatus === 'RESOLVED' || !d.disputeRaisedAt ? 'bg-success' : 'bg-warning'} bg-opacity-25 px-2 rounded-pill`}>
+                                    {d.refundRequestStatus || (d.disputeRaisedAt ? 'OPEN' : 'RESOLVED')}
+                                </div>
+                            </div>
+
+                            {/* Client Submission */}
+                            <div className="admin-dispute-detail-section mb-3">
+                                <div className="d-flex align-items-center gap-2 mb-2">
+                                    <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px', background: 'rgba(var(--bs-warning-rgb), 0.12)' }}>
+                                        <MessageSquare size={14} className="text-warning" />
+                                    </div>
+                                    <span className="fw-semibold small">Client Submission</span>
+                                </div>
+                                {d.disputeCategory && <div className="text-muted small mb-1">Category: <span className="fw-medium text-body">{d.disputeCategory}</span></div>}
+                                <div className="text-muted small mb-1">Reason:</div>
+                                <div className="small text-body mb-2" style={{ whiteSpace: 'pre-wrap' }}>{d.disputeReason || d.refundRequestMessage || 'No details provided'}</div>
+                                {d.disputeRaisedAt && <div className="text-muted small mb-1">Raised: {format(new Date(d.disputeRaisedAt), 'PPP p')}</div>}
+                                {d.disputeImagePath && (
+                                    <div className="mt-2">
+                                        <div className="text-muted small mb-1 d-flex align-items-center gap-1"><Image size={12} /> Client evidence</div>
+                                        <img src={d.disputeImagePath} alt="Client evidence" className="rounded-3" style={{ maxWidth: '240px', maxHeight: '160px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Supplier Response */}
+                            <div className="admin-dispute-detail-section mb-3">
+                                <div className="d-flex align-items-center gap-2 mb-2">
+                                    <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px', background: d.supplierRespondedAt ? 'rgba(var(--bs-success-rgb), 0.12)' : 'rgba(var(--bs-secondary-rgb), 0.12)' }}>
+                                        {d.supplierRespondedAt ? <CheckCircle size={14} className="text-success" /> : <AlertTriangle size={14} className="text-muted" />}
+                                    </div>
+                                    <span className="fw-semibold small">Supplier Response</span>
+                                </div>
+                                {d.supplierRespondedAt ? (
+                                    <>
+                                        <div className="small text-body mb-2" style={{ whiteSpace: 'pre-wrap' }}>{d.supplierResponseMessage}</div>
+                                        <div className="text-muted small mb-1">Responded: {format(new Date(d.supplierRespondedAt), 'PPP p')}</div>
+                                        {d.supplierResponseImagePath && (
+                                            <div className="mt-2">
+                                                <div className="text-muted small mb-1 d-flex align-items-center gap-1"><Image size={12} /> Supplier evidence</div>
+                                                <img src={d.supplierResponseImagePath} alt="Supplier evidence" className="rounded-3" style={{ maxWidth: '240px', maxHeight: '160px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="p-3 rounded-3 text-center" style={{ background: 'rgba(var(--bs-warning-rgb), 0.06)', border: '1px dashed rgba(var(--bs-warning-rgb), 0.3)' }}>
+                                        <Lock size={16} className="text-warning mb-1" />
+                                        <div className="text-muted small">Supplier has not responded yet. Admin actions are blocked until both sides have submitted.</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Gating notice */}
+                            {gated && (
+                                <div className="p-3 rounded-4 mb-3 d-flex align-items-center gap-2" style={{ background: 'rgba(var(--bs-warning-rgb), 0.08)', border: '1px solid rgba(var(--bs-warning-rgb), 0.2)' }}>
+                                    <Lock size={16} className="text-warning flex-shrink-0" />
+                                    <span className="text-muted small">Approve/reject actions are disabled until the supplier responds to the dispute.</span>
+                                </div>
+                            )}
+
+                            {/* Admin Decision Area */}
+                            <div className="admin-dispute-detail-section">
+                                <div className="d-flex align-items-center gap-2 mb-3">
+                                    <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '28px', height: '28px', background: 'rgba(var(--bs-primary-rgb), 0.12)' }}>
+                                        <FileText size={14} className="text-primary" />
+                                    </div>
+                                    <span className="fw-semibold small">Admin Decision</span>
+                                </div>
+
+                                {/* Show saved decision if already made */}
+                                {d.adminDecisionReason && (
+                                    <div className="mb-3 p-3 rounded-3" style={{ background: 'rgba(var(--bs-primary-rgb), 0.04)', border: '1px solid rgba(var(--bs-primary-rgb), 0.12)' }}>
+                                        <div className="text-muted small mb-1">Decision reason:</div>
+                                        <div className="small text-body" style={{ whiteSpace: 'pre-wrap' }}>{d.adminDecisionReason}</div>
+                                        {d.adminDecisionAt && (
+                                            <div className="text-muted small mt-2">Decided: {format(new Date(d.adminDecisionAt), 'PPP p')}</div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Decision form — only when there are pending actions */}
+                                {((isDispute && d.disputeRaisedAt) || (isRefund && d.refundRequestStatus !== 'RESOLVED' && d.refundRequestStatus !== 'REJECTED')) ? (
+                                    <>
+                                        {!gated && (
+                                            <div className="mb-3">
+                                                <label className="form-label small fw-semibold text-muted mb-2">Reason for decision (required)</label>
+                                                <textarea
+                                                    className={`form-control shadow-none ${decisionReasonError ? 'is-invalid' : ''}`}
+                                                    rows={3}
+                                                    placeholder="Explain the reason for your decision..."
+                                                    value={decisionReason}
+                                                    onChange={(e) => { setDecisionReason(e.target.value); if (decisionReasonError) setDecisionReasonError(''); }}
+                                                    disabled={isSubmittingDecision}
+                                                    style={{ borderRadius: '0.75rem', borderColor: 'var(--soft-border)', padding: '0.75rem 1rem' }}
+                                                />
+                                                {decisionReasonError && <div className="invalid-feedback d-block">{decisionReasonError}</div>}
+                                            </div>
+                                        )}
+                                        <div className="d-flex flex-wrap gap-2">
+                                            {isDispute && d.disputeRaisedAt && (
+                                                <button
+                                                    className="btn btn-sm px-4 rounded-pill fw-medium border-0 text-primary bg-primary bg-opacity-10"
+                                                    onClick={() => handleResolveDispute(d.id)}
+                                                    disabled={gated || isSubmittingDecision}
+                                                >
+                                                    {gated && <Lock size={11} className="me-1" />}
+                                                    {isSubmittingDecision ? 'Submitting...' : 'Mark Resolved'}
+                                                </button>
+                                            )}
+                                            {isRefund && d.refundRequestStatus !== 'RESOLVED' && d.refundRequestStatus !== 'REJECTED' && (
+                                                <>
+                                                    <button
+                                                        className="btn btn-sm px-4 rounded-pill fw-medium border-0 text-success bg-success bg-opacity-10"
+                                                        onClick={() => handleRefundDecision(d.id, 'RESOLVED')}
+                                                        disabled={gated || isSubmittingDecision}
+                                                    >
+                                                        {gated && <Lock size={11} className="me-1" />}
+                                                        {isSubmittingDecision ? 'Submitting...' : 'Approve Refund'}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm px-4 rounded-pill fw-medium border-0 text-danger bg-danger bg-opacity-10"
+                                                        onClick={() => handleRefundDecision(d.id, 'REJECTED')}
+                                                        disabled={gated || isSubmittingDecision}
+                                                    >
+                                                        {gated && <Lock size={11} className="me-1" />}
+                                                        {isSubmittingDecision ? 'Submitting...' : 'Reject Refund'}
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="d-flex flex-wrap gap-2">
+                                        {d.refundRequestStatus === 'RESOLVED' && (
+                                            <span className="badge bg-success bg-opacity-10 text-success px-3 py-2">Refund Approved</span>
+                                        )}
+                                        {d.refundRequestStatus === 'REJECTED' && (
+                                            <span className="badge bg-danger bg-opacity-10 text-danger px-3 py-2">Refund Rejected</span>
+                                        )}
+                                        {!d.disputeRaisedAt && !isRefund && !d.adminDecisionReason && (
+                                            <span className="text-muted small">No pending actions.</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
+            </SoftModal>
 
             <style>{`
                 .admin-dispute-filter-bar {
@@ -318,6 +536,12 @@ export const AdminDisputesPage: React.FC = () => {
                 }
                 .admin-dispute-filter-count--active {
                     background: rgba(255, 255, 255, 0.25);
+                }
+                .admin-dispute-detail-section {
+                    padding: 1rem;
+                    border-radius: 1rem;
+                    background: var(--soft-bg, #f8fafc);
+                    border: 1px solid var(--soft-border, #e2e8f0);
                 }
             `}</style>
         </div>

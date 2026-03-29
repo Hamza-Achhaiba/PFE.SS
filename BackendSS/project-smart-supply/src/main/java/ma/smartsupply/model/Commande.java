@@ -71,6 +71,19 @@ public class Commande {
     @Column(length = 2000)
     private String disputeReason;
     private LocalDateTime disputeRaisedAt;
+    private String disputeImagePath;
+
+    // Supplier dispute response
+    @Column(length = 2000)
+    private String supplierResponseMessage;
+    private String supplierResponseImagePath;
+    private LocalDateTime supplierRespondedAt;
+
+    // Admin decision
+    @Column(length = 2000)
+    private String adminDecisionReason;
+    private LocalDateTime adminDecisionAt;
+
     private Double amount;
     private Double platformFee;
     private Double supplierNetAmount;

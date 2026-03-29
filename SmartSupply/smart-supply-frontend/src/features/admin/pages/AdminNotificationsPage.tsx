@@ -61,8 +61,11 @@ export const AdminNotificationsPage: React.FC = () => {
             const targetOrderId = notif.commandeId || getOrderIdFromMessage(notif.message);
             const targetOrderRef = notif.commandeRef || getOrderRefFromMessage(notif.message);
 
+            const isDisputeNotif = notif.message?.toLowerCase().includes('dispute');
             let linkTo = '#';
-            if (targetOrderId) {
+            if (isDisputeNotif && targetOrderId) {
+              linkTo = `/admin/disputes?orderId=${targetOrderId}`;
+            } else if (targetOrderId) {
               linkTo = `/admin/orders?orderId=${targetOrderId}`;
             } else if (targetOrderRef) {
               linkTo = `/admin/orders?orderRef=${targetOrderRef}`;

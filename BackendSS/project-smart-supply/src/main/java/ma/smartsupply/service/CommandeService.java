@@ -411,6 +411,10 @@ public class CommandeService {
         dto.setDisputeCategory(commande.getDisputeCategory());
         dto.setDisputeReason(commande.getDisputeReason());
         dto.setDisputeRaisedAt(commande.getDisputeRaisedAt());
+        dto.setDisputeImagePath(commande.getDisputeImagePath());
+        dto.setSupplierResponseMessage(commande.getSupplierResponseMessage());
+        dto.setSupplierResponseImagePath(commande.getSupplierResponseImagePath());
+        dto.setSupplierRespondedAt(commande.getSupplierRespondedAt());
         dto.setAmount(commande.getAmount());
         dto.setPlatformFee(commande.getPlatformFee());
         dto.setSupplierNetAmount(commande.getSupplierNetAmount());
@@ -608,8 +612,81 @@ public class CommandeService {
                 : null);
         commande.setDisputeReason(disputeReason);
         commande.setDisputeRaisedAt(LocalDateTime.now());
+        if (request != null && request.getImagePath() != null && !request.getImagePath().trim().isEmpty()) {
+            commande.setDisputeImagePath(request.getImagePath().trim());
+        }
 
-        return mapToDTO(commandeRepository.save(commande));
+        Commande saved = commandeRepository.save(commande);
+
+        // Notify supplier(s) about the dispute
+        saved.getLignes().stream()
+                .map(l -> l.getProduit().getFournisseur())
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(supplier -> notificationService.creer(
+                        supplier,
+                        "Dispute raised: A client has raised a dispute on order " + saved.getReference() + ". Please review and respond.",
+                        TypeNotification.DISPUTE,
+                        saved.getId(),
+                        saved.getReference()));
+
+        // Notify all admins about the dispute
+        utilisateurRepository.findByRole(Role.ADMIN)
+                .forEach(admin -> notificationService.creer(
+                        admin,
+                        "Dispute raised: A dispute has been raised on order " + saved.getReference() + " by client " + saved.getClient().getNom() + ".",
+                        TypeNotification.DISPUTE,
+                        saved.getId(),
+                        saved.getReference()));
+
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public CommandeResponse submitSupplierDisputeResponse(Long commandeId, SupplierDisputeResponseRequest request, String emailSupplier) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        // Verify the supplier is linked to this order
+        boolean isSupplierOfOrder = commande.getLignes().stream()
+                .anyMatch(l -> l.getProduit() != null
+                        && l.getProduit().getFournisseur() != null
+                        && l.getProduit().getFournisseur().getEmail().equals(emailSupplier));
+        if (!isSupplierOfOrder && !isAdmin(emailSupplier)) {
+            throw new RuntimeException("Access denied: you are not a supplier for this order.");
+        }
+
+        if (commande.getDisputeRaisedAt() == null) {
+            throw new RuntimeException("No dispute exists on this order to respond to.");
+        }
+
+        if (commande.getSupplierRespondedAt() != null) {
+            throw new RuntimeException("A response has already been submitted for this dispute.");
+        }
+
+        String msg = request != null && request.getMessage() != null ? request.getMessage().trim() : "";
+        if (msg.isEmpty()) {
+            throw new RuntimeException("Response message is required.");
+        }
+
+        commande.setSupplierResponseMessage(msg);
+        commande.setSupplierRespondedAt(LocalDateTime.now());
+        if (request.getImagePath() != null && !request.getImagePath().trim().isEmpty()) {
+            commande.setSupplierResponseImagePath(request.getImagePath().trim());
+        }
+
+        Commande saved = commandeRepository.save(commande);
+
+        // Notify all admins that the supplier has responded
+        utilisateurRepository.findByRole(Role.ADMIN)
+                .forEach(admin -> notificationService.creer(
+                        admin,
+                        "Supplier response: The supplier has responded to the dispute on order " + saved.getReference() + ". Both sides are now available for review.",
+                        TypeNotification.DISPUTE,
+                        saved.getId(),
+                        saved.getReference()));
+
+        return mapToDTO(saved);
     }
 
     @Transactional

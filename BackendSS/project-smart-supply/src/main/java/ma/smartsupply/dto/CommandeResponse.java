@@ -36,6 +36,10 @@ public class CommandeResponse {
     private String disputeCategory;
     private String disputeReason;
     private LocalDateTime disputeRaisedAt;
+    private String disputeImagePath;
+    private String supplierResponseMessage;
+    private String supplierResponseImagePath;
+    private LocalDateTime supplierRespondedAt;
     private Long supportSupplierId;
     private String supportSupplierName;
     private String supportSupplierCompany;
