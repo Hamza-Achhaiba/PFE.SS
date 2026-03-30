@@ -41,6 +41,7 @@ import {
 } from "recharts";
 import { formatPriceDh } from "../../../utils/price";
 import { supplierProfileChartTheme } from "../../shared/supplierProfileTheme";
+import { resolveImage } from "../../../utils/imageUtils";
 import "../../shared/styles/supplier-profile.css";
 
 const chartXAxisTick = {
@@ -49,13 +50,6 @@ const chartXAxisTick = {
   fontWeight: 500,
 };
 const chartYAxisTick = { fill: supplierProfileChartTheme.tick, fontSize: 11 };
-
-const resolveImage = (url: string | undefined) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
-  return `${backendUrl}${url}`;
-};
 
 export const SupplierProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

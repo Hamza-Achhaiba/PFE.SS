@@ -6,6 +6,7 @@ import { AuthStore } from '../../auth/auth.store';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { resolveImage } from '../../../utils/imageUtils';
 
 export const MessagesPage: React.FC = () => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -490,16 +491,16 @@ export const MessagesPage: React.FC = () => {
                                                     {msg.imageUrl && (
                                                         <div className="message-image-container mt-2 rounded overflow-hidden shadow-sm" style={{ maxWidth: '250px' }}>
                                                             <img
-                                                                src={`${import.meta.env.VITE_API_URL}${msg.imageUrl}`}
+                                                                src={resolveImage(msg.imageUrl)}
                                                                 alt="Sent"
                                                                 className="img-fluid transition-all"
-                                                                style={{ 
-                                                                    maxHeight: '200px', 
-                                                                    cursor: 'pointer', 
+                                                                style={{
+                                                                    maxHeight: '200px',
+                                                                    cursor: 'pointer',
                                                                     display: 'block',
                                                                     objectFit: 'cover'
                                                                 }}
-                                                                onClick={() => setPreviewImage(`${import.meta.env.VITE_API_URL}${msg.imageUrl}`)}
+                                                                onClick={() => setPreviewImage(resolveImage(msg.imageUrl))}
                                                             />
                                                         </div>
                                                     )}

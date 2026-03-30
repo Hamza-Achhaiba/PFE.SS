@@ -6,6 +6,7 @@ import { adminApi } from '../../../api/admin.api';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
 import { AlertTriangle, CheckCircle, Download, Eye, FileText, Image, Lock, MessageSquare, XCircle } from 'lucide-react';
+import { resolveImage } from '../../../utils/imageUtils';
 
 type DisputeStatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'REJECTED';
 
@@ -354,7 +355,7 @@ export const AdminDisputesPage: React.FC = () => {
                                 {d.disputeImagePath && (
                                     <div className="mt-2">
                                         <div className="text-muted small mb-1 d-flex align-items-center gap-1"><Image size={12} /> Client evidence</div>
-                                        <img src={d.disputeImagePath} alt="Client evidence" className="rounded-3" style={{ maxWidth: '240px', maxHeight: '160px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                        <img src={resolveImage(d.disputeImagePath)} alt="Client evidence" className="rounded-3" style={{ maxWidth: '240px', maxHeight: '160px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                                     </div>
                                 )}
                             </div>
@@ -374,7 +375,7 @@ export const AdminDisputesPage: React.FC = () => {
                                         {d.supplierResponseImagePath && (
                                             <div className="mt-2">
                                                 <div className="text-muted small mb-1 d-flex align-items-center gap-1"><Image size={12} /> Supplier evidence</div>
-                                                <img src={d.supplierResponseImagePath} alt="Supplier evidence" className="rounded-3" style={{ maxWidth: '240px', maxHeight: '160px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                                <img src={resolveImage(d.supplierResponseImagePath)} alt="Supplier evidence" className="rounded-3" style={{ maxWidth: '240px', maxHeight: '160px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                                             </div>
                                         )}
                                     </>

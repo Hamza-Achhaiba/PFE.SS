@@ -10,13 +10,7 @@ import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { useNavigate } from 'react-router-dom';
-
-const resolveImage = (url: string) => {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
-  return `${backendUrl}${url}`;
-};
+import { resolveImage } from '../../../utils/imageUtils';
 
 export const CartPage: React.FC = () => {
   const [panier, setPanier] = useState<PanierResponse | null>(null);

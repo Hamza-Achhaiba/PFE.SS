@@ -7,13 +7,7 @@ import { User as UserType } from '../../../api/types';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftInput } from '../../../components/ui/SoftInput';
-
-const resolveImage = (url: string | undefined) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
-    return `${backendUrl}${url}`;
-};
+import { resolveImage } from '../../../utils/imageUtils';
 
 export const SettingsPage: React.FC = () => {
     const role = AuthStore.getRole();

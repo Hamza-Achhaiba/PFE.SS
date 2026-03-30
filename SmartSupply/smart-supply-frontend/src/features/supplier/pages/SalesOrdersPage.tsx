@@ -10,6 +10,7 @@ import { AlertTriangle, FileText, ImagePlus, Package, Truck, Calendar, Save, Use
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { toast } from 'react-toastify';
 import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel, ORDERED_STATUS_FLOW } from '../../../utils/orderStatus';
+import { resolveImage } from '../../../utils/imageUtils';
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'ALL', label: 'All' },
@@ -561,7 +562,7 @@ export const SalesOrdersPage: React.FC = () => {
                             )}
                             {order.refundImagePath && (
                               <div className="mb-2">
-                                <img src={order.refundImagePath} alt="Client evidence" className="rounded-3" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                <img src={resolveImage(order.refundImagePath)} alt="Client evidence" className="rounded-3" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                               </div>
                             )}
 
@@ -576,7 +577,7 @@ export const SalesOrdersPage: React.FC = () => {
                                   <div className="text-muted small">Offered: {order.refundSupplierOfferedAmount.toFixed(2)} DH</div>
                                 )}
                                 {order.refundSupplierImagePath && (
-                                  <img src={order.refundSupplierImagePath} alt="Your evidence" className="rounded-3 mt-2" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                  <img src={resolveImage(order.refundSupplierImagePath)} alt="Your evidence" className="rounded-3 mt-2" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                                 )}
                               </div>
                             ) : order.refundRequestStatus === 'OPEN' ? (
@@ -673,7 +674,7 @@ export const SalesOrdersPage: React.FC = () => {
                             )}
                             {order.disputeImagePath && (
                               <div className="mb-2">
-                                <img src={order.disputeImagePath} alt="Client evidence" className="rounded-3" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                <img src={resolveImage(order.disputeImagePath)} alt="Client evidence" className="rounded-3" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                               </div>
                             )}
 
@@ -682,7 +683,7 @@ export const SalesOrdersPage: React.FC = () => {
                                 <div className="fw-semibold small text-success mb-1">Your response submitted</div>
                                 <div className="text-muted small">{order.supplierResponseMessage}</div>
                                 {order.supplierResponseImagePath && (
-                                  <img src={order.supplierResponseImagePath} alt="Your evidence" className="rounded-3 mt-2" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                  <img src={resolveImage(order.supplierResponseImagePath)} alt="Your evidence" className="rounded-3 mt-2" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                                 )}
                               </div>
                             ) : disputeResponseOrderId === order.id ? (

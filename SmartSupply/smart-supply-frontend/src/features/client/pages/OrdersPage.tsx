@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ordersApi } from '../../../api/orders.api';
 import { Commande } from '../../../api/types';
 import { messagesApi } from '../../../api/messages.api';
+import { resolveImage } from '../../../utils/imageUtils';
 import { SoftCard } from '../../../components/ui/SoftCard';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftButton } from '../../../components/ui/SoftButton';
@@ -552,7 +553,7 @@ export const OrdersPage: React.FC = () => {
 
                               {order.refundImagePath && (
                                 <div className="mt-1">
-                                  <img src={order.refundImagePath} alt="Refund evidence" className="rounded-3" style={{ maxWidth: '160px', maxHeight: '100px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                  <img src={resolveImage(order.refundImagePath)} alt="Refund evidence" className="rounded-3" style={{ maxWidth: '160px', maxHeight: '100px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                                 </div>
                               )}
 
@@ -579,7 +580,7 @@ export const OrdersPage: React.FC = () => {
                                   )}
                                   {order.refundSupplierImagePath && (
                                     <div className="mt-1">
-                                      <img src={order.refundSupplierImagePath} alt="Supplier evidence" className="rounded-3" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                      <img src={resolveImage(order.refundSupplierImagePath)} alt="Supplier evidence" className="rounded-3" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
                                     </div>
                                   )}
                                   <div className="text-muted small mt-1" style={{ fontSize: '0.72rem' }}>

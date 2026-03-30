@@ -9,13 +9,7 @@ import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { toast } from 'react-toastify';
 import { PanierResponse } from '../../../api/types';
 import { ShoppingCart, User, Phone, MapPin, CreditCard, Banknote, ChevronLeft, Minus, Plus, ShieldCheck } from 'lucide-react';
-
-const resolveImage = (url: string) => {
-    if (!url) return null;
-    if (url.startsWith('http')) return url;
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8087';
-    return `${backendUrl}${url}`;
-};
+import { resolveImage } from '../../../utils/imageUtils';
 
 export const CheckoutPage: React.FC = () => {
     const [panier, setPanier] = useState<PanierResponse | null>(null);

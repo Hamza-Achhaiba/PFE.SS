@@ -5,6 +5,7 @@ import { AuthStore } from '../../features/auth/auth.store';
 import { profilApi } from '../../api/profil.api';
 import { User } from '../../api/types';
 import { SoftBadge } from '../ui/SoftBadge';
+import { resolveImage } from '../../utils/imageUtils';
 
 export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSidebar }) => {
     const role = AuthStore.getRole();
@@ -96,7 +97,7 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                         style={{
                             width: '40px',
                             height: '40px',
-                            background: profileData?.image ? `url(${profileData.image}) center/cover no-repeat` : 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+                            background: profileData?.image ? `url(${resolveImage(profileData.image)}) center/cover no-repeat` : 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
                             fontSize: profileData?.image ? '0' : '1.2rem',
                             transition: 'transform 0.2s ease',
                             border: '2px solid white'
@@ -115,7 +116,7 @@ export const Topbar: React.FC<{ onToggleSidebar?: () => void }> = ({ onToggleSid
                                         style={{ 
                                             width: '48px', 
                                             height: '48px', 
-                                            background: profileData?.image ? `url(${profileData.image}) center/cover no-repeat` : 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)', 
+                                            background: profileData?.image ? `url(${resolveImage(profileData.image)}) center/cover no-repeat` : 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)', 
                                             fontSize: profileData?.image ? '0' : '1.4rem',
                                             border: '2px solid white'
                                         }}
