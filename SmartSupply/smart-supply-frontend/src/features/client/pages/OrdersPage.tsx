@@ -9,7 +9,7 @@ import { SoftButton } from '../../../components/ui/SoftButton';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { SoftModal } from '../../../components/ui/SoftModal';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle, ChevronDown, Download, FileText, ImagePlus, MessageSquare, Package, ShieldCheck, Truck, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, Download, FileText, ImagePlus, MessageSquare, Package, RefreshCw, ShieldCheck, Truck, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getOrderStatusBadge, getOrderStatusLabel, getPaymentStatusBadge, getPaymentStatusLabel } from '../../../utils/orderStatus';
 
@@ -31,10 +31,21 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'ANNULEE', label: 'Cancelled' },
 ];
 
+const REFUND_STATUS_LABELS: Record<string, string> = {
+  NONE: '',
+  OPEN: 'Pending supplier response',
+  SUPPLIER_ACCEPTED: 'Supplier accepted',
+  SUPPLIER_REJECTED: 'Supplier rejected',
+  PARTIAL_OFFERED: 'Supplier offered partial refund',
+  ESCALATED_TO_DISPUTE: 'Escalated to dispute',
+  RESOLVED: 'Resolved',
+  REJECTED: 'Rejected',
+};
+
 export const OrdersPage: React.FC = () => {
   const [achats, setAchats] = useState<Commande[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOpeningRefundId, setIsOpeningRefundId] = useState<number | null>(null);
+  // Dispute modal state
   const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
   const [disputeOrder, setDisputeOrder] = useState<Commande | null>(null);
   const [disputeCategory, setDisputeCategory] = useState('');
@@ -42,6 +53,19 @@ export const OrdersPage: React.FC = () => {
   const [disputeImage, setDisputeImage] = useState<File | null>(null);
   const [disputeImagePreview, setDisputeImagePreview] = useState<string | null>(null);
   const [disputeError, setDisputeError] = useState('');
+  // Refund modal state
+  const [refundModalOrder, setRefundModalOrder] = useState<Commande | null>(null);
+  const [refundType, setRefundType] = useState<'FULL' | 'PARTIAL'>('FULL');
+  const [refundDescription, setRefundDescription] = useState('');
+  const [refundImage, setRefundImage] = useState<File | null>(null);
+  const [refundImagePreview, setRefundImagePreview] = useState<string | null>(null);
+  const [refundError, setRefundError] = useState('');
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+  const [refundAffectedItems, setRefundAffectedItems] = useState<{ ligneId: number; productName: string; quantity: number }[]>([]);
+  const [refundRequestedAmount, setRefundRequestedAmount] = useState<string>('');
+  // Escalation state
+  const [isEscalatingId, setIsEscalatingId] = useState<number | null>(null);
+  // General state
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const orderIdParam = searchParams.get('orderId');
@@ -55,7 +79,6 @@ export const OrdersPage: React.FC = () => {
   const statusParam = searchParams.get('status');
   const [statusFilter, setStatusFilter] = useState<string>(statusParam ?? 'ALL');
 
-  // Sync filter when URL param changes (e.g. navigated from dashboard)
   useEffect(() => {
     const s = searchParams.get('status');
     if (s) setStatusFilter(s);
@@ -84,14 +107,12 @@ export const OrdersPage: React.FC = () => {
   useEffect(() => {
     if (!isLoading && (orderIdParam || orderRefParam) && achats.length > 0) {
       let targetOrder: Commande | undefined;
-      
       if (orderIdParam) {
         const id = parseInt(orderIdParam, 10);
         targetOrder = achats.find(a => a.id === id);
       } else if (orderRefParam) {
         targetOrder = achats.find(a => a.reference === orderRefParam);
       }
-
       if (targetOrder) {
         setExpandedOrderId(targetOrder.id);
         const element = orderRefs.current[targetOrder.id];
@@ -158,7 +179,15 @@ export const OrdersPage: React.FC = () => {
 
   const canRequestRefund = (order: Commande) => {
     const paymentState = order.paymentStatus || order.escrowStatus;
-    return paymentState !== 'RELEASED' && paymentState !== 'REFUNDED' && order.statut !== 'ANNULEE';
+    const refundState = order.refundRequestStatus || 'NONE';
+    return paymentState !== 'RELEASED' && paymentState !== 'REFUNDED'
+      && order.statut !== 'ANNULEE'
+      && refundState === 'NONE';
+  };
+
+  const canEscalateRefund = (order: Commande) => {
+    const refundState = order.refundRequestStatus || 'NONE';
+    return refundState === 'SUPPLIER_REJECTED' || refundState === 'PARTIAL_OFFERED';
   };
 
   const canRaiseDispute = (order: Commande) => {
@@ -172,46 +201,113 @@ export const OrdersPage: React.FC = () => {
       && order.statut !== 'ANNULEE';
   };
 
-  const buildFallbackRefundMessage = (order: Commande) => {
-    const orderReference = order.reference || `#${order.id}`;
-    return [
-      `Hello Support, I want to request a refund for order ${orderReference} because there is an issue with this order.`,
-      '',
-      `Order number: ${orderReference}`,
-      `Supplier: ${order.supportSupplierCompany || order.supportSupplierName || 'Unknown supplier'}`,
-      `Payment/Escrow status: ${getPaymentStatusLabel(order.paymentStatus || order.escrowStatus) || 'UNKNOWN'}`,
-      order.multipleSuppliersInOrder ? 'Note: this order contains items from multiple suppliers.' : '',
-      'Issue: Please describe the problem here.',
-    ].filter(Boolean).join('\n');
+  // ── Refund modal handlers ──
+  const openRefundModal = (order: Commande) => {
+    setRefundModalOrder(order);
+    setRefundType('FULL');
+    setRefundDescription('');
+    setRefundImage(null);
+    setRefundImagePreview(null);
+    setRefundError('');
+    setRefundAffectedItems([]);
+    setRefundRequestedAmount('');
   };
 
-  const handleAskForRefund = async (order: Commande) => {
-    if (!order.supportSupplierId) {
-      toast.error('No support conversation target is available for this order.');
+  const closeRefundModal = () => {
+    if (isSubmittingRefund) return;
+    setRefundModalOrder(null);
+    setRefundType('FULL');
+    setRefundDescription('');
+    setRefundImage(null);
+    setRefundImagePreview(null);
+    setRefundError('');
+    setRefundAffectedItems([]);
+    setRefundRequestedAmount('');
+  };
+
+  const handleRefundImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setRefundImage(file);
+    if (file) {
+      setRefundImagePreview(URL.createObjectURL(file));
+    } else {
+      setRefundImagePreview(null);
+    }
+  };
+
+  const toggleAffectedItem = (ligne: { id: number; produit: { nom: string }; quantite: number }) => {
+    setRefundAffectedItems(prev => {
+      const exists = prev.find(i => i.ligneId === ligne.id);
+      if (exists) {
+        return prev.filter(i => i.ligneId !== ligne.id);
+      }
+      return [...prev, { ligneId: ligne.id, productName: ligne.produit.nom, quantity: ligne.quantite }];
+    });
+  };
+
+  const updateAffectedItemQuantity = (ligneId: number, qty: number) => {
+    setRefundAffectedItems(prev =>
+      prev.map(i => i.ligneId === ligneId ? { ...i, quantity: qty } : i)
+    );
+  };
+
+  const submitRefundRequest = async () => {
+    if (!refundModalOrder) return;
+    const trimmedDesc = refundDescription.trim();
+    if (!trimmedDesc) {
+      setRefundError('Please provide a description of the issue.');
+      return;
+    }
+    if (refundType === 'PARTIAL' && refundAffectedItems.length === 0) {
+      setRefundError('Please select at least one affected item for partial refund.');
       return;
     }
 
-    setIsOpeningRefundId(order.id);
+    setIsSubmittingRefund(true);
     try {
-      const updatedOrder = await ordersApi.openRefundRequest(order.id);
-      replaceOrder(updatedOrder);
+      let imagePath: string | undefined;
+      if (refundImage) {
+        const uploadResult = await ordersApi.uploadDisputeImage(refundImage);
+        imagePath = uploadResult.url;
+      }
 
-      const conversation = await messagesApi.startConversation(updatedOrder.supportSupplierId);
-      navigate(`/client/messages?conversationId=${conversation.id}&supplierId=${updatedOrder.supportSupplierId}`, {
-        state: {
-          selectedConversationId: conversation.id,
-          supplierId: updatedOrder.supportSupplierId,
-          draftMessage: updatedOrder.refundRequestMessage || buildFallbackRefundMessage(updatedOrder),
-        },
+      const totalAffectedQty = refundAffectedItems.reduce((sum, i) => sum + i.quantity, 0);
+      const parsedAmount = refundRequestedAmount ? parseFloat(refundRequestedAmount) : undefined;
+
+      const updatedOrder = await ordersApi.openRefundRequest(refundModalOrder.id, {
+        type: refundType,
+        description: trimmedDesc,
+        imagePath,
+        affectedItems: refundType === 'PARTIAL' ? JSON.stringify(refundAffectedItems) : undefined,
+        affectedQuantity: refundType === 'PARTIAL' ? totalAffectedQty : undefined,
+        requestedAmount: refundType === 'PARTIAL' && parsedAmount && parsedAmount > 0 ? parsedAmount : undefined,
       });
-      toast.success('Support conversation opened with a refund draft.');
+      replaceOrder(updatedOrder);
+      closeRefundModal();
+      toast.success('Refund request submitted successfully.');
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Failed to open refund support.');
+      setRefundError(e.response?.data?.message || e.response?.data || 'Failed to submit refund request.');
     } finally {
-      setIsOpeningRefundId(null);
+      setIsSubmittingRefund(false);
     }
   };
 
+  // ── Escalation handler ──
+  const handleEscalateToDispute = async (order: Commande) => {
+    if (!window.confirm('Escalate this refund to a formal dispute? The admin will review the case.')) return;
+    setIsEscalatingId(order.id);
+    try {
+      const updatedOrder = await ordersApi.escalateRefund(order.id);
+      replaceOrder(updatedOrder);
+      toast.success('Refund escalated to dispute. Admin will review.');
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || e.response?.data || 'Failed to escalate refund.');
+    } finally {
+      setIsEscalatingId(null);
+    }
+  };
+
+  // ── Dispute modal handlers ──
   const openDisputeModal = (order: Commande) => {
     setDisputeOrder(order);
     setDisputeCategory(order.disputeCategory || '');
@@ -241,13 +337,11 @@ export const OrdersPage: React.FC = () => {
 
   const submitDispute = async () => {
     if (!disputeOrder) return;
-
     const trimmedReason = disputeReason.trim();
     if (!trimmedReason) {
       setDisputeError('Please provide a reason before submitting the dispute.');
       return;
     }
-
     setIsSubmittingDispute(true);
     try {
       let imagePath: string | undefined;
@@ -267,6 +361,20 @@ export const OrdersPage: React.FC = () => {
       setDisputeError(e.response?.data?.message || e.response?.data || 'Failed to submit dispute.');
     } finally {
       setIsSubmittingDispute(false);
+    }
+  };
+
+  // ── Chat handler (still available as secondary) ──
+  const handleOpenChat = async (order: Commande) => {
+    if (!order.supportSupplierId) {
+      toast.error('No support conversation target is available for this order.');
+      return;
+    }
+    try {
+      const conversation = await messagesApi.startConversation(order.supportSupplierId);
+      navigate(`/client/messages?conversationId=${conversation.id}&supplierId=${order.supportSupplierId}`);
+    } catch {
+      toast.error('Failed to open support chat.');
     }
   };
 
@@ -348,8 +456,9 @@ export const OrdersPage: React.FC = () => {
         {filteredAchats.map((order) => {
           const paymentState = order.paymentStatus || order.escrowStatus;
           const refundState = order.refundRequestStatus || 'NONE';
-          const disputeAllowed = canRaiseDispute(order);
           const refundAllowed = canRequestRefund(order);
+          const escalateAllowed = canEscalateRefund(order);
+          const disputeAllowed = canRaiseDispute(order);
 
           const isExpanded = expandedOrderId === order.id;
 
@@ -414,34 +523,86 @@ export const OrdersPage: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* ── Refund & dispute status ── */}
                         {(refundState !== 'NONE' || paymentState === 'DISPUTED') && (
                           <div className="rounded-4 border bg-body-tertiary p-3 mb-4">
                             <div className="d-flex flex-column gap-2">
                               <div className="d-flex align-items-start justify-content-between gap-3">
                                 <div>
-                                  <div className="fw-semibold">Support & refund status</div>
+                                  <div className="fw-semibold">Refund & support status</div>
                                   <div className="text-muted small">
-                                    {refundState === 'OPEN' && 'A refund/support request is open for this order.'}
-                                    {refundState === 'RESOLVED' && 'The refund/support request for this order is resolved.'}
-                                    {refundState === 'REJECTED' && 'The refund/support request was rejected.'}
-                                    {refundState === 'NONE' && paymentState === 'DISPUTED' && 'This order is already in dispute.'}
+                                    {REFUND_STATUS_LABELS[refundState] || refundState}
                                   </div>
                                 </div>
                                 {paymentState === 'DISPUTED' && getPaymentStatusBadge('DISPUTED')}
                               </div>
+
                               {order.refundRequestedAt && (
                                 <div className="text-muted small">
                                   Refund requested {format(new Date(order.refundRequestedAt), 'PP p')}
+                                  {order.refundType && <> &middot; <span className="fw-semibold">{order.refundType === 'FULL' ? 'Full Refund' : 'Partial Refund'}</span></>}
                                 </div>
                               )}
+
+                              {order.refundDescription && (
+                                <div className="small refund-reason-block">
+                                  <span className="fw-semibold">Reason:</span> {order.refundDescription}
+                                </div>
+                              )}
+
+                              {order.refundImagePath && (
+                                <div className="mt-1">
+                                  <img src={order.refundImagePath} alt="Refund evidence" className="rounded-3" style={{ maxWidth: '160px', maxHeight: '100px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                </div>
+                              )}
+
+                              {order.refundType === 'PARTIAL' && order.refundRequestedAmount && (
+                                <div className="text-muted small">
+                                  Requested amount: <span className="fw-semibold">{order.refundRequestedAmount.toFixed(2)} DH</span>
+                                </div>
+                              )}
+
+                              {/* Supplier response */}
+                              {order.refundSupplierRespondedAt && (
+                                <div className="mt-2 p-2 rounded-3 bg-white border">
+                                  <div className="fw-semibold small mb-1">
+                                    Supplier Response
+                                    <span className={`ms-2 badge rounded-pill ${order.refundSupplierResponseType === 'ACCEPTED' ? 'bg-success' : order.refundSupplierResponseType === 'REJECTED' ? 'bg-danger' : 'bg-warning text-dark'}`}>
+                                      {order.refundSupplierResponseType === 'ACCEPTED' ? 'Accepted' : order.refundSupplierResponseType === 'REJECTED' ? 'Rejected' : 'Partial Offer'}
+                                    </span>
+                                  </div>
+                                  <div className="text-muted small">{order.refundSupplierMessage}</div>
+                                  {order.refundSupplierResponseType === 'PARTIAL_OFFERED' && order.refundSupplierOfferedAmount && (
+                                    <div className="text-muted small mt-1">
+                                      Offered amount: <span className="fw-semibold">{order.refundSupplierOfferedAmount.toFixed(2)} DH</span>
+                                    </div>
+                                  )}
+                                  {order.refundSupplierImagePath && (
+                                    <div className="mt-1">
+                                      <img src={order.refundSupplierImagePath} alt="Supplier evidence" className="rounded-3" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                    </div>
+                                  )}
+                                  <div className="text-muted small mt-1" style={{ fontSize: '0.72rem' }}>
+                                    {format(new Date(order.refundSupplierRespondedAt), 'PP p')}
+                                  </div>
+                                </div>
+                              )}
+
                               {order.disputeRaisedAt && (
                                 <div className="text-muted small">
                                   Dispute raised {format(new Date(order.disputeRaisedAt), 'PP p')}
                                 </div>
                               )}
-                              {order.disputeReason && (
+                              {order.disputeReason && !order.refundEscalatedToDisputeAt && (
                                 <div className="small dispute-reason-block">
                                   <span className="fw-semibold">Dispute reason:</span> {order.disputeReason}
+                                </div>
+                              )}
+
+                              {order.adminDecisionReason && (
+                                <div className="mt-1 p-2 rounded-3 bg-white border">
+                                  <div className="fw-semibold small mb-1">Admin Decision</div>
+                                  <div className="text-muted small">{order.adminDecisionReason}</div>
                                 </div>
                               )}
                             </div>
@@ -555,36 +716,55 @@ export const OrdersPage: React.FC = () => {
                           </SoftButton>
                         </div>
 
+                        {/* ── Refund & Dispute Actions ── */}
                         <div className="mt-3 pt-3 border-top">
                           <div className="support-action-card rounded-4 p-3">
                             <div className="d-flex align-items-start gap-3 mb-3">
                               <div className="support-action-icon">
-                                <MessageSquare size={18} />
+                                <RefreshCw size={18} />
                               </div>
                               <div>
-                                <div className="fw-semibold">Need help with this order?</div>
+                                <div className="fw-semibold">Refund & Support</div>
                                 <div className="text-muted small">
-                                  Ask for a refund first so support can review the issue before a formal dispute.
+                                  {refundState === 'NONE' && 'Request a refund if there is an issue with this order.'}
+                                  {refundState === 'OPEN' && 'Your refund request is pending supplier review.'}
+                                  {refundState === 'SUPPLIER_ACCEPTED' && 'The supplier has accepted your refund. Admin will process it.'}
+                                  {refundState === 'SUPPLIER_REJECTED' && 'The supplier rejected your refund. You can escalate to dispute.'}
+                                  {refundState === 'PARTIAL_OFFERED' && 'The supplier offered a partial refund. You can accept or escalate.'}
+                                  {refundState === 'ESCALATED_TO_DISPUTE' && 'This refund has been escalated to a formal dispute.'}
+                                  {refundState === 'RESOLVED' && 'Your refund request has been resolved.'}
+                                  {refundState === 'REJECTED' && 'Your refund request was rejected by admin.'}
                                 </div>
-                                {order.multipleSuppliersInOrder && (
-                                  <div className="text-muted small mt-1">
-                                    This order contains multiple suppliers. The support draft opens against the primary linked conversation.
-                                  </div>
-                                )}
                               </div>
                             </div>
 
                             <div className="d-flex flex-column gap-2">
-                              <SoftButton
-                                className="w-100"
-                                onClick={() => handleAskForRefund(order)}
-                                disabled={!refundAllowed || isOpeningRefundId === order.id}
-                              >
-                                <MessageSquare size={16} className="me-2" />
-                                {isOpeningRefundId === order.id ? 'Opening Support...' : refundState === 'NONE' ? 'Ask for Refund' : 'Open Refund Support Chat'}
-                              </SoftButton>
+                              {/* Request Refund button */}
+                              {refundAllowed && (
+                                <SoftButton
+                                  className="w-100"
+                                  onClick={() => openRefundModal(order)}
+                                >
+                                  <RefreshCw size={16} className="me-2" />
+                                  Request Refund
+                                </SoftButton>
+                              )}
 
-                              {disputeAllowed ? (
+                              {/* Escalate to Dispute button */}
+                              {escalateAllowed && (
+                                <SoftButton
+                                  variant="outline"
+                                  className="w-100"
+                                  onClick={() => handleEscalateToDispute(order)}
+                                  disabled={isEscalatingId === order.id}
+                                >
+                                  <AlertTriangle size={16} className="me-2" />
+                                  {isEscalatingId === order.id ? 'Escalating...' : 'Escalate to Dispute'}
+                                </SoftButton>
+                              )}
+
+                              {/* Direct dispute button (for cases where refund is open but not yet responded) */}
+                              {disputeAllowed && !escalateAllowed && refundState !== 'ESCALATED_TO_DISPUTE' && refundState !== 'SUPPLIER_ACCEPTED' && refundState !== 'RESOLVED' && refundState !== 'REJECTED' && (
                                 <SoftButton
                                   variant="outline"
                                   className="w-100"
@@ -593,25 +773,22 @@ export const OrdersPage: React.FC = () => {
                                   <AlertTriangle size={16} className="me-2" />
                                   Raise Dispute
                                 </SoftButton>
-                              ) : (
+                              )}
+
+                              {/* Open chat for discussion */}
+                              {refundState !== 'NONE' && order.supportSupplierId && (
                                 <button
                                   type="button"
-                                  className="btn btn-outline-secondary w-100 rounded-4 py-2 dispute-disabled-btn"
-                                  disabled
+                                  className="btn btn-light border w-100 rounded-4 py-2 small"
+                                  onClick={() => handleOpenChat(order)}
                                 >
-                                  <AlertTriangle size={16} className="me-2" />
-                                  Raise Dispute
+                                  <MessageSquare size={14} className="me-2" />
+                                  Message Supplier
                                 </button>
                               )}
 
-                              {!disputeAllowed && paymentState !== 'DISPUTED' && (
-                                <div className="text-muted small">
-                                  {refundState === 'NONE'
-                                    ? 'Raise Dispute becomes available after you start a refund/support request.'
-                                    : refundState === 'RESOLVED'
-                                      ? 'This refund request is already resolved.'
-                                      : 'Dispute is unavailable for the current payment state.'}
-                                </div>
+                              {refundState === 'NONE' && paymentState !== 'RELEASED' && paymentState !== 'REFUNDED' && order.statut === 'ANNULEE' && (
+                                <div className="text-muted small">Refund is not available for cancelled orders.</div>
                               )}
                             </div>
                           </div>
@@ -626,6 +803,156 @@ export const OrdersPage: React.FC = () => {
         })}
       </div>
 
+      {/* ── Refund Request Modal ── */}
+      <SoftModal
+        isOpen={Boolean(refundModalOrder)}
+        onClose={closeRefundModal}
+        title="Request Refund"
+      >
+        <div className="refund-modal-body">
+          <p className="text-muted mb-3">
+            Submit a refund request for {refundModalOrder?.reference || `order #${refundModalOrder?.id}`}.
+          </p>
+
+          <div className="mb-3">
+            <label className="form-label small fw-semibold text-muted mb-2">Refund Type</label>
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className={`btn flex-fill rounded-4 py-2 ${refundType === 'FULL' ? 'btn-primary text-white' : 'btn-light border'}`}
+                onClick={() => setRefundType('FULL')}
+              >
+                Full Refund
+              </button>
+              <button
+                type="button"
+                className={`btn flex-fill rounded-4 py-2 ${refundType === 'PARTIAL' ? 'btn-primary text-white' : 'btn-light border'}`}
+                onClick={() => setRefundType('PARTIAL')}
+              >
+                Partial Refund
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label small fw-semibold text-muted mb-2">Description / Reason</label>
+            <textarea
+              className={`form-control refund-textarea ${refundError && !refundDescription.trim() ? 'is-invalid' : ''}`}
+              rows={4}
+              value={refundDescription}
+              onChange={(e) => { setRefundDescription(e.target.value); if (refundError) setRefundError(''); }}
+              placeholder="Describe the issue with your order..."
+            />
+          </div>
+
+          {/* Partial refund: affected items selection */}
+          {refundType === 'PARTIAL' && refundModalOrder?.lignes && (
+            <div className="mb-3">
+              <label className="form-label small fw-semibold text-muted mb-2">Affected Items</label>
+              <div className="d-flex flex-column gap-2">
+                {refundModalOrder.lignes.map((ligne) => {
+                  const selected = refundAffectedItems.find(i => i.ligneId === ligne.id);
+                  return (
+                    <div key={ligne.id} className="d-flex align-items-center gap-2 p-2 rounded-3 bg-body-tertiary">
+                      <input
+                        type="checkbox"
+                        className="form-check-input m-0"
+                        checked={Boolean(selected)}
+                        onChange={() => toggleAffectedItem(ligne)}
+                        id={`refund-item-${ligne.id}`}
+                      />
+                      <label htmlFor={`refund-item-${ligne.id}`} className="flex-grow-1 small fw-medium mb-0" style={{ cursor: 'pointer' }}>
+                        {ligne.produit?.nom || 'Product'}
+                      </label>
+                      {selected && (
+                        <input
+                          type="number"
+                          className="form-control form-control-sm"
+                          style={{ width: '70px', borderRadius: '0.5rem' }}
+                          min={1}
+                          max={ligne.quantite}
+                          value={selected.quantity}
+                          onChange={(e) => updateAffectedItemQuantity(ligne.id, Math.min(ligne.quantite, Math.max(1, parseInt(e.target.value) || 1)))}
+                        />
+                      )}
+                      <span className="text-muted small">/ {ligne.quantite}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2">
+                <label className="form-label small fw-semibold text-muted mb-1">Requested Refund Amount (optional)</label>
+                <div className="input-group" style={{ maxWidth: '200px' }}>
+                  <input
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ borderRadius: '0.5rem 0 0 0.5rem' }}
+                    placeholder="0.00"
+                    min={0}
+                    max={refundModalOrder.montantTotal}
+                    value={refundRequestedAmount}
+                    onChange={(e) => setRefundRequestedAmount(e.target.value)}
+                  />
+                  <span className="input-group-text small" style={{ borderRadius: '0 0.5rem 0.5rem 0' }}>DH</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-3">
+            <label className="form-label small fw-semibold text-muted mb-2">Supporting Documentation (Optional)</label>
+            <div className="refund-upload-area">
+              <input
+                type="file"
+                accept="image/*"
+                id="refund-image-upload"
+                className="d-none"
+                onChange={handleRefundImageChange}
+              />
+              <label htmlFor="refund-image-upload" className="refund-upload-label">
+                <ImagePlus size={20} className="me-2 text-muted" />
+                <span className="text-muted small">{refundImage ? refundImage.name : 'Click to attach an image as proof'}</span>
+              </label>
+              {refundImagePreview && (
+                <div className="mt-2 position-relative d-inline-block">
+                  <img src={refundImagePreview} alt="Preview" className="refund-image-preview" />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light position-absolute top-0 end-0 rounded-circle shadow-sm"
+                    style={{ transform: 'translate(30%, -30%)' }}
+                    onClick={() => { setRefundImage(null); setRefundImagePreview(null); }}
+                  >
+                    <XCircle size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {refundError && <div className="alert alert-danger small py-2 rounded-3">{refundError}</div>}
+
+          <div className="d-flex flex-column-reverse flex-sm-row justify-content-end gap-2 mt-4">
+            <button
+              type="button"
+              className="btn btn-light border rounded-4 px-4"
+              onClick={closeRefundModal}
+              disabled={isSubmittingRefund}
+            >
+              Cancel
+            </button>
+            <SoftButton
+              className="px-4"
+              onClick={submitRefundRequest}
+              disabled={isSubmittingRefund}
+            >
+              {isSubmittingRefund ? 'Submitting...' : 'Submit Refund Request'}
+            </SoftButton>
+          </div>
+        </div>
+      </SoftModal>
+
+      {/* ── Dispute Modal (existing) ── */}
       <SoftModal
         isOpen={Boolean(disputeOrder)}
         onClose={closeDisputeModal}
@@ -795,34 +1122,40 @@ export const OrdersPage: React.FC = () => {
           opacity: 0.75;
         }
 
-        .dispute-reason-block {
+        .dispute-reason-block,
+        .refund-reason-block {
           padding: 0.75rem 0.9rem;
           border-radius: 1rem;
           background: rgba(var(--bs-warning-rgb), 0.09);
           border: 1px solid rgba(var(--bs-warning-rgb), 0.18);
         }
 
-        .dispute-modal-body {
+        .dispute-modal-body,
+        .refund-modal-body {
           width: min(100%, 540px);
         }
 
-        .dispute-upload-area {
+        .dispute-upload-area,
+        .refund-upload-area {
           border: 1.5px dashed var(--soft-border, #e2e8f0);
           border-radius: 1rem;
           padding: 0.75rem 1rem;
           background: var(--soft-bg);
           transition: border-color 0.15s ease;
         }
-        .dispute-upload-area:hover {
+        .dispute-upload-area:hover,
+        .refund-upload-area:hover {
           border-color: rgba(var(--bs-primary-rgb), 0.4);
         }
-        .dispute-upload-label {
+        .dispute-upload-label,
+        .refund-upload-label {
           display: flex;
           align-items: center;
           cursor: pointer;
           margin: 0;
         }
-        .dispute-image-preview {
+        .dispute-image-preview,
+        .refund-image-preview {
           max-width: 180px;
           max-height: 120px;
           border-radius: 0.75rem;
@@ -831,7 +1164,8 @@ export const OrdersPage: React.FC = () => {
         }
 
         .dispute-select,
-        .dispute-textarea {
+        .dispute-textarea,
+        .refund-textarea {
           border-radius: 1rem;
           border: 1px solid var(--soft-border);
           background: var(--soft-bg);
@@ -841,15 +1175,17 @@ export const OrdersPage: React.FC = () => {
         }
 
         .dispute-select:focus,
-        .dispute-textarea:focus {
+        .dispute-textarea:focus,
+        .refund-textarea:focus {
           border-color: rgba(var(--bs-primary-rgb), 0.45);
           box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.12);
           background: var(--soft-bg);
           color: var(--soft-text);
         }
 
-        .dispute-textarea {
-          min-height: 150px;
+        .dispute-textarea,
+        .refund-textarea {
+          min-height: 120px;
           resize: vertical;
         }
 

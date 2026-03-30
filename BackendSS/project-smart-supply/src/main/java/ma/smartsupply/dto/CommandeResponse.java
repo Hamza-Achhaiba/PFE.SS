@@ -33,6 +33,18 @@ public class CommandeResponse {
     private String refundRequestStatus;
     private LocalDateTime refundRequestedAt;
     private String refundRequestMessage;
+    private String refundType;
+    private String refundDescription;
+    private String refundImagePath;
+    private String refundAffectedItems;
+    private Integer refundAffectedQuantity;
+    private Double refundRequestedAmount;
+    private String refundSupplierResponseType;
+    private String refundSupplierMessage;
+    private String refundSupplierImagePath;
+    private LocalDateTime refundSupplierRespondedAt;
+    private Double refundSupplierOfferedAmount;
+    private LocalDateTime refundEscalatedToDisputeAt;
     private String disputeCategory;
     private String disputeReason;
     private LocalDateTime disputeRaisedAt;

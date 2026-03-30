@@ -9,6 +9,7 @@ import ma.smartsupply.enums.EscrowStatus;
 import ma.smartsupply.enums.PaymentStatus;
 import ma.smartsupply.enums.Role;
 import ma.smartsupply.enums.RefundRequestStatus;
+import ma.smartsupply.enums.RefundType;
 import ma.smartsupply.enums.StatutCommande;
 import ma.smartsupply.enums.TypeNotification;
 import ma.smartsupply.model.*;
@@ -408,6 +409,18 @@ public class CommandeService {
         dto.setRefundRequestStatus(commande.getRefundRequestStatus() != null ? commande.getRefundRequestStatus().name() : RefundRequestStatus.NONE.name());
         dto.setRefundRequestedAt(commande.getRefundRequestedAt());
         dto.setRefundRequestMessage(commande.getRefundRequestMessage());
+        dto.setRefundType(commande.getRefundType() != null ? commande.getRefundType().name() : null);
+        dto.setRefundDescription(commande.getRefundDescription());
+        dto.setRefundImagePath(commande.getRefundImagePath());
+        dto.setRefundAffectedItems(commande.getRefundAffectedItems());
+        dto.setRefundAffectedQuantity(commande.getRefundAffectedQuantity());
+        dto.setRefundRequestedAmount(commande.getRefundRequestedAmount());
+        dto.setRefundSupplierResponseType(commande.getRefundSupplierResponseType());
+        dto.setRefundSupplierMessage(commande.getRefundSupplierMessage());
+        dto.setRefundSupplierImagePath(commande.getRefundSupplierImagePath());
+        dto.setRefundSupplierRespondedAt(commande.getRefundSupplierRespondedAt());
+        dto.setRefundSupplierOfferedAmount(commande.getRefundSupplierOfferedAmount());
+        dto.setRefundEscalatedToDisputeAt(commande.getRefundEscalatedToDisputeAt());
         dto.setDisputeCategory(commande.getDisputeCategory());
         dto.setDisputeReason(commande.getDisputeReason());
         dto.setDisputeRaisedAt(commande.getDisputeRaisedAt());
@@ -690,7 +703,7 @@ public class CommandeService {
     }
 
     @Transactional
-    public CommandeResponse ouvrirDemandeRemboursement(Long commandeId, String emailClient) {
+    public CommandeResponse ouvrirDemandeRemboursement(Long commandeId, CreateRefundRequest request, String emailClient) {
         Commande commande = commandeRepository.findById(commandeId)
                 .orElseThrow(() -> new RuntimeException("Commande introuvable"));
 
@@ -702,16 +715,202 @@ public class CommandeService {
             throw new RuntimeException("Cette commande n'est plus Ã©ligible Ã  une demande de remboursement.");
         }
 
-        if (commande.getRefundRequestStatus() == null || commande.getRefundRequestStatus() == RefundRequestStatus.NONE) {
-            commande.setRefundRequestStatus(RefundRequestStatus.OPEN);
-            commande.setRefundRequestedAt(LocalDateTime.now());
+        if (commande.getRefundRequestStatus() != null && commande.getRefundRequestStatus() != RefundRequestStatus.NONE) {
+            throw new RuntimeException("A refund request already exists for this order.");
         }
 
-        if (commande.getRefundRequestMessage() == null || commande.getRefundRequestMessage().isBlank()) {
-            commande.setRefundRequestMessage(buildRefundDraft(commande));
+        String description = request != null && request.getDescription() != null ? request.getDescription().trim() : "";
+        if (description.isEmpty()) {
+            throw new RuntimeException("Refund description is required.");
         }
 
-        return mapToDTO(commandeRepository.save(commande));
+        final RefundType refundType = (request.getType() != null && request.getType().equalsIgnoreCase("PARTIAL"))
+                ? RefundType.PARTIAL : RefundType.FULL;
+
+        commande.setRefundRequestStatus(RefundRequestStatus.OPEN);
+        commande.setRefundRequestedAt(LocalDateTime.now());
+        commande.setRefundType(refundType);
+        commande.setRefundDescription(description);
+        commande.setRefundRequestMessage(description);
+
+        if (request.getImagePath() != null && !request.getImagePath().trim().isEmpty()) {
+            commande.setRefundImagePath(request.getImagePath().trim());
+        }
+
+        if (refundType == RefundType.PARTIAL) {
+            if (request.getAffectedItems() != null && !request.getAffectedItems().trim().isEmpty()) {
+                commande.setRefundAffectedItems(request.getAffectedItems().trim());
+            }
+            if (request.getAffectedQuantity() != null) {
+                commande.setRefundAffectedQuantity(request.getAffectedQuantity());
+            }
+            if (request.getRequestedAmount() != null && request.getRequestedAmount() > 0) {
+                commande.setRefundRequestedAmount(request.getRequestedAmount());
+            }
+        }
+
+        Commande saved = commandeRepository.save(commande);
+
+        // Notify supplier(s) about the refund request
+        saved.getLignes().stream()
+                .map(l -> l.getProduit().getFournisseur())
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(supplier -> notificationService.creer(
+                        supplier,
+                        "Refund request: A client has requested a " + refundType.name().toLowerCase() + " refund for order " + saved.getReference() + ". Please review and respond.",
+                        TypeNotification.REFUND,
+                        saved.getId(),
+                        saved.getReference()));
+
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public CommandeResponse submitSupplierRefundResponse(Long commandeId, SupplierRefundResponseRequest request, String emailSupplier) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        boolean isSupplierOfOrder = commande.getLignes().stream()
+                .anyMatch(l -> l.getProduit() != null
+                        && l.getProduit().getFournisseur() != null
+                        && l.getProduit().getFournisseur().getEmail().equals(emailSupplier));
+        if (!isSupplierOfOrder && !isAdmin(emailSupplier)) {
+            throw new RuntimeException("Access denied: you are not a supplier for this order.");
+        }
+
+        if (commande.getRefundRequestStatus() != RefundRequestStatus.OPEN) {
+            throw new RuntimeException("No pending refund request exists on this order.");
+        }
+
+        if (commande.getRefundSupplierRespondedAt() != null) {
+            throw new RuntimeException("A response has already been submitted for this refund request.");
+        }
+
+        String msg = request != null && request.getMessage() != null ? request.getMessage().trim() : "";
+        if (msg.isEmpty()) {
+            throw new RuntimeException("Response message is required.");
+        }
+
+        String responseType = request.getResponseType() != null ? request.getResponseType().trim().toUpperCase() : "REJECTED";
+        if (!responseType.equals("ACCEPTED") && !responseType.equals("REJECTED") && !responseType.equals("PARTIAL_OFFERED")) {
+            throw new RuntimeException("Invalid response type. Must be ACCEPTED, REJECTED, or PARTIAL_OFFERED.");
+        }
+
+        if (responseType.equals("PARTIAL_OFFERED")) {
+            if (request.getOfferedAmount() == null || request.getOfferedAmount() <= 0) {
+                throw new RuntimeException("Offered amount is required for partial refund offers.");
+            }
+            commande.setRefundSupplierOfferedAmount(request.getOfferedAmount());
+        }
+
+        commande.setRefundSupplierResponseType(responseType);
+        commande.setRefundSupplierMessage(msg);
+        commande.setRefundSupplierRespondedAt(LocalDateTime.now());
+
+        if (request.getImagePath() != null && !request.getImagePath().trim().isEmpty()) {
+            commande.setRefundSupplierImagePath(request.getImagePath().trim());
+        }
+
+        switch (responseType) {
+            case "ACCEPTED":
+                commande.setRefundRequestStatus(RefundRequestStatus.SUPPLIER_ACCEPTED);
+                break;
+            case "REJECTED":
+                commande.setRefundRequestStatus(RefundRequestStatus.SUPPLIER_REJECTED);
+                break;
+            case "PARTIAL_OFFERED":
+                commande.setRefundRequestStatus(RefundRequestStatus.PARTIAL_OFFERED);
+                break;
+        }
+
+        Commande saved = commandeRepository.save(commande);
+
+        String responseLabel = responseType.equals("ACCEPTED") ? "accepted"
+                : responseType.equals("REJECTED") ? "rejected"
+                : "offered a partial refund for";
+        notificationService.creer(
+                saved.getClient(),
+                "Refund update: The supplier has " + responseLabel + " your refund request for order " + saved.getReference() + ".",
+                TypeNotification.REFUND,
+                saved.getId(),
+                saved.getReference());
+
+        if (responseType.equals("ACCEPTED")) {
+            utilisateurRepository.findByRole(Role.ADMIN)
+                    .forEach(admin -> notificationService.creer(
+                            admin,
+                            "Refund accepted: Supplier accepted refund for order " + saved.getReference() + ". Awaiting admin processing.",
+                            TypeNotification.REFUND,
+                            saved.getId(),
+                            saved.getReference()));
+        }
+
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public CommandeResponse escalateRefundToDispute(Long commandeId, String emailClient) {
+        Commande commande = commandeRepository.findById(commandeId)
+                .orElseThrow(() -> new RuntimeException("Commande introuvable"));
+
+        if (commande.getClient() == null || !commande.getClient().getEmail().equals(emailClient)) {
+            throw new RuntimeException("Access denied: you can only escalate your own refund requests.");
+        }
+
+        RefundRequestStatus status = commande.getRefundRequestStatus();
+        if (status != RefundRequestStatus.SUPPLIER_REJECTED && status != RefundRequestStatus.PARTIAL_OFFERED) {
+            throw new RuntimeException("Refund can only be escalated after the supplier has rejected or offered a partial refund.");
+        }
+
+        commande.setRefundRequestStatus(RefundRequestStatus.ESCALATED_TO_DISPUTE);
+        commande.setRefundEscalatedToDisputeAt(LocalDateTime.now());
+
+        commande.setEscrowStatus(EscrowStatus.DISPUTED);
+        commande.setPaymentStatus(PaymentStatus.DISPUTED);
+        commande.setDisputeCategory("Refund Escalation");
+
+        String refundTypeLabel = commande.getRefundType() != null ? commande.getRefundType().name().toLowerCase() : "full";
+        String reason = "Escalated from " + refundTypeLabel + " refund request. "
+                + "Client reason: " + (commande.getRefundDescription() != null ? commande.getRefundDescription() : "N/A")
+                + " | Supplier response: " + (commande.getRefundSupplierResponseType() != null ? commande.getRefundSupplierResponseType() : "N/A")
+                + " - " + (commande.getRefundSupplierMessage() != null ? commande.getRefundSupplierMessage() : "");
+        commande.setDisputeReason(reason);
+        commande.setDisputeRaisedAt(LocalDateTime.now());
+        if (commande.getRefundImagePath() != null) {
+            commande.setDisputeImagePath(commande.getRefundImagePath());
+        }
+
+        if (commande.getRefundSupplierMessage() != null) {
+            commande.setSupplierResponseMessage(commande.getRefundSupplierMessage());
+            commande.setSupplierRespondedAt(commande.getRefundSupplierRespondedAt());
+            if (commande.getRefundSupplierImagePath() != null) {
+                commande.setSupplierResponseImagePath(commande.getRefundSupplierImagePath());
+            }
+        }
+
+        Commande saved = commandeRepository.save(commande);
+
+        saved.getLignes().stream()
+                .map(l -> l.getProduit().getFournisseur())
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(supplier -> notificationService.creer(
+                        supplier,
+                        "Dispute escalation: The refund request for order " + saved.getReference() + " has been escalated to a formal dispute by the client.",
+                        TypeNotification.DISPUTE,
+                        saved.getId(),
+                        saved.getReference()));
+
+        utilisateurRepository.findByRole(Role.ADMIN)
+                .forEach(admin -> notificationService.creer(
+                        admin,
+                        "Dispute escalation: A refund request for order " + saved.getReference() + " has been escalated to dispute by client " + saved.getClient().getNom() + ".",
+                        TypeNotification.DISPUTE,
+                        saved.getId(),
+                        saved.getReference()));
+
+        return mapToDTO(saved);
     }
 
     public ResponseEntity<Resource> telechargerFacture(Long id) {
@@ -912,7 +1111,10 @@ public class CommandeService {
         for (Commande commande : eligible) {
             // Skip if blocking conditions exist
             if (commande.getEscrowStatus() == EscrowStatus.DISPUTED) continue;
-            if (commande.getRefundRequestStatus() == RefundRequestStatus.OPEN) continue;
+            RefundRequestStatus refundStatus = commande.getRefundRequestStatus();
+            if (refundStatus != null && refundStatus != RefundRequestStatus.NONE
+                    && refundStatus != RefundRequestStatus.RESOLVED
+                    && refundStatus != RefundRequestStatus.REJECTED) continue;
             if (commande.getStatut() == StatutCommande.ANNULEE) continue;
             if (commande.getDisputeRaisedAt() != null) continue;
 

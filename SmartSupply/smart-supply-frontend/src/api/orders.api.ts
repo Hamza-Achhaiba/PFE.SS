@@ -13,8 +13,22 @@ export const ordersApi = {
         apiClient.patch(`/api/commandes/${id}/statut`, { nouveauStatut }).then(res => res.data),
     annuler: (id: number) =>
         apiClient.put(`/api/commandes/${id}/annuler`).then(res => res.data),
-    openRefundRequest: (id: number) =>
-        apiClient.patch(`/api/commandes/${id}/refund-request`).then(res => res.data),
+    openRefundRequest: (id: number, request: {
+        type: 'FULL' | 'PARTIAL';
+        description: string;
+        imagePath?: string;
+        affectedItems?: string;
+        affectedQuantity?: number;
+        requestedAmount?: number;
+    }) => apiClient.patch(`/api/commandes/${id}/refund-request`, request).then(res => res.data),
+    submitRefundResponse: (id: number, request: {
+        responseType: 'ACCEPTED' | 'REJECTED' | 'PARTIAL_OFFERED';
+        message: string;
+        imagePath?: string;
+        offeredAmount?: number;
+    }) => apiClient.patch(`/api/commandes/${id}/refund-response`, request).then(res => res.data),
+    escalateRefund: (id: number) =>
+        apiClient.patch(`/api/commandes/${id}/escalate-refund`).then(res => res.data),
     markDisputed: (id: number, request: { category?: string; reason: string; imagePath?: string }) =>
         apiClient.patch(`/api/commandes/${id}/escrow/dispute`, request).then(res => res.data),
     submitDisputeResponse: (id: number, request: { message: string; imagePath?: string }) =>

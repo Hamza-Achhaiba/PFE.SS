@@ -4,8 +4,10 @@ import ma.smartsupply.dto.CheckoutRequest;
 import ma.smartsupply.dto.ClientEngagementDTO;
 import ma.smartsupply.dto.CommandeRequest;
 import ma.smartsupply.dto.CommandeResponse;
+import ma.smartsupply.dto.CreateRefundRequest;
 import ma.smartsupply.dto.RaiseDisputeRequest;
 import ma.smartsupply.dto.SupplierDisputeResponseRequest;
+import ma.smartsupply.dto.SupplierRefundResponseRequest;
 import ma.smartsupply.dto.UpdateStatutRequest;
 import ma.smartsupply.dto.UpdateTrackingRequest;
 import ma.smartsupply.enums.StatutCommande;
@@ -189,10 +191,35 @@ public class CommandeController {
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<CommandeResponse> openRefundRequest(
             @PathVariable("id") Long id,
+            @RequestBody CreateRefundRequest request,
             Principal principal) {
-        CommandeResponse resp = commandeService.ouvrirDemandeRemboursement(id, principal.getName());
+        CommandeResponse resp = commandeService.ouvrirDemandeRemboursement(id, request, principal.getName());
         activityLogService.logByEmail(principal.getName(), "REFUND_REQUESTED", "ORDER",
-                String.valueOf(id), resp.getReference(), "Refund request opened by client");
+                String.valueOf(id), resp.getReference(),
+                "Refund request opened: " + (request != null ? request.getType() : "FULL"));
+        return ResponseEntity.ok(resp);
+    }
+
+    @PatchMapping("/{id}/refund-response")
+    @PreAuthorize("hasAnyRole('FOURNISSEUR', 'ADMIN')")
+    public ResponseEntity<CommandeResponse> submitRefundResponse(
+            @PathVariable("id") Long id,
+            @RequestBody SupplierRefundResponseRequest request,
+            Principal principal) {
+        CommandeResponse resp = commandeService.submitSupplierRefundResponse(id, request, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "REFUND_RESPONSE", "ORDER",
+                String.valueOf(id), resp.getReference(), "Supplier responded to refund request");
+        return ResponseEntity.ok(resp);
+    }
+
+    @PatchMapping("/{id}/escalate-refund")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<CommandeResponse> escalateRefundToDispute(
+            @PathVariable("id") Long id,
+            Principal principal) {
+        CommandeResponse resp = commandeService.escalateRefundToDispute(id, principal.getName());
+        activityLogService.logByEmail(principal.getName(), "REFUND_ESCALATED", "ORDER",
+                String.valueOf(id), resp.getReference(), "Client escalated refund to dispute");
         return ResponseEntity.ok(resp);
     }
 

@@ -42,6 +42,16 @@ export const SalesOrdersPage: React.FC = () => {
   const [disputeResponseError, setDisputeResponseError] = useState('');
   const [isSubmittingDisputeResponse, setIsSubmittingDisputeResponse] = useState(false);
 
+  // Refund response state
+  const [refundResponseOrderId, setRefundResponseOrderId] = useState<number | null>(null);
+  const [refundResponseType, setRefundResponseType] = useState<'ACCEPTED' | 'REJECTED' | 'PARTIAL_OFFERED'>('ACCEPTED');
+  const [refundResponseMessage, setRefundResponseMessage] = useState('');
+  const [refundResponseImage, setRefundResponseImage] = useState<File | null>(null);
+  const [refundResponseImagePreview, setRefundResponseImagePreview] = useState<string | null>(null);
+  const [refundOfferedAmount, setRefundOfferedAmount] = useState<string>('');
+  const [refundResponseError, setRefundResponseError] = useState('');
+  const [isSubmittingRefundResponse, setIsSubmittingRefundResponse] = useState(false);
+
   // States for tracking update inputs per order
   const [trackingData, setTrackingData] = useState<Record<number, { ref: string; date: string }>>({});
 
@@ -183,6 +193,62 @@ export const SalesOrdersPage: React.FC = () => {
       setDisputeResponseError(e.response?.data?.message || e.response?.data || 'Failed to submit response.');
     } finally {
       setIsSubmittingDisputeResponse(false);
+    }
+  };
+
+  const openRefundResponseForm = (orderId: number) => {
+    setRefundResponseOrderId(orderId);
+    setRefundResponseType('ACCEPTED');
+    setRefundResponseMessage('');
+    setRefundResponseImage(null);
+    setRefundResponseImagePreview(null);
+    setRefundOfferedAmount('');
+    setRefundResponseError('');
+  };
+
+  const handleRefundResponseImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setRefundResponseImage(file);
+    if (file) {
+      setRefundResponseImagePreview(URL.createObjectURL(file));
+    } else {
+      setRefundResponseImagePreview(null);
+    }
+  };
+
+  const submitRefundResponse = async (orderId: number) => {
+    const msg = refundResponseMessage.trim();
+    if (!msg) {
+      setRefundResponseError('Please provide a response message.');
+      return;
+    }
+    if (refundResponseType === 'PARTIAL_OFFERED') {
+      const amount = parseFloat(refundOfferedAmount);
+      if (!amount || amount <= 0) {
+        setRefundResponseError('Please provide a valid offered amount for partial refund.');
+        return;
+      }
+    }
+    setIsSubmittingRefundResponse(true);
+    try {
+      let imagePath: string | undefined;
+      if (refundResponseImage) {
+        const uploadResult = await ordersApi.uploadDisputeImage(refundResponseImage);
+        imagePath = uploadResult.url;
+      }
+      const updated = await ordersApi.submitRefundResponse(orderId, {
+        responseType: refundResponseType,
+        message: msg,
+        imagePath,
+        offeredAmount: refundResponseType === 'PARTIAL_OFFERED' ? parseFloat(refundOfferedAmount) : undefined,
+      });
+      setVentes(prev => prev.map(o => o.id === updated.id ? updated : o));
+      setRefundResponseOrderId(null);
+      toast.success('Refund response submitted successfully.');
+    } catch (e: any) {
+      setRefundResponseError(e.response?.data?.message || e.response?.data || 'Failed to submit response.');
+    } finally {
+      setIsSubmittingRefundResponse(false);
     }
   };
 
@@ -455,22 +521,140 @@ export const SalesOrdersPage: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Refund / dispute info */}
-                        {((order.refundRequestStatus && order.refundRequestStatus !== 'NONE') || order.disputeReason) && (
-                          <div className="bg-body-tertiary rounded p-3 mb-3">
-                            <div className="fw-semibold small mb-1">Client Support Flow</div>
-                            {order.refundRequestStatus && order.refundRequestStatus !== 'NONE' && (
-                              <div className="text-muted small">
-                                Refund request: {order.refundRequestStatus === 'OPEN' ? 'Open' : order.refundRequestStatus === 'RESOLVED' ? 'Resolved' : 'Rejected'}
-                                {order.refundRequestedAt ? ` · ${format(new Date(order.refundRequestedAt), 'PP p')}` : ''}
+                        {/* Refund request section */}
+                        {order.refundRequestStatus && order.refundRequestStatus !== 'NONE' && (
+                          <div className="rounded-4 border p-3 mb-3" style={{ background: 'rgba(var(--bs-info-rgb), 0.06)', borderColor: 'rgba(var(--bs-info-rgb), 0.2)' }}>
+                            <div className="d-flex align-items-center gap-2 mb-2">
+                              <Package size={16} className="text-info" />
+                              <span className="fw-semibold small">Refund Request from Client</span>
+                              <span className={`badge rounded-pill ms-auto ${
+                                order.refundRequestStatus === 'OPEN' ? 'bg-warning text-dark'
+                                : order.refundRequestStatus === 'SUPPLIER_ACCEPTED' ? 'bg-success'
+                                : order.refundRequestStatus === 'SUPPLIER_REJECTED' ? 'bg-danger'
+                                : order.refundRequestStatus === 'PARTIAL_OFFERED' ? 'bg-info'
+                                : order.refundRequestStatus === 'RESOLVED' ? 'bg-success'
+                                : 'bg-secondary'
+                              }`}>
+                                {order.refundRequestStatus === 'OPEN' ? 'Pending'
+                                  : order.refundRequestStatus === 'SUPPLIER_ACCEPTED' ? 'Accepted'
+                                  : order.refundRequestStatus === 'SUPPLIER_REJECTED' ? 'Rejected'
+                                  : order.refundRequestStatus === 'PARTIAL_OFFERED' ? 'Partial Offered'
+                                  : order.refundRequestStatus === 'ESCALATED_TO_DISPUTE' ? 'Escalated'
+                                  : order.refundRequestStatus === 'RESOLVED' ? 'Resolved'
+                                  : order.refundRequestStatus}
+                              </span>
+                            </div>
+
+                            {order.refundType && (
+                              <div className="text-muted small mb-1">
+                                Type: <span className="fw-semibold">{order.refundType === 'FULL' ? 'Full Refund' : 'Partial Refund'}</span>
+                                {order.refundRequestedAt && <> &middot; {format(new Date(order.refundRequestedAt), 'PP p')}</>}
                               </div>
                             )}
-                            {order.disputeCategory && (
-                              <div className="text-muted small">Dispute category: {order.disputeCategory}</div>
+                            {order.refundDescription && (
+                              <div className="text-muted small mb-1">Reason: {order.refundDescription}</div>
                             )}
-                            {order.disputeReason && (
-                              <div className="text-muted small mt-1">Dispute reason: {order.disputeReason}</div>
+                            {order.refundType === 'PARTIAL' && order.refundRequestedAmount && (
+                              <div className="text-muted small mb-1">
+                                Requested amount: <span className="fw-semibold">{order.refundRequestedAmount.toFixed(2)} DH</span>
+                              </div>
                             )}
+                            {order.refundImagePath && (
+                              <div className="mb-2">
+                                <img src={order.refundImagePath} alt="Client evidence" className="rounded-3" style={{ maxWidth: '180px', maxHeight: '120px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                              </div>
+                            )}
+
+                            {/* Supplier response display */}
+                            {order.refundSupplierRespondedAt ? (
+                              <div className="mt-2 p-2 rounded-3 bg-body-tertiary">
+                                <div className="fw-semibold small text-success mb-1">
+                                  Your response: {order.refundSupplierResponseType === 'ACCEPTED' ? 'Accepted' : order.refundSupplierResponseType === 'REJECTED' ? 'Rejected' : 'Partial Offer'}
+                                </div>
+                                <div className="text-muted small">{order.refundSupplierMessage}</div>
+                                {order.refundSupplierResponseType === 'PARTIAL_OFFERED' && order.refundSupplierOfferedAmount && (
+                                  <div className="text-muted small">Offered: {order.refundSupplierOfferedAmount.toFixed(2)} DH</div>
+                                )}
+                                {order.refundSupplierImagePath && (
+                                  <img src={order.refundSupplierImagePath} alt="Your evidence" className="rounded-3 mt-2" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                )}
+                              </div>
+                            ) : order.refundRequestStatus === 'OPEN' ? (
+                              refundResponseOrderId === order.id ? (
+                                <div className="mt-2">
+                                  <div className="mb-2">
+                                    <label className="form-label small fw-semibold text-muted mb-1">Response</label>
+                                    <div className="d-flex gap-1 mb-2">
+                                      {(['ACCEPTED', 'REJECTED', 'PARTIAL_OFFERED'] as const).map(rt => (
+                                        <button
+                                          key={rt}
+                                          type="button"
+                                          className={`btn btn-sm flex-fill rounded-3 ${refundResponseType === rt
+                                            ? (rt === 'ACCEPTED' ? 'btn-success text-white' : rt === 'REJECTED' ? 'btn-danger text-white' : 'btn-warning text-dark')
+                                            : 'btn-light border'}`}
+                                          onClick={() => setRefundResponseType(rt)}
+                                        >
+                                          {rt === 'ACCEPTED' ? 'Accept' : rt === 'REJECTED' ? 'Reject' : 'Partial Offer'}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {refundResponseType === 'PARTIAL_OFFERED' && (
+                                    <div className="mb-2">
+                                      <label className="form-label small text-muted mb-1">Offered Amount (DH)</label>
+                                      <input
+                                        type="number"
+                                        className="form-control form-control-sm shadow-none"
+                                        style={{ borderRadius: '0.5rem', maxWidth: '160px' }}
+                                        placeholder="0.00"
+                                        min={0}
+                                        value={refundOfferedAmount}
+                                        onChange={(e) => setRefundOfferedAmount(e.target.value)}
+                                      />
+                                    </div>
+                                  )}
+
+                                  <textarea
+                                    className={`form-control shadow-none mb-2 ${refundResponseError ? 'is-invalid' : ''}`}
+                                    rows={3}
+                                    placeholder="Provide your response to this refund request..."
+                                    value={refundResponseMessage}
+                                    onChange={(e) => { setRefundResponseMessage(e.target.value); setRefundResponseError(''); }}
+                                    style={{ borderRadius: '0.75rem' }}
+                                  />
+                                  {refundResponseError && <div className="invalid-feedback d-block mb-2">{refundResponseError}</div>}
+
+                                  <div className="mb-2">
+                                    <input type="file" accept="image/*" id={`refund-resp-img-${order.id}`} className="d-none" onChange={handleRefundResponseImageChange} />
+                                    <label htmlFor={`refund-resp-img-${order.id}`} className="d-flex align-items-center gap-2 text-muted small" style={{ cursor: 'pointer' }}>
+                                      <ImagePlus size={16} />
+                                      {refundResponseImage ? refundResponseImage.name : 'Attach supporting image (optional)'}
+                                    </label>
+                                    {refundResponseImagePreview && (
+                                      <div className="mt-1 position-relative d-inline-block">
+                                        <img src={refundResponseImagePreview} alt="Preview" className="rounded-3" style={{ maxWidth: '140px', maxHeight: '90px', objectFit: 'cover', border: '1px solid var(--soft-border)' }} />
+                                        <button type="button" className="btn btn-sm btn-light position-absolute top-0 end-0 rounded-circle shadow-sm" style={{ transform: 'translate(30%, -30%)' }} onClick={() => { setRefundResponseImage(null); setRefundResponseImagePreview(null); }}>
+                                          <XCircle size={12} />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="d-flex gap-2">
+                                    <SoftButton variant="primary" className="flex-grow-1" onClick={() => submitRefundResponse(order.id)} disabled={isSubmittingRefundResponse}>
+                                      {isSubmittingRefundResponse ? 'Submitting...' : 'Submit Response'}
+                                    </SoftButton>
+                                    <button className="btn btn-light border rounded-3 px-3" onClick={() => setRefundResponseOrderId(null)} disabled={isSubmittingRefundResponse}>Cancel</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <SoftButton variant="outline" className="w-100 mt-2" onClick={() => openRefundResponseForm(order.id)}>
+                                  <Package size={14} className="me-2" />
+                                  Respond to Refund Request
+                                </SoftButton>
+                              )
+                            ) : null}
                           </div>
                         )}
 

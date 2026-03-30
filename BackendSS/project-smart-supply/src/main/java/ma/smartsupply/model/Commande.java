@@ -5,6 +5,7 @@ import lombok.*;
 import ma.smartsupply.enums.EscrowStatus;
 import ma.smartsupply.enums.PaymentStatus;
 import ma.smartsupply.enums.RefundRequestStatus;
+import ma.smartsupply.enums.RefundType;
 import ma.smartsupply.enums.StatutCommande;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -66,21 +67,51 @@ public class Commande {
     private LocalDateTime refundRequestedAt;
     @Column(length = 1200)
     private String refundRequestMessage;
+
+    @Enumerated(EnumType.STRING)
+    private RefundType refundType;
+
+    @Column(columnDefinition = "TEXT")
+    private String refundDescription;
+
+    private String refundImagePath;
+
+    @Column(columnDefinition = "TEXT")
+    private String refundAffectedItems;
+
+    private Integer refundAffectedQuantity;
+
+    private Double refundRequestedAmount;
+
+    @Column(length = 30)
+    private String refundSupplierResponseType;
+
+    @Column(columnDefinition = "TEXT")
+    private String refundSupplierMessage;
+
+    private String refundSupplierImagePath;
+
+    private LocalDateTime refundSupplierRespondedAt;
+
+    private Double refundSupplierOfferedAmount;
+
+    private LocalDateTime refundEscalatedToDisputeAt;
+
     @Column(length = 80)
     private String disputeCategory;
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String disputeReason;
     private LocalDateTime disputeRaisedAt;
     private String disputeImagePath;
 
     // Supplier dispute response
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String supplierResponseMessage;
     private String supplierResponseImagePath;
     private LocalDateTime supplierRespondedAt;
 
     // Admin decision
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String adminDecisionReason;
     private LocalDateTime adminDecisionAt;
 

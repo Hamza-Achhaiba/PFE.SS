@@ -275,7 +275,10 @@ public class AdminController {
                 .orElseThrow(() -> new RuntimeException("Commande non trouvée"));
 
         // Gating: both client dispute and supplier response must exist
-        if (commande.getDisputeRaisedAt() != null && commande.getSupplierRespondedAt() == null) {
+        // For escalated refunds, the supplier already responded during the refund phase
+        boolean supplierRespondedDispute = commande.getSupplierRespondedAt() != null
+                || commande.getRefundSupplierRespondedAt() != null;
+        if (commande.getDisputeRaisedAt() != null && !supplierRespondedDispute) {
             return ResponseEntity.badRequest().body("Cannot resolve dispute: supplier has not yet responded. Both sides must submit before admin can decide.");
         }
 
@@ -322,7 +325,10 @@ public class AdminController {
                 .orElseThrow(() -> new RuntimeException("Commande non trouvée"));
 
         // Gating: if dispute exists, supplier must have responded before admin can decide
-        if (commande.getDisputeRaisedAt() != null && commande.getSupplierRespondedAt() == null) {
+        // For escalated refunds, the supplier already responded during the refund phase
+        boolean supplierResponded = commande.getSupplierRespondedAt() != null
+                || commande.getRefundSupplierRespondedAt() != null;
+        if (commande.getDisputeRaisedAt() != null && !supplierResponded) {
             return ResponseEntity.badRequest().body("Cannot make refund decision: supplier has not yet responded to the dispute. Both sides must submit before admin can decide.");
         }
 

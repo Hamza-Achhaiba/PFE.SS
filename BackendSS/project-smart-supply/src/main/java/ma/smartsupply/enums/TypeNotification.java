@@ -4,5 +4,6 @@ public enum TypeNotification {
     NOUVELLE_COMMANDE,
     VALIDATION_COMMANDE,
     ALERTE_STOCK,
-    DISPUTE
+    DISPUTE,
+    REFUND
 }
