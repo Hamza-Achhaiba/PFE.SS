@@ -6,16 +6,10 @@ import { SoftInput } from '../../../components/ui/SoftInput';
 import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { Truck, Heart, Star, User, Mail } from 'lucide-react';
 import { favorisApi } from '../../../api/favoris.api';
+import { resolveImage } from '../../../utils/imageUtils';
 
 export const SuppliersPage: React.FC = () => {
   const [entreprise, setEntreprise] = useState('');
-
-  const resolveImage = (url: string | undefined) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
-    return `${backendUrl}${url}`;
-  };
 
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [favorites, setFavorites] = useState<number[]>([]);

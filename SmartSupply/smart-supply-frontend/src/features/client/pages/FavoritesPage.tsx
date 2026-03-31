@@ -6,13 +6,7 @@ import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { Truck, Heart, UserX } from 'lucide-react';
 import { User } from '../../../api/types';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
-
-const resolveImage = (url: string | undefined) => {
-    if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
-    return `${backendUrl}${url}`;
-};
+import { resolveImage } from '../../../utils/imageUtils';
 
 export const FavoritesPage: React.FC = () => {
     const [favorites, setFavorites] = useState<User[]>([]);

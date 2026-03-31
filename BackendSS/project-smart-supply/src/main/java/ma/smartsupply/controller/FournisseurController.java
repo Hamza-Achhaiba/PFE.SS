@@ -108,6 +108,9 @@ public class FournisseurController {
         f.setDescription(request.getDescription());
         f.setYearEstablished(request.getYearEstablished());
         f.setCategorie(request.getCategorie());
+        if (request.getImage() != null) {
+            f.setImage(request.getImage());
+        }
 
         Fournisseur saved = fournisseurRepository.save(f);
         activityLogService.logByEmail(principal.getName(), "SUPPLIER_PROFILE_UPDATED", "SUPPLIER",

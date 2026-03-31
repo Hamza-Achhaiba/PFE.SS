@@ -7,6 +7,7 @@ import { SoftLoader } from '../../../components/ui/SoftLoader';
 import { SoftEmptyState } from '../../../components/ui/SoftEmptyState';
 import { Truck, ShoppingBag, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import { resolveImage } from '../../../utils/imageUtils';
 
 interface EngagedSupplier {
   id: number;
@@ -17,13 +18,6 @@ interface EngagedSupplier {
   totalSpent: number;
   lastOrderDate: string;
 }
-
-const resolveImage = (url: string | undefined) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8088';
-  return `${backendUrl}${url}`;
-};
 
 export const EngagedSuppliersPage: React.FC = () => {
   const navigate = useNavigate();
